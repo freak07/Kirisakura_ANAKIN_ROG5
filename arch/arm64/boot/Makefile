@@ -20,6 +20,8 @@ targets := Image Image.bz2 Image.gz Image.lz4 Image.lzma Image.lzo
 
 DTB_OBJS := $(shell find $(obj)/dts/ -name \*.dtb)
 
+DTBO_OBJS := $(shell find -L $(obj)/dts/ -name \*.dtbo)
+
 ifeq ($(CONFIG_QCOM_RTIC),y)
 # Add RTIC DTB to the DTB list if RTIC MPGen is enabled
 # Note, we keep this for compatibility with
@@ -64,7 +66,7 @@ $(obj)/Image.gz-dtb: $(obj)/Image.gz $(DTB_OBJS) FORCE
 	$(call if_changed,cat)
 
 
-$(obj)/dtbo.img: $(obj)/dts/dtboimg.cfg FORCE
+$(obj)/dtbo.img: $(obj)/dts/dtboimg.cfg $(DTBO_OBJS) FORCE
 	$(call if_changed,mkdtimg)
 
 install:
