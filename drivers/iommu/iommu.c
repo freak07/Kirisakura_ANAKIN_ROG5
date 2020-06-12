@@ -2057,9 +2057,9 @@ size_t iommu_unmap_fast(struct iommu_domain *domain,
 }
 EXPORT_SYMBOL_GPL(iommu_unmap_fast);
 
-size_t __iommu_map_sg(struct iommu_domain *domain, unsigned long iova,
-		    struct scatterlist *sg, unsigned int nents, int prot,
-		    gfp_t gfp)
+static size_t __iommu_map_sg(struct iommu_domain *domain, unsigned long iova,
+			     struct scatterlist *sg, unsigned int nents, int prot,
+			     gfp_t gfp)
 {
 	size_t mapped = 0;
 	struct msm_iommu_ops *ops = to_msm_iommu_ops(domain->ops);
@@ -2069,10 +2069,9 @@ size_t __iommu_map_sg(struct iommu_domain *domain, unsigned long iova,
 	trace_map_sg(to_msm_iommu_domain(domain), iova, mapped, prot);
 	return mapped;
 }
-EXPORT_SYMBOL_GPL(iommu_map_sg);
 
-size_t default_iommu_map_sg(struct iommu_domain *domain, unsigned long iova,
-		    struct scatterlist *sg, unsigned int nents, int prot)
+static size_t __default_iommu_map_sg(struct iommu_domain *domain, unsigned long iova,
+		    struct scatterlist *sg, unsigned int nents, int prot, gfp_t gfp)
 {
 	size_t len = 0, mapped = 0;
 	phys_addr_t start;
@@ -2114,13 +2113,21 @@ out_err:
 
 }
 
+size_t default_iommu_map_sg(struct iommu_domain *domain, unsigned long iova,
+		    struct scatterlist *sg, unsigned int nents, int prot)
+{
+	might_sleep();
+	return __default_iommu_map_sg(domain, iova, sg, nents, prot, GFP_KERNEL);
+}
+EXPORT_SYMBOL(default_iommu_map_sg);
+
 size_t iommu_map_sg(struct iommu_domain *domain, unsigned long iova,
 		    struct scatterlist *sg, unsigned int nents, int prot)
 {
 	might_sleep();
 	return __iommu_map_sg(domain, iova, sg, nents, prot, GFP_KERNEL);
 }
-EXPORT_SYMBOL(default_iommu_map_sg);
+EXPORT_SYMBOL_GPL(iommu_map_sg);
 
 size_t iommu_map_sg_atomic(struct iommu_domain *domain, unsigned long iova,
 		    struct scatterlist *sg, unsigned int nents, int prot)
