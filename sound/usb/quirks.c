@@ -1441,6 +1441,9 @@ void snd_usb_set_format_quirk(struct snd_usb_substream *subs,
 		set_format_emu_quirk(subs, fmt);
 		break;
 	case USB_ID(0x534d, 0x0021): /* MacroSilicon MS2100/MS2106 */
+	case USB_ID(0x534d, 0x2109): /* MacroSilicon MS2109 */
+		subs->stream_offset_adj = 2;
+		break;
 	}
 }
 
