@@ -650,6 +650,11 @@ static int dsi_panel_wled_register(struct dsi_panel *panel,
 	return 0;
 }
 
+static bool bl_dimmer = true;
+module_param(bl_dimmer, bool, 0644);
+static int bl_min = 2;
+module_param(bl_min, int, 0644);
+
 static int dsi_panel_update_backlight(struct dsi_panel *panel,
 	u32 bl_lvl)
 {
@@ -671,6 +676,11 @@ static int dsi_panel_update_backlight(struct dsi_panel *panel,
 	/* ASUS BSP Display +++ */
 #if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
 	DSI_LOG("[from] set bl=%d\n", bl_lvl);
+	
+	if ((bl_dimmer == true) && (bl_lvl == 9))
+		{
+		bl_lvl = bl_min ;
+		}
 	dsi_anakin_record_backlight(bl_lvl);
 
 	// bl denied due to DC mode changed
