@@ -17,6 +17,7 @@
 #include "adreno_pm4types.h"
 #include "adreno_trace.h"
 #include "kgsl_trace.h"
+#include "kgsl_util.h"
 
 /* IFPC & Preemption static powerup restore list */
 static u32 a6xx_pwrup_reglist[] = {
@@ -90,7 +91,7 @@ static u32 a6xx_ifpc_pwrup_reglist[] = {
 	A6XX_CP_AHB_CNTL,
 };
 
-/* Applicable to a620, a650 and a660 */
+/* Applicable to a620, a635, a650 and a660 */
 static u32 a650_pwrup_reglist[] = {
 	A6XX_CP_PROTECT_REG + 47,          /* Programmed for infinite span */
 	A6XX_TPL1_BICUBIC_WEIGHTS_TABLE_0,
@@ -137,7 +138,8 @@ int a6xx_init(struct adreno_device *adreno_dev)
 
 	/* If the memory type is DDR 4, override the existing configuration */
 	if (of_fdt_get_ddrtype() == 0x7) {
-		if (adreno_is_a660_shima(adreno_dev))
+		if (adreno_is_a660_shima(adreno_dev) ||
+			adreno_is_a635(adreno_dev))
 			adreno_dev->highest_bank_bit = 14;
 		else if ((adreno_is_a650(adreno_dev) ||
 				adreno_is_a660(adreno_dev)))
@@ -149,7 +151,7 @@ int a6xx_init(struct adreno_device *adreno_dev)
 	if (IS_ERR_OR_NULL(adreno_dev->pwrup_reglist)) {
 		adreno_dev->pwrup_reglist =
 				kgsl_allocate_global(KGSL_DEVICE(adreno_dev),
-					PAGE_SIZE, 0, KGSL_MEMDESC_PRIVILEGED,
+					PAGE_SIZE, 0, 0, KGSL_MEMDESC_PRIVILEGED,
 					"powerup_register_list");
 		if (IS_ERR(adreno_dev->pwrup_reglist))
 			return PTR_ERR(adreno_dev->pwrup_reglist);
@@ -208,7 +210,7 @@ __get_gmu_ao_cgc_mode_cntl(struct adreno_device *adreno_dev)
 	else if (adreno_is_a615_family(adreno_dev))
 		return 0x00000222;
 	else if (adreno_is_a660(adreno_dev))
-		return 0x00020200;
+		return 0x00020000;
 	else
 		return 0x00020202;
 }
@@ -249,6 +251,7 @@ bool a6xx_cx_regulator_disable_wait(struct regulator *reg,
 {
 	ktime_t tout = ktime_add_us(ktime_get(), timeout * 1000);
 	unsigned int val;
+	struct adreno_device *adreno_dev = ADRENO_DEVICE(device);
 
 	if (IS_ERR_OR_NULL(reg))
 		return true;
@@ -256,18 +259,39 @@ bool a6xx_cx_regulator_disable_wait(struct regulator *reg,
 	regulator_disable(reg);
 
 	for (;;) {
-		gmu_core_regread(device, A6XX_GPU_CC_CX_GDSCR, &val);
+		if (adreno_is_a619_holi(adreno_dev))
+			adreno_read_gmu_wrapper(adreno_dev,
+					A6XX_GPU_CC_CX_GDSCR, &val);
+		else
+			gmu_core_regread(device, A6XX_GPU_CC_CX_GDSCR, &val);
 
 		if (!(val & BIT(31)))
 			return true;
 
 		if (ktime_compare(ktime_get(), tout) > 0) {
-			gmu_core_regread(device, A6XX_GPU_CC_CX_GDSCR, &val);
+			if (adreno_is_a619_holi(adreno_dev))
+				adreno_read_gmu_wrapper(adreno_dev,
+						A6XX_GPU_CC_CX_GDSCR, &val);
+			else
+				gmu_core_regread(device, A6XX_GPU_CC_CX_GDSCR,
+							&val);
 			return (!(val & BIT(31)));
 		}
 
 		usleep_range((100 >> 2) + 1, 100);
 	}
+}
+
+static void set_holi_sptprac_clock(struct adreno_device *adreno_dev, bool enable)
+{
+	u32 val = 0;
+
+	adreno_read_gmu_wrapper(adreno_dev,
+			A6XX_GPU_GMU_GX_SPTPRAC_CLOCK_CONTROL, &val);
+	val &= ~1;
+	adreno_write_gmu_wrapper(adreno_dev,
+			A6XX_GPU_GMU_GX_SPTPRAC_CLOCK_CONTROL,
+			val | (enable ? 1 : 0));
 }
 
 static void a6xx_hwcg_set(struct adreno_device *adreno_dev, bool on)
@@ -309,6 +333,8 @@ static void a6xx_hwcg_set(struct adreno_device *adreno_dev, bool on)
 		!adreno_is_a610(adreno_dev))
 		gmu_core_regrmw(device,
 			A6XX_GPU_GMU_GX_SPTPRAC_CLOCK_CONTROL, 1, 0);
+	else if (adreno_is_a619_holi(adreno_dev))
+		set_holi_sptprac_clock(adreno_dev, false);
 
 	for (i = 0; i < a6xx_core->hwcg_count; i++)
 		kgsl_regwrite(device, a6xx_core->hwcg[i].offset,
@@ -323,6 +349,8 @@ static void a6xx_hwcg_set(struct adreno_device *adreno_dev, bool on)
 		!adreno_is_a610(adreno_dev))
 		gmu_core_regrmw(device,
 			A6XX_GPU_GMU_GX_SPTPRAC_CLOCK_CONTROL, 0, 1);
+	else if (adreno_is_a619_holi(adreno_dev))
+		set_holi_sptprac_clock(adreno_dev, true);
 
 	/* enable top level HWCG */
 	kgsl_regwrite(device, A6XX_RBBM_CLOCK_CNTL,
@@ -424,6 +452,18 @@ static void a6xx_set_secvid(struct kgsl_device *device)
 
 	if (ADRENO_QUIRK(ADRENO_DEVICE(device), ADRENO_QUIRK_SECVID_SET_ONCE))
 		set = true;
+}
+
+static void a6xx_deassert_gbif_halt(struct adreno_device *adreno_dev)
+{
+	struct kgsl_device *device = KGSL_DEVICE(adreno_dev);
+
+	kgsl_regwrite(device, A6XX_GBIF_HALT, 0x0);
+
+	if (adreno_is_a619_holi(adreno_dev))
+		kgsl_regwrite(device, A6XX_RBBM_GPR0_CNTL, 0x0);
+	else
+		kgsl_regwrite(device, A6XX_RBBM_GBIF_HALT, 0x0);
 }
 
 /*
@@ -673,7 +713,10 @@ void a6xx_start(struct adreno_device *adreno_dev)
 	if (adreno_is_a660(adreno_dev)) {
 		kgsl_regwrite(device, A6XX_CP_CHICKEN_DBG, 0x1);
 		kgsl_regwrite(device, A6XX_RBBM_GBIF_CLIENT_QOS_CNTL, 0x0);
-		kgsl_regwrite(device, A6XX_UCHE_CMDQ_CONFIG, 0x66906);
+
+		/* Set dualQ + disable afull for A660 GPU but not for A635 */
+		if (!adreno_is_a635(adreno_dev))
+			kgsl_regwrite(device, A6XX_UCHE_CMDQ_CONFIG, 0x66906);
 	}
 
 	if (ADRENO_FEATURE(adreno_dev, ADRENO_APRIV))
@@ -696,6 +739,19 @@ void a6xx_start(struct adreno_device *adreno_dev)
 		a6xx_patch_pwrup_reglist(adreno_dev);
 		patch_reglist = true;
 	}
+
+	/*
+	 * During adreno_stop, GBIF halt is asserted to ensure
+	 * no further transaction can go through GPU before GPU
+	 * headswitch is turned off.
+	 *
+	 * This halt is deasserted once headswitch goes off but
+	 * incase headswitch doesn't goes off clear GBIF halt
+	 * here to ensure GPU wake-up doesn't fail because of
+	 * halted GPU transactions.
+	 */
+	a6xx_deassert_gbif_halt(adreno_dev);
+
 }
 
 /* Offsets into the MX/CX mapped register regions */
@@ -1264,6 +1320,29 @@ void a6xx_gx_cpr_toggle(struct kgsl_device *device)
 	wmb();
 }
 
+/* This is only defined for non-GMU and non-RGMU targets */
+static int a6xx_clear_pending_transactions(struct adreno_device *adreno_dev)
+{
+	struct kgsl_device *device = KGSL_DEVICE(adreno_dev);
+	int ret;
+
+	if (adreno_is_a619_holi(adreno_dev)) {
+		kgsl_regwrite(device, A6XX_RBBM_GPR0_CNTL, 0x1e0);
+		ret = adreno_wait_for_halt_ack(device,
+			A6XX_RBBM_VBIF_GX_RESET_STATUS, 0xf0);
+	} else {
+		kgsl_regwrite(device, A6XX_RBBM_GBIF_HALT,
+			A6XX_GBIF_GX_HALT_MASK);
+		ret = adreno_wait_for_halt_ack(device, A6XX_RBBM_GBIF_HALT_ACK,
+			A6XX_GBIF_GX_HALT_MASK);
+	}
+
+	if (ret)
+		return ret;
+
+	return a6xx_halt_gbif(adreno_dev);
+}
+
 /**
  * a6xx_reset() - Helper function to reset the GPU
  * @device: Pointer to the KGSL device structure for the GPU
@@ -1277,19 +1356,9 @@ static int a6xx_reset(struct kgsl_device *device)
 	int ret;
 	unsigned long flags = device->pwrctrl.ctrl_flags;
 
-	/*
-	 * Stall on fault needs GBIF halt sequences for robust recovery.
-	 * Because in a worst-case scenario, if any of the GPU blocks is
-	 * generating a stream of un-ending faulting transactions, SMMU will
-	 * process those transactions when we try to resume it and enter
-	 * stall-on-fault mode again. GBIF halt sequences make sure that all
-	 * GPU transactions are halted at GBIF which ensures that SMMU
-	 * can resume safely.
-	 */
-	a6xx_do_gbif_halt(adreno_dev, A6XX_RBBM_GBIF_HALT,
-		A6XX_RBBM_GBIF_HALT_ACK, A6XX_GBIF_GX_HALT_MASK, "GX");
-	a6xx_do_gbif_halt(adreno_dev, A6XX_GBIF_HALT, A6XX_GBIF_HALT_ACK,
-		A6XX_GBIF_ARB_HALT_MASK, "CX");
+	ret = a6xx_clear_pending_transactions(adreno_dev);
+	if (ret)
+		return ret;
 
 	/* Clear ctrl_flags to ensure clocks and regulators are turned off */
 	device->pwrctrl.ctrl_flags = 0;
@@ -1619,7 +1688,7 @@ static void a6xx_gpc_err_int_callback(struct adreno_device *adreno_dev, int bit)
 	adreno_dispatcher_schedule(device);
 }
 
-static struct adreno_irq_funcs a6xx_irq_funcs[32] = {
+static const struct adreno_irq_funcs a6xx_irq_funcs[32] = {
 	ADRENO_IRQ_CALLBACK(NULL),              /* 0 - RBBM_GPU_IDLE */
 	ADRENO_IRQ_CALLBACK(a6xx_err_callback), /* 1 - RBBM_AHB_ERROR */
 	ADRENO_IRQ_CALLBACK(NULL), /* 2 - UNUSED */
@@ -2157,7 +2226,7 @@ int a6xx_probe_common(struct platform_device *pdev,
 	struct	adreno_device *adreno_dev, u32 chipid,
 	const struct adreno_gpu_core *gpucore)
 {
-	struct adreno_gpudev *gpudev = gpucore->gpudev;
+	const struct adreno_gpudev *gpudev = gpucore->gpudev;
 
 	adreno_dev->gpucore = gpucore;
 	adreno_dev->chipid = chipid;
@@ -2287,9 +2356,6 @@ static unsigned int a6xx_register_offsets[ADRENO_REG_REGISTER_MAX] = {
 	ADRENO_REG_DEFINE(ADRENO_REG_RBBM_PERFCTR_LOAD_VALUE_HI,
 				A6XX_RBBM_PERFCTR_LOAD_VALUE_HI),
 	ADRENO_REG_DEFINE(ADRENO_REG_VBIF_VERSION, A6XX_VBIF_VERSION),
-	ADRENO_REG_DEFINE(ADRENO_REG_RBBM_GBIF_HALT,
-				A6XX_RBBM_GBIF_HALT),
-	ADRENO_REG_DEFINE(ADRENO_REG_GBIF_HALT, A6XX_GBIF_HALT),
 	ADRENO_REG_DEFINE(ADRENO_REG_GMU_AO_HOST_INTERRUPT_MASK,
 				A6XX_GMU_AO_HOST_INTERRUPT_MASK),
 	ADRENO_REG_DEFINE(ADRENO_REG_GMU_AHB_FENCE_STATUS,
@@ -2441,64 +2507,25 @@ u64 a6xx_read_alwayson(struct adreno_device *adreno_dev)
 	return (((u64) hi) << 32) | lo;
 }
 
-void a6xx_do_gbif_halt(struct adreno_device *adreno_dev,
-	u32 halt_reg, u32 ack_reg, u32 mask, const char *client)
+static void a619_holi_regulator_disable_poll(struct kgsl_device *device)
 {
-	struct kgsl_device *device = KGSL_DEVICE(adreno_dev);
-	unsigned long t;
-	u32 val;
+	struct kgsl_pwrctrl *pwr = &device->pwrctrl;
 
-	kgsl_regwrite(device, halt_reg, mask);
+	/* Set the parent in retention voltage to disable CPR interrupts */
+	kgsl_regulator_set_voltage(device->dev, pwr->gx_gdsc_parent,
+			pwr->gx_gdsc_parent_min_corner);
 
-	t = jiffies + msecs_to_jiffies(100);
-	do {
-		kgsl_regread(device, ack_reg, &val);
-		if ((val & mask) == mask)
-			return;
+	if (!kgsl_regulator_disable_wait(pwr->gx_gdsc, 200))
+		dev_err(device->dev, "Regulator vdd is stuck on\n");
 
-		/*
-		 * If we are attempting GBIF halt in case of stall-on-fault
-		 * then the halt sequence will not complete as long as SMMU
-		 * is stalled.
-		 */
-		kgsl_mmu_pagefault_resume(&device->mmu);
-		usleep_range(10, 100);
-	} while (!time_after(jiffies, t));
+	/* Remove the vote for the vdd parent supply */
+	kgsl_regulator_set_voltage(device->dev, pwr->gx_gdsc_parent, 0);
 
-	/* Check one last time */
-	kgsl_mmu_pagefault_resume(&device->mmu);
-
-	kgsl_regread(device, ack_reg, &val);
-	if ((val & mask) == mask)
-		return;
-
-	dev_err(device->dev, "%s GBIF Halt ack timed out\n", client);
+	if (!a6xx_cx_regulator_disable_wait(pwr->cx_gdsc, device, 200))
+		dev_err(device->dev, "Regulator vddcx is stuck on\n");
 }
 
-/* This is only defined for non-GMU and non-RGMU targets */
-static int a6xx_clear_pending_transactions(struct adreno_device *adreno_dev)
-{
-	struct kgsl_device *device = KGSL_DEVICE(adreno_dev);
-	int ret;
-
-	if (adreno_is_a619_holi(adreno_dev)) {
-		kgsl_regwrite(device, A6XX_RBBM_GPR0_CNTL, 0x1e0);
-		ret = adreno_wait_for_halt_ack(device,
-			A6XX_RBBM_VBIF_GX_RESET_STATUS, 0xf0);
-	} else {
-		kgsl_regwrite(device, A6XX_RBBM_GBIF_HALT,
-			A6XX_GBIF_GX_HALT_MASK);
-		ret = adreno_wait_for_halt_ack(device, A6XX_RBBM_GBIF_HALT_ACK,
-			A6XX_GBIF_GX_HALT_MASK);
-	}
-
-	if (ret)
-		return ret;
-
-	return a6xx_halt_gbif(adreno_dev);
-}
-
-struct adreno_gpudev adreno_a6xx_gpudev = {
+const struct adreno_gpudev adreno_a6xx_gpudev = {
 	.reg_offsets = a6xx_register_offsets,
 	.probe = a6xx_probe,
 	.start = a6xx_start,
@@ -2531,9 +2558,10 @@ struct adreno_gpudev adreno_a6xx_gpudev = {
 	.read_alwayson = a6xx_read_alwayson,
 	.power_ops = &adreno_power_operations,
 	.clear_pending_transactions = a6xx_clear_pending_transactions,
+	.deassert_gbif_halt = a6xx_deassert_gbif_halt,
 };
 
-struct adreno_gpudev adreno_a6xx_hwsched_gpudev = {
+const struct adreno_gpudev adreno_a6xx_hwsched_gpudev = {
 	.reg_offsets = a6xx_register_offsets,
 	.probe = a6xx_hwsched_probe,
 	.snapshot = a6xx_hwsched_snapshot,
@@ -2549,7 +2577,7 @@ struct adreno_gpudev adreno_a6xx_hwsched_gpudev = {
 	.power_ops = &a6xx_hwsched_power_ops,
 };
 
-struct adreno_gpudev adreno_a6xx_gmu_gpudev = {
+const struct adreno_gpudev adreno_a6xx_gmu_gpudev = {
 	.reg_offsets = a6xx_register_offsets,
 	.probe = a6xx_gmu_device_probe,
 	.start = a6xx_start,
@@ -2580,7 +2608,7 @@ struct adreno_gpudev adreno_a6xx_gmu_gpudev = {
 	.power_ops = &a6xx_gmu_power_ops,
 };
 
-struct adreno_gpudev adreno_a6xx_rgmu_gpudev = {
+const struct adreno_gpudev adreno_a6xx_rgmu_gpudev = {
 	.reg_offsets = a6xx_register_offsets,
 	.probe = a6xx_rgmu_device_probe,
 	.start = a6xx_start,
@@ -2611,7 +2639,7 @@ struct adreno_gpudev adreno_a6xx_rgmu_gpudev = {
 	.power_ops = &a6xx_rgmu_power_ops,
 };
 
-struct adreno_gpudev adreno_a619_holi_gpudev = {
+const struct adreno_gpudev adreno_a619_holi_gpudev = {
 	.reg_offsets = a6xx_register_offsets,
 	.probe = a6xx_probe,
 	.start = a6xx_start,
@@ -2644,9 +2672,11 @@ struct adreno_gpudev adreno_a619_holi_gpudev = {
 	.read_alwayson = a6xx_read_alwayson,
 	.power_ops = &adreno_power_operations,
 	.clear_pending_transactions = a6xx_clear_pending_transactions,
+	.deassert_gbif_halt = a6xx_deassert_gbif_halt,
+	.regulator_disable_poll = a619_holi_regulator_disable_poll,
 };
 
-struct adreno_gpudev adreno_a630_gpudev = {
+const struct adreno_gpudev adreno_a630_gpudev = {
 	.reg_offsets = a6xx_register_offsets,
 	.probe = a6xx_gmu_device_probe,
 	.start = a6xx_start,

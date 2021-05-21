@@ -2125,8 +2125,10 @@ static inline void run_walt_irq_work(u64 old_window_start, struct rq *rq)
 
 	result = atomic64_cmpxchg(&walt_irq_work_lastq_ws, old_window_start,
 				   rq->wrq.window_start);
-	if (result == old_window_start)
+	if (result == old_window_start) {
 		walt_irq_work_queue(&walt_cpufreq_irq_work);
+		trace_walt_window_rollover(rq->wrq.window_start);
+	}
 }
 
 /* Reflect task activity on its demand and cpu's busy time statistics */
@@ -2151,6 +2153,8 @@ void walt_update_task_ravg(struct task_struct *p, struct rq *rq, int event,
 	update_task_demand(p, rq, event, wallclock);
 	update_cpu_busy_time(p, rq, event, wallclock, irqtime);
 	update_task_pred_demand(rq, p, event);
+	if (event == PUT_PREV_TASK && p->state)
+		p->wts.iowaited = p->in_iowait;
 
 	trace_sched_update_task_ravg(p, rq, event, wallclock, irqtime,
 				&rq->wrq.grp_time);
@@ -2529,10 +2533,27 @@ static cpumask_t **build_cpu_array(void)
 	return tmp_array;
 }
 
+static void walt_get_possible_siblings(int cpuid, struct cpumask *cluster_cpus)
+{
+	int cpu;
+	struct cpu_topology *cpu_topo, *cpuid_topo = &cpu_topology[cpuid];
+
+	if (cpuid_topo->package_id == -1)
+		return;
+
+	for_each_possible_cpu(cpu) {
+		cpu_topo = &cpu_topology[cpu];
+
+		if (cpuid_topo->package_id != cpu_topo->package_id)
+			continue;
+		cpumask_set_cpu(cpu, cluster_cpus);
+	}
+}
+
 void walt_update_cluster_topology(void)
 {
 	struct cpumask cpus = *cpu_possible_mask;
-	const struct cpumask *cluster_cpus;
+	struct cpumask cluster_cpus;
 	struct walt_sched_cluster *cluster;
 	struct list_head new_head;
 	cpumask_t **tmp;
@@ -2541,14 +2562,15 @@ void walt_update_cluster_topology(void)
 	INIT_LIST_HEAD(&new_head);
 
 	for_each_cpu(i, &cpus) {
-		cluster_cpus = topology_possible_sibling_cpumask(i);
-		if (cpumask_empty(cluster_cpus)) {
+		cpumask_clear(&cluster_cpus);
+		walt_get_possible_siblings(i, &cluster_cpus);
+		if (cpumask_empty(&cluster_cpus)) {
 			WARN(1, "WALT: Invalid cpu topology!!");
 			cleanup_clusters(&new_head);
 			return;
 		}
-		cpumask_andnot(&cpus, &cpus, cluster_cpus);
-		add_cluster(cluster_cpus, &new_head);
+		cpumask_andnot(&cpus, &cpus, &cluster_cpus);
+		add_cluster(&cluster_cpus, &new_head);
 	}
 
 	assign_cluster_ids(&new_head);
@@ -3128,7 +3150,6 @@ static DEFINE_SPINLOCK(cpu_freq_min_max_lock);
 void sched_update_cpu_freq_min_max(const cpumask_t *cpus, u32 fmin, u32 fmax)
 {
 	struct cpumask cpumask;
-	struct walt_sched_cluster *cluster;
 	int i;
 	unsigned long flags;
 
@@ -3137,11 +3158,6 @@ void sched_update_cpu_freq_min_max(const cpumask_t *cpus, u32 fmin, u32 fmax)
 
 	for_each_cpu(i, &cpumask)
 		thermal_cap_cpu[i] = do_thermal_cap(i, fmax);
-
-	for_each_cpu(i, &cpumask) {
-		cluster = cpu_rq(i)->wrq.cluster;
-		cpumask_andnot(&cpumask, &cpumask, &cluster->cpus);
-	}
 
 	spin_unlock_irqrestore(&cpu_freq_min_max_lock, flags);
 }

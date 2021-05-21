@@ -96,7 +96,9 @@
 #define CAM_CPAS_MP_LIMIT_FUSE 3
 #define CAM_CPAS_ISP_FUSE      4
 #define CAM_CPAS_ISP_PIX_FUSE  5
-#define CAM_CPAS_FUSE_FEATURE_MAX 6
+#define CAM_CPAS_ISP_LITE_FUSE 6
+#define CAM_CPAS_SHDR_FUSE     7
+#define CAM_CPAS_FUSE_FEATURE_MAX 8
 #else
 /* Feature support bit positions in feature fuse register*/
 #define CAM_CPAS_QCFA_BINNING_ENABLE 0

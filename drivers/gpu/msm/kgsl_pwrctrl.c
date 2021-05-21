@@ -14,6 +14,7 @@
 #include "kgsl_pwrscale.h"
 #include "kgsl_sysfs.h"
 #include "kgsl_trace.h"
+#include "kgsl_util.h"
 
 #define UPDATE_BUSY_VAL		1000000
 
@@ -38,6 +39,7 @@ static const char * const clocks[] = {
 	"gmu_clk",
 	"ahb_clk",
 	"smmu_vote",
+	"apb_pclk",
 };
 
 static void kgsl_pwrctrl_clk(struct kgsl_device *device, int state,
@@ -1328,8 +1330,15 @@ static int enable_regulators(struct kgsl_device *device)
 		return 0;
 
 	ret = enable_regulator(&device->pdev->dev, pwr->cx_gdsc, "vddcx");
-	if (!ret)
-		ret = enable_regulator(&device->pdev->dev, pwr->gx_gdsc, "vdd");
+	if (!ret) {
+		/* Set parent in retention voltage to power up vdd supply */
+		ret = kgsl_regulator_set_voltage(device->dev,
+				pwr->gx_gdsc_parent,
+				pwr->gx_gdsc_parent_min_corner);
+		if (!ret)
+			ret = enable_regulator(&device->pdev->dev,
+					pwr->gx_gdsc, "vdd");
+	}
 
 	if (ret) {
 		clear_bit(KGSL_PWRFLAGS_POWER_ON, &pwr->power_flags);
@@ -1571,6 +1580,24 @@ int kgsl_pwrctrl_init(struct kgsl_device *device)
 
 	if (of_property_read_bool(pdev->dev.of_node, "vdd-supply"))
 		pwr->gx_gdsc = devm_regulator_get(&pdev->dev, "vdd");
+
+	if (of_property_read_bool(pdev->dev.of_node, "vdd-parent-supply")) {
+		pwr->gx_gdsc_parent = devm_regulator_get(&pdev->dev,
+				"vdd-parent");
+		if (IS_ERR(pwr->gx_gdsc_parent)) {
+			dev_err(device->dev,
+				"Failed to get vdd-parent regulator:%d\n",
+				PTR_ERR(pwr->gx_gdsc_parent));
+			return -ENODEV;
+		}
+		if (of_property_read_u32(pdev->dev.of_node,
+					"vdd-parent-min-corner",
+					&pwr->gx_gdsc_parent_min_corner)) {
+			dev_err(device->dev,
+				"vdd-parent-min-corner not found\n");
+			return -ENODEV;
+		}
+	}
 
 	pwr->power_flags = 0;
 
@@ -1833,6 +1860,7 @@ static int _wake(struct kgsl_device *device)
 		/* Turn on the core clocks */
 		kgsl_pwrctrl_clk(device, KGSL_PWRFLAGS_ON, KGSL_STATE_ACTIVE);
 
+		device->ftbl->deassert_gbif_halt(device);
 		/*
 		 * No need to turn on/off irq here as it no longer affects
 		 * power collapse
@@ -1917,12 +1945,11 @@ _nap(struct kgsl_device *device)
 {
 	switch (device->state) {
 	case KGSL_STATE_ACTIVE:
-		if (!device->ftbl->is_hw_collapsible(device)) {
+		if (!device->ftbl->prepare_for_power_off(device)) {
 			kgsl_pwrctrl_request_state(device, KGSL_STATE_NONE);
 			return -EBUSY;
 		}
 
-		device->ftbl->stop_fault_timer(device);
 		kgsl_pwrscale_midframe_timer_cancel(device);
 
 		/*
@@ -1980,7 +2007,7 @@ _slumber(struct kgsl_device *device)
 
 	switch (device->state) {
 	case KGSL_STATE_ACTIVE:
-		if (!device->ftbl->is_hw_collapsible(device)) {
+		if (!device->ftbl->prepare_for_power_off(device)) {
 			kgsl_pwrctrl_request_state(device, KGSL_STATE_NONE);
 			return -EBUSY;
 		}

@@ -145,21 +145,22 @@ static DEFINE_SPINLOCK(md_modules_lock);
 
 static void __init register_log_buf(void)
 {
-	char **log_bufp;
-	uint32_t *log_buf_lenp;
+	char *log_bufp;
+	uint32_t log_buf_len;
 	struct md_region md_entry;
 
-	log_bufp = (char **)kallsyms_lookup_name("log_buf");
-	log_buf_lenp = (uint32_t *)kallsyms_lookup_name("log_buf_len");
-	if (!log_bufp || !log_buf_lenp) {
-		pr_err("Unable to find log_buf by kallsyms!\n");
+	log_bufp = log_buf_addr_get();
+	log_buf_len = log_buf_len_get();
+
+	if (!log_bufp || !log_buf_len) {
+		pr_err("Unable to locate log_buf!\n");
 		return;
 	}
 	/*Register logbuf to minidump, first idx would be from bss section */
 	strlcpy(md_entry.name, "KLOGBUF", sizeof(md_entry.name));
-	md_entry.virt_addr = (uintptr_t) (*log_bufp);
-	md_entry.phys_addr = virt_to_phys(*log_bufp);
-	md_entry.size = *log_buf_lenp;
+	md_entry.virt_addr = (uintptr_t) log_bufp;
+	md_entry.phys_addr = virt_to_phys(log_bufp);
+	md_entry.size = log_buf_len;
 	if (msm_minidump_add_region(&md_entry) < 0)
 		pr_err("Failed to add logbuf in Minidump\n");
 }
@@ -189,6 +190,7 @@ static void __init register_kernel_sections(void)
 {
 	struct md_region ksec_entry;
 	char *data_name = "KDATABSS";
+	char *rodata_name = "KROAIDATA";
 	const size_t static_size = __per_cpu_end - __per_cpu_start;
 	void __percpu *base = (void __percpu *)__per_cpu_start;
 	unsigned int cpu;
@@ -199,6 +201,13 @@ static void __init register_kernel_sections(void)
 	ksec_entry.size = roundup((__bss_stop - _sdata), 4);
 	if (msm_minidump_add_region(&ksec_entry) < 0)
 		pr_err("Failed to add data section in Minidump\n");
+
+	strlcpy(ksec_entry.name, rodata_name, sizeof(ksec_entry.name));
+	ksec_entry.virt_addr = (uintptr_t)__start_ro_after_init;
+	ksec_entry.phys_addr = virt_to_phys(__start_ro_after_init);
+	ksec_entry.size = roundup((__end_ro_after_init - __start_ro_after_init), 4);
+	if (msm_minidump_add_region(&ksec_entry) < 0)
+		pr_err("Failed to add rodata section in Minidump\n");
 
 	/* Add percpu static sections */
 	for_each_possible_cpu(cpu) {

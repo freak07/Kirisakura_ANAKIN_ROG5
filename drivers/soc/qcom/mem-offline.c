@@ -8,6 +8,7 @@
 #include <linux/memblock.h>
 #include <linux/mmu_context.h>
 #include <linux/mmzone.h>
+#include <linux/mm_inline.h>
 #include <linux/ktime.h>
 #include <linux/of.h>
 #include <linux/proc_fs.h>
@@ -21,6 +22,7 @@
 #include <linux/vmstat.h>
 #include <linux/mailbox_client.h>
 #include <linux/mailbox/qmp.h>
+#include <linux/page-isolation.h>
 #include <asm/tlbflush.h>
 #include <asm/cacheflush.h>
 #include <soc/qcom/rpm-smd.h>
@@ -45,6 +47,7 @@ static atomic_t target_migrate_pages = ATOMIC_INIT(0);
 static u32 offline_granule;
 static bool is_rpm_controller;
 static bool has_pend_offline_req;
+static atomic_long_t totalram_pages_with_offline = ATOMIC_INIT(0);
 
 #define MODULE_CLASS_NAME	"mem-offline"
 #define MIGRATE_TIMEOUT_SEC	(20)
@@ -99,6 +102,29 @@ struct movable_zone_fill_control {
 static void fill_movable_zone_fn(struct work_struct *work);
 static DECLARE_WORK(fill_movable_zone_work, fill_movable_zone_fn);
 static DEFINE_MUTEX(page_migrate_lock);
+
+unsigned long get_totalram_pages_count_inc_offlined(void)
+{
+	struct sysinfo i;
+	unsigned long totalram_with_offline;
+
+	si_meminfo(&i);
+	totalram_with_offline =
+		(unsigned long)atomic_long_read(&totalram_pages_with_offline);
+
+	if (i.totalram < totalram_with_offline)
+		i.totalram = totalram_with_offline;
+
+	return i.totalram;
+}
+
+static void update_totalram_snapshot(void)
+{
+	unsigned long totalram_with_offline;
+
+	totalram_with_offline = get_totalram_pages_count_inc_offlined();
+	atomic_long_set(&totalram_pages_with_offline, totalram_with_offline);
+}
 
 static void clear_pgtable_mapping(phys_addr_t start, phys_addr_t end)
 {
@@ -435,6 +461,12 @@ static void isolate_free_pages(struct movable_zone_fill_control *fc)
 			continue;
 		}
 
+		if (!(start_pfn % pageblock_nr_pages) &&
+			is_migrate_isolate_page(page)) {
+			start_pfn += pageblock_nr_pages - 1;
+			continue;
+		}
+
 		if (!PageBuddy(page))
 			continue;
 
@@ -538,6 +570,8 @@ static unsigned long get_anon_movable_pages(
 		ret = isolate_lru_page(page);
 		if (!ret) {
 			list_add_tail(&page->lru, list);
+			inc_node_page_state(page, NR_ISOLATED_ANON +
+					page_is_file_cache(page));
 			++fc->nr_migrate_pages;
 		}
 
@@ -670,6 +704,7 @@ static int mem_event_callback(struct notifier_block *self,
 
 		break;
 	case MEM_ONLINE:
+		update_totalram_snapshot();
 		delay = ktime_ms_delta(ktime_get(), cur);
 		record_stat(sec_nr, delay, MEMORY_ONLINE);
 		cur = 0;
@@ -677,6 +712,7 @@ static int mem_event_callback(struct notifier_block *self,
 			(void *)sec_nr);
 		break;
 	case MEM_GOING_OFFLINE:
+		update_totalram_snapshot();
 		pr_debug("mem-offline: MEM_GOING_OFFLINE : start = 0x%llx end = 0x%llx\n",
 				start_addr, end_addr);
 		++mem_info[(sec_nr - start_section_nr + MEMORY_OFFLINE *

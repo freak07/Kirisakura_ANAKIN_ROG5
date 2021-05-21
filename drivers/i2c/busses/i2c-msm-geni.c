@@ -695,11 +695,11 @@ static int geni_i2c_lock_bus(struct geni_i2c_dev *gi2c)
 		goto geni_i2c_err_lock_bus;
 	}
 
+	reinit_completion(&gi2c->xfer);
 	/* Issue TX */
 	tx_cookie = dmaengine_submit(gi2c->tx_desc);
 	dma_async_issue_pending(gi2c->tx_c);
 
-	reinit_completion(&gi2c->xfer);
 	timeout = wait_for_completion_timeout(&gi2c->xfer, HZ);
 	if (!timeout) {
 		GENI_SE_ERR(gi2c->ipcl, true, gi2c->dev,
@@ -740,11 +740,11 @@ static void geni_i2c_unlock_bus(struct geni_i2c_dev *gi2c)
 		goto geni_i2c_err_unlock_bus;
 	}
 
+	reinit_completion(&gi2c->xfer);
 	/* Issue TX */
 	tx_cookie = dmaengine_submit(gi2c->tx_desc);
 	dma_async_issue_pending(gi2c->tx_c);
 
-	reinit_completion(&gi2c->xfer);
 	timeout = wait_for_completion_timeout(&gi2c->xfer, HZ);
 	if (!timeout) {
 		GENI_SE_ERR(gi2c->ipcl, true, gi2c->dev,
@@ -1113,8 +1113,14 @@ static int geni_i2c_xfer(struct i2c_adapter *adap,
 			timeout = wait_for_completion_timeout(&gi2c->xfer, HZ);
 			if (!timeout) {
 				GENI_SE_ERR(gi2c->ipcl, true, gi2c->dev,
-					"Abort\n");
+					"Cancel failed\n");
+				reinit_completion(&gi2c->xfer);
 				geni_abort_m_cmd(gi2c->base);
+				timeout =
+				wait_for_completion_timeout(&gi2c->xfer, HZ);
+				if (!timeout)
+					GENI_SE_ERR(gi2c->ipcl, true, gi2c->dev,
+						"Abort failed\n");
 			}
 		}
 		gi2c->cur_wr = 0;

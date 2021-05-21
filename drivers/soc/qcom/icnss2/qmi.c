@@ -34,7 +34,6 @@
 #define WLFW_CLIENT_ID			0x4b4e454c
 #define QMI_ERR_PLAT_CCPM_CLK_INIT_FAILED	0x77
 
-#define MAX_BDF_FILE_NAME		13
 #define BDF_FILE_NAME_PREFIX		"bdwlan"
 #define ELF_BDF_FILE_NAME		"bdwlan.elf"
 #define ELF_BDF_FILE_NAME_PREFIX	"bdwlan.e"
@@ -44,6 +43,7 @@
 #define DUMMY_BDF_FILE_NAME		"bdwlan.dmy"
 
 #define DEVICE_BAR_SIZE			0x200000
+#define M3_SEGMENT_ADDR_MASK		0xFFFFFFFF
 
 #ifdef CONFIG_ICNSS2_DEBUG
 bool ignore_fw_timeout;
@@ -539,6 +539,8 @@ int wlfw_ind_register_send_sync_msg(struct icnss_priv *priv)
 		req->qdss_trace_free_enable = 1;
 		req->respond_get_info_enable_valid = 1;
 		req->respond_get_info_enable = 1;
+		req->m3_dump_upload_segments_req_enable_valid = 1;
+		req->m3_dump_upload_segments_req_enable = 1;
 	}
 
 	priv->stats.ind_register_req++;
@@ -646,12 +648,14 @@ int wlfw_cap_send_sync_msg(struct icnss_priv *priv)
 				    ret);
 		goto out;
 	} else if (resp->resp.result != QMI_RESULT_SUCCESS_V01) {
+		ret = -resp->resp.result;
+		if (resp->resp.error == QMI_ERR_PLAT_CCPM_CLK_INIT_FAILED) {
+			icnss_pr_err("RF card not present\n");
+			goto out;
+		}
 		icnss_qmi_fatal_err(
 			"QMI Capability request rejected, result:%d error:%d\n",
 			resp->resp.result, resp->resp.error);
-		ret = -resp->resp.result;
-		if (resp->resp.error == QMI_ERR_PLAT_CCPM_CLK_INIT_FAILED)
-			icnss_qmi_fatal_err("RF card not present\n");
 		goto out;
 	}
 
@@ -686,6 +690,10 @@ int wlfw_cap_send_sync_msg(struct icnss_priv *priv)
 		strlcpy(priv->fw_build_id, resp->fw_build_id,
 			QMI_WLFW_MAX_BUILD_ID_LEN_V01 + 1);
 
+	if (resp->rd_card_chain_cap_valid &&
+	    resp->rd_card_chain_cap == WLFW_RD_CARD_CHAIN_CAP_1x1_V01)
+		priv->is_chain1_supported = false;
+
 	icnss_pr_dbg("Capability, chip_id: 0x%x, chip_family: 0x%x, board_id: 0x%x, soc_id: 0x%x, fw_version: 0x%x, fw_build_timestamp: %s, fw_build_id: %s",
 		     priv->chip_info.chip_id, priv->chip_info.chip_family,
 		     priv->board_id, priv->soc_id,
@@ -708,42 +716,43 @@ static int icnss_get_bdf_file_name(struct icnss_priv *priv,
 				   u32 bdf_type, char *filename,
 				   u32 filename_len)
 {
+	char filename_tmp[ICNSS_MAX_FILE_NAME];
 	int ret = 0;
 
 	switch (bdf_type) {
 	case ICNSS_BDF_ELF:
 		if (priv->board_id == 0xFF)
-			snprintf(filename, filename_len, ELF_BDF_FILE_NAME);
+			snprintf(filename_tmp, filename_len, ELF_BDF_FILE_NAME);
 		else if (priv->board_id < 0xFF)
-			snprintf(filename, filename_len,
+			snprintf(filename_tmp, filename_len,
 				 ELF_BDF_FILE_NAME_PREFIX "%02x",
 				 priv->board_id);
 		else
-			snprintf(filename, filename_len,
+			snprintf(filename_tmp, filename_len,
 				 BDF_FILE_NAME_PREFIX "%02x.e%02x",
 				 priv->board_id >> 8 & 0xFF,
 				 priv->board_id & 0xFF);
 		break;
 	case ICNSS_BDF_BIN:
 		if (priv->board_id == 0xFF)
-			snprintf(filename, filename_len, BIN_BDF_FILE_NAME);
+			snprintf(filename_tmp, filename_len, BIN_BDF_FILE_NAME);
 		else if (priv->board_id < 0xFF)
-			snprintf(filename, filename_len,
+			snprintf(filename_tmp, filename_len,
 				 BIN_BDF_FILE_NAME_PREFIX "%02x",
 				 priv->board_id);
 		else
-			snprintf(filename, filename_len,
+			snprintf(filename_tmp, filename_len,
 				 BDF_FILE_NAME_PREFIX "%02x.b%02x",
 				 priv->board_id >> 8 & 0xFF,
 				 priv->board_id & 0xFF);
 		break;
 	case ICNSS_BDF_REGDB:
-		snprintf(filename, filename_len, REGDB_FILE_NAME);
+		snprintf(filename_tmp, filename_len, REGDB_FILE_NAME);
 		break;
 	case ICNSS_BDF_DUMMY:
 		icnss_pr_dbg("CNSS_BDF_DUMMY is set, sending dummy BDF\n");
-		snprintf(filename, filename_len, DUMMY_BDF_FILE_NAME);
-		ret = MAX_BDF_FILE_NAME;
+		snprintf(filename_tmp, filename_len, DUMMY_BDF_FILE_NAME);
+		ret = ICNSS_MAX_FILE_NAME;
 		break;
 	default:
 		icnss_pr_err("Invalid BDF type: %d\n",
@@ -751,6 +760,10 @@ static int icnss_get_bdf_file_name(struct icnss_priv *priv,
 		ret = -EINVAL;
 		break;
 	}
+
+	if (ret >= 0)
+		icnss_add_fw_prefix_name(priv, filename, filename_tmp);
+
 	return ret;
 }
 
@@ -759,7 +772,7 @@ int icnss_wlfw_bdf_dnld_send_sync(struct icnss_priv *priv, u32 bdf_type)
 	struct wlfw_bdf_download_req_msg_v01 *req;
 	struct wlfw_bdf_download_resp_msg_v01 *resp;
 	struct qmi_txn txn;
-	char filename[MAX_BDF_FILE_NAME];
+	char filename[ICNSS_MAX_FILE_NAME];
 	const struct firmware *fw_entry = NULL;
 	const u8 *temp;
 	unsigned int remaining;
@@ -782,7 +795,7 @@ int icnss_wlfw_bdf_dnld_send_sync(struct icnss_priv *priv, u32 bdf_type)
 				      filename, sizeof(filename));
 	if (ret > 0) {
 		temp = DUMMY_BDF_FILE_NAME;
-		remaining = MAX_BDF_FILE_NAME;
+		remaining = ICNSS_MAX_FILE_NAME;
 		goto bypass_bdf;
 	} else if (ret < 0) {
 		goto err_req_fw;
@@ -1047,6 +1060,9 @@ int wlfw_send_modem_shutdown_msg(struct icnss_priv *priv)
 
 	if (!priv)
 		return -ENODEV;
+
+	if (test_bit(ICNSS_FW_DOWN, &priv->state))
+		return -EINVAL;
 
 	icnss_pr_dbg("Sending modem shutdown request, state: 0x%lx\n",
 		     priv->state);
@@ -1493,6 +1509,9 @@ int wlfw_qdss_trace_mem_info_send_sync(struct icnss_priv *priv)
 	int ret = 0;
 	int i;
 
+	if (test_bit(ICNSS_FW_DOWN, &priv->state))
+		return -EINVAL;
+
 	icnss_pr_dbg("Sending QDSS trace mem info, state: 0x%lx\n",
 		     priv->state);
 
@@ -1553,6 +1572,67 @@ int wlfw_qdss_trace_mem_info_send_sync(struct icnss_priv *priv)
 	kfree(req);
 	kfree(resp);
 	return 0;
+
+out:
+	kfree(req);
+	kfree(resp);
+	return ret;
+}
+
+int icnss_wlfw_m3_dump_upload_done_send_sync(struct icnss_priv *priv,
+					     u32 pdev_id, int status)
+{
+	struct wlfw_m3_dump_upload_done_req_msg_v01 *req;
+	struct wlfw_m3_dump_upload_done_resp_msg_v01 *resp;
+	struct qmi_txn txn;
+	int ret = 0;
+
+	req = kzalloc(sizeof(*req), GFP_KERNEL);
+	if (!req)
+		return -ENOMEM;
+
+	resp = kzalloc(sizeof(*resp), GFP_KERNEL);
+	if (!resp) {
+		kfree(req);
+		return -ENOMEM;
+	}
+
+	icnss_pr_dbg("Sending M3 Upload done req, pdev %d, status %d\n",
+		     pdev_id, status);
+
+	req->pdev_id = pdev_id;
+	req->status = status;
+
+	ret = qmi_txn_init(&priv->qmi, &txn,
+			   wlfw_m3_dump_upload_done_resp_msg_v01_ei, resp);
+	if (ret < 0) {
+		icnss_pr_err("Fail to initialize txn for M3 dump upload done req: err %d\n",
+			     ret);
+		goto out;
+	}
+
+	ret = qmi_send_request(&priv->qmi, NULL, &txn,
+			       QMI_WLFW_M3_DUMP_UPLOAD_DONE_REQ_V01,
+			       WLFW_M3_DUMP_UPLOAD_DONE_REQ_MSG_V01_MAX_MSG_LEN,
+			       wlfw_m3_dump_upload_done_req_msg_v01_ei, req);
+	if (ret < 0) {
+		qmi_txn_cancel(&txn);
+		icnss_pr_err("Fail to send M3 dump upload done request: err %d\n",
+			     ret);
+		goto out;
+	}
+
+	ret = qmi_txn_wait(&txn, priv->ctrl_params.qmi_timeout);
+	if (ret < 0) {
+		icnss_pr_err("Fail to wait for response of M3 dump upload done request, err %d\n",
+			     ret);
+		goto out;
+	} else if (resp->resp.result != QMI_RESULT_SUCCESS_V01) {
+		icnss_pr_err("M3 Dump Upload Done Req failed, result: %d, err: 0x%X\n",
+			     resp->resp.result, resp->resp.error);
+		ret = -resp->resp.result;
+		goto out;
+	}
 
 out:
 	kfree(req);
@@ -1742,6 +1822,10 @@ static void fw_init_done_ind_cb(struct qmi_handle *qmi,
 				struct qmi_txn *txn, const void *data)
 {
 	struct icnss_priv *priv = container_of(qmi, struct icnss_priv, qmi);
+	struct device *dev = &priv->pdev->dev;
+	const struct wlfw_fw_init_done_ind_msg_v01 *ind_msg = data;
+	uint64_t msa_base_addr = priv->msa_pa;
+	phys_addr_t hang_data_phy_addr;
 
 	icnss_pr_dbg("Received QMI WLFW FW initialization done indication\n");
 
@@ -1750,8 +1834,63 @@ static void fw_init_done_ind_cb(struct qmi_handle *qmi,
 		return;
 	}
 
+	/* Check if the length is valid &
+	 * the length should not be 0 and
+	 * should be <=  WLFW_MAX_HANG_EVENT_DATA_SIZE(400)
+	 */
+
+	if (ind_msg->hang_data_length_valid &&
+	ind_msg->hang_data_length &&
+	ind_msg->hang_data_length <= WLFW_MAX_HANG_EVENT_DATA_SIZE)
+		priv->hang_event_data_len = ind_msg->hang_data_length;
+	else
+		goto out;
+
+	/* Check if the offset is valid &
+	 * the offset should be in range of 0 to msa_mem_size-hang_data_length
+	 */
+
+	if (ind_msg->hang_data_addr_offset_valid &&
+	    (ind_msg->hang_data_addr_offset <= (priv->msa_mem_size -
+					ind_msg->hang_data_length)))
+		hang_data_phy_addr = msa_base_addr +
+					ind_msg->hang_data_addr_offset;
+	else
+		goto out;
+
+	if (priv->hang_event_data_pa == hang_data_phy_addr)
+		goto exit;
+
+	priv->hang_event_data_pa = hang_data_phy_addr;
+	priv->hang_event_data_va = devm_ioremap(dev, priv->hang_event_data_pa,
+					ind_msg->hang_data_length);
+
+	if (!priv->hang_event_data_va) {
+		icnss_pr_err("Hang Data ioremap failed: phy addr: %pa\n",
+		&priv->hang_event_data_pa);
+		goto fail;
+	}
+
+exit:
+	icnss_pr_dbg("Hang Event Data details,Offset:0x%x, Length:0x%x,va_addr: 0x%pK\n",
+		     ind_msg->hang_data_addr_offset,
+		     ind_msg->hang_data_length,
+		     priv->hang_event_data_va);
+
+	goto post;
+
+out:
+	icnss_pr_err("Invalid Hang Data details, Offset:0x%x, Length:0x%x",
+		     ind_msg->hang_data_addr_offset,
+		     ind_msg->hang_data_length);
+fail:
+	priv->hang_event_data_va = NULL;
+	priv->hang_event_data_pa = 0;
+	priv->hang_event_data_len = 0;
+post:
 	icnss_driver_event_post(priv, ICNSS_DRIVER_EVENT_FW_INIT_DONE_IND,
 				0, NULL);
+
 }
 
 static void wlfw_qdss_trace_req_mem_ind_cb(struct qmi_handle *qmi,
@@ -1892,6 +2031,78 @@ static void icnss_wlfw_respond_get_info_ind_cb(struct qmi_handle *qmi,
 				       ind_msg->data_len);
 }
 
+static void icnss_wlfw_m3_dump_upload_segs_req_ind_cb(struct qmi_handle *qmi,
+						      struct sockaddr_qrtr *sq,
+						      struct qmi_txn *txn,
+						      const void *d)
+{
+	struct icnss_priv *priv = container_of(qmi, struct icnss_priv, qmi);
+	const struct wlfw_m3_dump_upload_segments_req_ind_msg_v01 *ind_msg = d;
+	struct icnss_m3_upload_segments_req_data *event_data = NULL;
+	u64 max_mapped_addr = 0;
+	u64 segment_addr = 0;
+	int i = 0;
+
+	icnss_pr_dbg("Received QMI WLFW M3 dump upload sigments indication\n");
+
+	if (!txn) {
+		icnss_pr_err("Spurious indication\n");
+		return;
+	}
+
+	icnss_pr_dbg("M3 Dump upload info: pdev_id: %d no_of_segments: %d\n",
+		     ind_msg->pdev_id, ind_msg->no_of_valid_segments);
+
+	if (ind_msg->no_of_valid_segments > QMI_WLFW_MAX_M3_SEGMENTS_SIZE_V01)
+		return;
+
+	event_data = kzalloc(sizeof(*event_data), GFP_KERNEL);
+	if (!event_data)
+		return;
+
+	event_data->pdev_id = ind_msg->pdev_id;
+	event_data->no_of_valid_segments = ind_msg->no_of_valid_segments;
+	max_mapped_addr = priv->msa_pa + priv->msa_mem_size;
+
+	for (i = 0; i < ind_msg->no_of_valid_segments; i++) {
+		segment_addr = ind_msg->m3_segment[i].addr &
+				M3_SEGMENT_ADDR_MASK;
+
+		if (ind_msg->m3_segment[i].size > priv->msa_mem_size ||
+		    segment_addr >= max_mapped_addr ||
+		    segment_addr < priv->msa_pa ||
+		    ind_msg->m3_segment[i].size +
+		    segment_addr > max_mapped_addr) {
+			icnss_pr_dbg("Received out of range Segment %d Addr: 0x%llx Size: 0x%x, Name: %s, type: %d\n",
+				     (i + 1), segment_addr,
+				     ind_msg->m3_segment[i].size,
+				     ind_msg->m3_segment[i].name,
+				     ind_msg->m3_segment[i].type);
+			goto out;
+		}
+
+		event_data->m3_segment[i].addr = segment_addr;
+		event_data->m3_segment[i].size = ind_msg->m3_segment[i].size;
+		event_data->m3_segment[i].type = ind_msg->m3_segment[i].type;
+		strlcpy(event_data->m3_segment[i].name,
+			ind_msg->m3_segment[i].name,
+			WLFW_MAX_STR_LEN + 1);
+
+		icnss_pr_dbg("Received Segment %d Addr: 0x%llx Size: 0x%x, Name: %s, type: %d\n",
+			     (i + 1), segment_addr,
+			     ind_msg->m3_segment[i].size,
+			     ind_msg->m3_segment[i].name,
+			     ind_msg->m3_segment[i].type);
+	}
+
+	icnss_driver_event_post(priv, ICNSS_DRIVER_EVENT_M3_DUMP_UPLOAD_REQ,
+				0, event_data);
+
+	return;
+out:
+	kfree(event_data);
+}
+
 static struct qmi_msg_handler wlfw_msg_handlers[] = {
 	{
 		.type = QMI_INDICATION,
@@ -1967,6 +2178,14 @@ static struct qmi_msg_handler wlfw_msg_handlers[] = {
 		.decoded_size =
 		sizeof(struct wlfw_respond_get_info_ind_msg_v01),
 		.fn = icnss_wlfw_respond_get_info_ind_cb
+	},
+	{
+		.type = QMI_INDICATION,
+		.msg_id = QMI_WLFW_M3_DUMP_UPLOAD_SEGMENTS_REQ_IND_V01,
+		.ei = wlfw_m3_dump_upload_segments_req_ind_msg_v01_ei,
+		.decoded_size =
+		sizeof(struct wlfw_m3_dump_upload_segments_req_ind_msg_v01),
+		.fn = icnss_wlfw_m3_dump_upload_segs_req_ind_cb
 	},
 	{}
 };

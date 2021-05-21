@@ -103,6 +103,7 @@ struct geni_se_device {
 	struct bus_vectors *vectors;
 	int num_paths;
 	bool vote_for_bw;
+	struct se_geni_rsc wrapper_rsc;
 };
 
 #define HW_VER_MAJOR_MASK GENMASK(31, 28)
@@ -110,8 +111,6 @@ struct geni_se_device {
 #define HW_VER_MINOR_MASK GENMASK(27, 16)
 #define HW_VER_MINOR_SHFT 16
 #define HW_VER_STEP_MASK GENMASK(15, 0)
-
-static int geni_se_iommu_map_and_attach(struct geni_se_device *geni_se_dev);
 
 /**
  * geni_read_reg_nolog() - Helper function to read from a GENI register
@@ -662,7 +661,7 @@ static bool geni_se_check_bus_bw(struct geni_se_device *geni_se_dev)
 	bool bus_bw_update = false;
 	/* Convert agg ab into bytes per second */
 	unsigned long new_ab_in_hz = DEFAULT_BUS_WIDTH *
-					((2*geni_se_dev->cur_ab)*10000);
+					KHz(geni_se_dev->cur_ab);
 
 	new_bus_bw = max(geni_se_dev->cur_ib, new_ab_in_hz) /
 							DEFAULT_BUS_WIDTH;
@@ -712,6 +711,9 @@ static int geni_se_rmv_ab_ib(struct geni_se_device *geni_se_dev,
 	bool bus_bw_update = false;
 	bool bus_bw_update_noc = false;
 	int ret = 0;
+
+	if (geni_se_dev->vectors == NULL)
+		return 0;
 
 	if (unlikely(list_empty(&rsc->ab_list) || list_empty(&rsc->ib_list)))
 		return -EINVAL;
@@ -800,8 +802,7 @@ int se_geni_clks_off(struct se_geni_rsc *rsc)
 		return -EINVAL;
 
 	geni_se_dev = dev_get_drvdata(rsc->wrapper_dev);
-	if (unlikely(!geni_se_dev || !(geni_se_dev->bus_bw ||
-					geni_se_dev->bus_bw_noc)))
+	if (!geni_se_dev)
 		return -ENODEV;
 
 	clk_disable_unprepare(rsc->se_clk);
@@ -833,9 +834,7 @@ int se_geni_resources_off(struct se_geni_rsc *rsc)
 		return -EINVAL;
 
 	geni_se_dev = dev_get_drvdata(rsc->wrapper_dev);
-	if (unlikely(!geni_se_dev ||
-			!(geni_se_dev->bus_bw ||
-					geni_se_dev->bus_bw_noc)))
+	if (!geni_se_dev)
 		return -ENODEV;
 
 	ret = se_geni_clks_off(rsc);
@@ -859,6 +858,9 @@ static int geni_se_add_ab_ib(struct geni_se_device *geni_se_dev,
 	bool bus_bw_update = false;
 	bool bus_bw_update_noc = false;
 	int ret = 0;
+
+	if (geni_se_dev->vectors == NULL)
+		return 0;
 
 	mutex_lock(&geni_se_dev->geni_dev_lock);
 
@@ -1029,8 +1031,6 @@ int geni_se_resources_init(struct se_geni_rsc *rsc,
 			   unsigned long ab, unsigned long ib)
 {
 	struct geni_se_device *geni_se_dev;
-	int ret = 0;
-	const char *mode = NULL;
 
 	if (unlikely(!rsc || !rsc->wrapper_dev))
 		return -EINVAL;
@@ -1038,6 +1038,10 @@ int geni_se_resources_init(struct se_geni_rsc *rsc,
 	geni_se_dev = dev_get_drvdata(rsc->wrapper_dev);
 	if (unlikely(!geni_se_dev))
 		return -EPROBE_DEFER;
+
+	/* Driver shouldn't crash, if ICC support is not present */
+	if (geni_se_dev->vectors == NULL)
+		return 0;
 
 	if (IS_ERR_OR_NULL(geni_se_dev->bus_bw)) {
 		geni_se_dev->bus_bw = icc_get(geni_se_dev->dev,
@@ -1085,18 +1089,7 @@ int geni_se_resources_init(struct se_geni_rsc *rsc,
 	INIT_LIST_HEAD(&rsc->ab_list);
 	INIT_LIST_HEAD(&rsc->ib_list);
 
-	ret = of_property_read_string(geni_se_dev->dev->of_node,
-					"qcom,iommu-dma", &mode);
-
-	if ((ret == 0) && (strcmp(mode, "disabled") == 0)) {
-		ret = geni_se_iommu_map_and_attach(geni_se_dev);
-		if (ret)
-			GENI_SE_ERR(geni_se_dev->log_ctx, false, NULL,
-				"%s: Error %d iommu_map_and_attach\n",
-					 __func__, ret);
-	}
-
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL(geni_se_resources_init);
 
@@ -1378,11 +1371,6 @@ int geni_se_qupv3_hw_version(struct device *wrapper_dev, unsigned int *major,
 }
 EXPORT_SYMBOL(geni_se_qupv3_hw_version);
 
-static int geni_se_iommu_map_and_attach(struct geni_se_device *geni_se_dev)
-{
-	return 0;
-}
-
 /**
  * geni_se_iommu_map_buf() - Map a single buffer into QUPv3 context bank
  * @wrapper_dev:	Pointer to the corresponding QUPv3 wrapper core.
@@ -1559,7 +1547,7 @@ void geni_se_dump_dbg_regs(struct se_geni_rsc *rsc, void __iomem *base,
 		return;
 
 	geni_se_dev = dev_get_drvdata(rsc->wrapper_dev);
-	if (unlikely(!geni_se_dev || !geni_se_dev->bus_bw))
+	if (!geni_se_dev)
 		return;
 	if (unlikely(list_empty(&rsc->ab_list) || list_empty(&rsc->ib_list))) {
 		GENI_SE_DBG(ipc, false, NULL, "%s: Clocks not on\n", __func__);
@@ -1642,6 +1630,34 @@ out:
 	return NULL;
 }
 
+void geni_se_remove_earlycon_icc_vote(struct device *dev)
+{
+	struct platform_device *pdev;
+	struct device_node *parent;
+	struct device_node *child;
+	struct geni_se_device *geni_se_dev;
+	int ret;
+
+	parent = of_get_next_parent(dev->of_node);
+	for_each_child_of_node(parent, child) {
+		if (!of_device_is_compatible(child, "qcom,qupv3-geni-se"))
+			continue;
+
+		pdev = of_find_device_by_node(child);
+		if (!pdev)
+			continue;
+
+		geni_se_dev = platform_get_drvdata(pdev);
+		ret = geni_se_rmv_ab_ib(geni_se_dev, &geni_se_dev->wrapper_rsc);
+
+		if (ret)
+			dev_err(dev, "%s: Error %d during bus_bw_update\n", __func__,
+					ret);
+	}
+	of_node_put(parent);
+}
+EXPORT_SYMBOL(geni_se_remove_earlycon_icc_vote);
+
 static int geni_se_iommu_probe(struct device *dev)
 {
 	struct geni_se_device *geni_se_dev;
@@ -1694,7 +1710,9 @@ static int geni_se_probe(struct platform_device *pdev)
 	geni_se_dev->cb_dev = dev;
 	ret = of_property_read_u32(dev->of_node, "qcom,msm-bus,num-paths",
 					&geni_se_dev->num_paths);
-	if (!ret) {
+	if (ret) {
+		dev_err(dev, "%s: ICC entry missing in DT node\n", __func__);
+	} else {
 		geni_se_dev->vectors = get_icc_paths(pdev, geni_se_dev);
 		if (geni_se_dev->vectors == NULL) {
 			dev_err(dev,
@@ -1730,6 +1748,31 @@ static int geni_se_probe(struct platform_device *pdev)
 		dev_err(dev, "%s Failed to allocate log context\n", __func__);
 
 	dev_set_drvdata(dev, geni_se_dev);
+
+	/*
+	 * TBD: Proxy vote on QUP core path on behalf of earlycon.
+	 * Once the ICC sync state feature is implemented, we can make
+	 * console UART as dummy consumer of ICC to get rid of this HACK
+	 */
+#if IS_ENABLED(CONFIG_SERIAL_MSM_GENI_CONSOLE)
+	geni_se_dev->wrapper_rsc.wrapper_dev = dev;
+	geni_se_dev->wrapper_rsc.ctrl_dev = dev;
+
+	ret = geni_se_resources_init(&geni_se_dev->wrapper_rsc,
+					UART_CONSOLE_CORE2X_VOTE,
+					(DEFAULT_SE_CLK * DEFAULT_BUS_WIDTH));
+	if (ret) {
+		dev_err(dev, "Resources init failed: %d\n", ret);
+		return ret;
+	}
+
+	ret = geni_se_add_ab_ib(geni_se_dev, &geni_se_dev->wrapper_rsc);
+	if (ret) {
+		dev_err(dev, "%s: Error %d during bus_bw_update\n", __func__,
+				ret);
+		return ret;
+	}
+#endif
 
 	ret = of_platform_populate(dev->of_node, geni_se_dt_match, NULL, dev);
 	if (ret) {

@@ -258,11 +258,7 @@ ipt_do_table(struct sk_buff *skb,
 	WARN_ON(!(table->valid_hooks & (1 << hook)));
 	local_bh_disable();
 	addend = xt_write_recseq_begin();
-#if defined(ASUS_ZS673KS_PROJECT) || defined(ASUS_PICASSO_PROJECT) || defined(ASUS_SAKE_PROJECT) || defined(ASUS_VODKA_PROJECT)
 	private = rcu_access_pointer(table->private);
-#else
-	private = READ_ONCE(table->private); /* Address dependency. */
-#endif
 	cpu        = smp_processor_id();
 	table_base = private->entries;
 	jumpstack  = (struct ipt_entry **)private->jumpstack[cpu];
@@ -795,11 +791,8 @@ static struct xt_counters *alloc_counters(const struct xt_table *table)
 {
 	unsigned int countersize;
 	struct xt_counters *counters;
-#if defined(ASUS_ZS673KS_PROJECT) || defined(ASUS_PICASSO_PROJECT) || defined(ASUS_SAKE_PROJECT) || defined(ASUS_VODKA_PROJECT)
 	const struct xt_table_info *private = xt_table_get_private_protected(table);
-#else
-	const struct xt_table_info *private = table->private;
-#endif
+
 	/* We need atomic snapshot of counters: rest doesn't change
 	   (other than comefrom, which userspace doesn't care
 	   about). */
@@ -822,11 +815,7 @@ copy_entries_to_user(unsigned int total_size,
 	unsigned int off, num;
 	const struct ipt_entry *e;
 	struct xt_counters *counters;
-#if defined(ASUS_ZS673KS_PROJECT) || defined(ASUS_PICASSO_PROJECT) || defined(ASUS_SAKE_PROJECT) || defined(ASUS_VODKA_PROJECT)
 	const struct xt_table_info *private = xt_table_get_private_protected(table);
-#else
-	const struct xt_table_info *private = table->private;
-#endif
 	int ret = 0;
 	const void *loc_cpu_entry;
 
@@ -976,12 +965,7 @@ static int get_info(struct net *net, void __user *user,
 	t = xt_request_find_table_lock(net, AF_INET, name);
 	if (!IS_ERR(t)) {
 		struct ipt_getinfo info;
-#if defined(ASUS_ZS673KS_PROJECT) || defined(ASUS_PICASSO_PROJECT) || defined(ASUS_SAKE_PROJECT) || defined(ASUS_VODKA_PROJECT)
 		const struct xt_table_info *private = xt_table_get_private_protected(t);
-#else
-		const struct xt_table_info *private = t->private;
-#endif
-
 #ifdef CONFIG_COMPAT
 		struct xt_table_info tmp;
 
@@ -1035,11 +1019,7 @@ get_entries(struct net *net, struct ipt_get_entries __user *uptr,
 
 	t = xt_find_table_lock(net, AF_INET, get.name);
 	if (!IS_ERR(t)) {
-#if defined(ASUS_ZS673KS_PROJECT) || defined(ASUS_PICASSO_PROJECT) || defined(ASUS_SAKE_PROJECT) || defined(ASUS_VODKA_PROJECT)
 		const struct xt_table_info *private = xt_table_get_private_protected(t);
-#else
-		const struct xt_table_info *private = t->private;
-#endif
 		if (get.size == private->size)
 			ret = copy_entries_to_user(private->size,
 						   t, uptr->entrytable);
@@ -1096,9 +1076,7 @@ __do_replace(struct net *net, const char *name, unsigned int valid_hooks,
 	    (newinfo->number <= oldinfo->initial_entries))
 		module_put(t->me);
 
-#if defined(ASUS_ZS673KS_PROJECT) || defined(ASUS_PICASSO_PROJECT) || defined(ASUS_SAKE_PROJECT) || defined(ASUS_VODKA_PROJECT)
 	xt_table_unlock(t);
-#endif
 
 	get_old_counters(oldinfo, counters);
 
@@ -1113,10 +1091,6 @@ __do_replace(struct net *net, const char *name, unsigned int valid_hooks,
 		net_warn_ratelimited("iptables: counters copy to user failed while replacing table\n");
 	}
 	vfree(counters);
-#if defined(ASUS_ZS673KS_PROJECT) || defined(ASUS_PICASSO_PROJECT) || defined(ASUS_SAKE_PROJECT) || defined(ASUS_VODKA_PROJECT)
-#else
-	xt_table_unlock(t);
-#endif
 	return ret;
 
  put_module:
@@ -1201,11 +1175,7 @@ do_add_counters(struct net *net, const void __user *user,
 	}
 
 	local_bh_disable();
-#if defined(ASUS_ZS673KS_PROJECT) || defined(ASUS_PICASSO_PROJECT) || defined(ASUS_SAKE_PROJECT) || defined(ASUS_VODKA_PROJECT)
 	private = xt_table_get_private_protected(t);
-#else
-	private = t->private;
-#endif
 	if (private->number != tmp.num_counters) {
 		ret = -EINVAL;
 		goto unlock_up_free;
@@ -1600,11 +1570,7 @@ compat_copy_entries_to_user(unsigned int total_size, struct xt_table *table,
 			    void __user *userptr)
 {
 	struct xt_counters *counters;
-#if defined(ASUS_ZS673KS_PROJECT) || defined(ASUS_PICASSO_PROJECT) || defined(ASUS_SAKE_PROJECT) || defined(ASUS_VODKA_PROJECT)
 	const struct xt_table_info *private = xt_table_get_private_protected(table);
-#else
-	const struct xt_table_info *private = table->private;
-#endif
 	void __user *pos;
 	unsigned int size;
 	int ret = 0;

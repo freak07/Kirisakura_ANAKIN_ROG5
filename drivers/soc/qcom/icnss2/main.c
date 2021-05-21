@@ -58,6 +58,13 @@
 #define ICNSS_WLAN_SERVICE_NAME					"wlan/fw"
 #define ICNSS_DEFAULT_FEATURE_MASK 0x01
 
+#define ICNSS_M3_SEGMENT(segment)		"wcnss_"segment
+#define ICNSS_M3_SEGMENT_PHYAREG		"phyareg"
+#define ICNSS_M3_SEGMENT_PHYA			"phydbg"
+#define ICNSS_M3_SEGMENT_WMACREG		"wmac0reg"
+#define ICNSS_M3_SEGMENT_WCSSDBG		"WCSSDBG"
+#define ICNSS_M3_SEGMENT_PHYAM3			"PHYAPDMEM"
+
 #define ICNSS_QUIRKS_DEFAULT		BIT(FW_REJUVENATE_ENABLE)
 #define ICNSS_MAX_PROBE_CNT		2
 
@@ -174,6 +181,8 @@ char *icnss_driver_event_to_str(enum icnss_driver_event_type type)
 		return "QDSS_TRACE_SAVE";
 	case ICNSS_DRIVER_EVENT_QDSS_TRACE_FREE:
 		return "QDSS_TRACE_FREE";
+	case ICNSS_DRIVER_EVENT_M3_DUMP_UPLOAD_REQ:
+		return "M3_DUMP_UPLOAD";
 	case ICNSS_DRIVER_EVENT_MAX:
 		return "EVENT_MAX";
 	}
@@ -554,10 +563,6 @@ static int icnss_driver_event_server_arrive(struct icnss_priv *priv,
 
 	set_bit(ICNSS_WLFW_CONNECTED, &priv->state);
 
-	ret = icnss_hw_power_on(priv);
-	if (ret)
-		goto clear_server;
-
 	ret = wlfw_ind_register_send_sync_msg(priv);
 	if (ret < 0) {
 		if (ret == -EALREADY) {
@@ -565,46 +570,50 @@ static int icnss_driver_event_server_arrive(struct icnss_priv *priv,
 			goto qmi_registered;
 		}
 		ignore_assert = true;
-		goto err_power_on;
+		goto clear_server;
 	}
 
 	if (priv->device_id == WCN6750_DEVICE_ID) {
 		ret = wlfw_host_cap_send_sync(priv);
 		if (ret < 0)
-			goto err_power_on;
+			goto clear_server;
 	}
 
 	if (priv->device_id == ADRASTEA_DEVICE_ID) {
 		if (!priv->msa_va) {
 			icnss_pr_err("Invalid MSA address\n");
 			ret = -EINVAL;
-			goto err_power_on;
+			goto clear_server;
 		}
 
 		ret = wlfw_msa_mem_info_send_sync_msg(priv);
 		if (ret < 0) {
 			ignore_assert = true;
-			goto err_power_on;
+			goto clear_server;
 		}
 
 		ret = wlfw_msa_ready_send_sync_msg(priv);
 		if (ret < 0) {
 			ignore_assert = true;
-			goto err_power_on;
+			goto clear_server;
 		}
 	}
 
 	ret = wlfw_cap_send_sync_msg(priv);
 	if (ret < 0) {
 		ignore_assert = true;
-		goto err_power_on;
+		goto clear_server;
 	}
+
+	ret = icnss_hw_power_on(priv);
+	if (ret)
+		goto clear_server;
 
 	if (priv->device_id == WCN6750_DEVICE_ID) {
 		ret = wlfw_device_info_send_msg(priv);
 		if (ret < 0) {
 			ignore_assert = true;
-			goto err_power_on;
+			goto  device_info_failure;
 		}
 
 		priv->mem_base_va = devm_ioremap(&priv->pdev->dev,
@@ -612,7 +621,7 @@ static int icnss_driver_event_server_arrive(struct icnss_priv *priv,
 							 priv->mem_base_size);
 		if (!priv->mem_base_va) {
 			icnss_pr_err("Ioremap failed for bar address\n");
-			goto err_power_on;
+			goto device_info_failure;
 		}
 
 		icnss_pr_dbg("Non-Secured Bar Address pa: %pa, va: 0x%pK\n",
@@ -642,7 +651,7 @@ static int icnss_driver_event_server_arrive(struct icnss_priv *priv,
 
 	return ret;
 
-err_power_on:
+device_info_failure:
 	icnss_hw_power_off(priv);
 clear_server:
 	icnss_clear_server(priv);
@@ -986,6 +995,19 @@ static int icnss_qdss_trace_save_hdlr(struct icnss_priv *priv,
 	return ret;
 }
 
+static inline int icnss_atomic_dec_if_greater_one(atomic_t *v)
+{
+	int dec, c = atomic_read(v);
+
+	do {
+		dec = c - 1;
+		if (unlikely(dec < 1))
+			break;
+	} while (!atomic_try_cmpxchg(v, &c, dec));
+
+	return dec;
+}
+
 static int icnss_event_soc_wake_request(struct icnss_priv *priv, void *data)
 {
 	int ret = 0;
@@ -1176,8 +1198,16 @@ static int icnss_driver_event_pd_service_down(struct icnss_priv *priv,
 	if (priv->force_err_fatal)
 		ICNSS_ASSERT(0);
 
-	if (priv->device_id == ADRASTEA_DEVICE_ID)
-		icnss_send_hang_event_data(priv);
+	if (priv->device_id == WCN6750_DEVICE_ID) {
+		priv->smp2p_info.seq = 0;
+		if (qcom_smem_state_update_bits(
+				priv->smp2p_info.smem_state,
+				ICNSS_SMEM_VALUE_MASK,
+				0))
+			icnss_pr_dbg("Error in SMP2P sent ret: %d\n");
+	}
+
+	icnss_send_hang_event_data(priv);
 
 	if (priv->early_crash_ind) {
 		icnss_pr_dbg("PD Down ignored as early indication is processed: %d, state: 0x%lx\n",
@@ -1272,6 +1302,61 @@ static int icnss_qdss_trace_free_hdlr(struct icnss_priv *priv)
 	return 0;
 }
 
+static int icnss_m3_dump_upload_req_hdlr(struct icnss_priv *priv,
+					 void *data)
+{
+	struct icnss_m3_upload_segments_req_data *event_data = data;
+	struct ramdump_segment segment;
+	int i, status = 0, ret = 0;
+
+	for (i = 0; i < event_data->no_of_valid_segments; i++) {
+		memset(&segment, 0, sizeof(segment));
+		segment.v_address = devm_ioremap(&priv->pdev->dev,
+						event_data->m3_segment[i].addr,
+						event_data->m3_segment[i].size);
+		if (!segment.v_address) {
+			icnss_pr_err("Failed to ioremap M3 Dump region");
+			ret = -ENOMEM;
+			goto send_resp;
+		}
+
+		segment.size = event_data->m3_segment[i].size;
+		segment.name = event_data->m3_segment[i].name;
+
+		switch (event_data->m3_segment[i].type) {
+		case QMI_M3_SEGMENT_PHYAREG_V01:
+			ret = do_ramdump(priv->m3_dump_dev_seg1, &segment, 1);
+			break;
+		case QMI_M3_SEGMENT_PHYDBG_V01:
+			ret = do_ramdump(priv->m3_dump_dev_seg2, &segment, 1);
+			break;
+		case QMI_M3_SEGMENT_WMAC0_REG_V01:
+			ret = do_ramdump(priv->m3_dump_dev_seg3, &segment, 1);
+			break;
+		case QMI_M3_SEGMENT_WCSSDBG_V01:
+			ret = do_ramdump(priv->m3_dump_dev_seg4, &segment, 1);
+			break;
+		case QMI_M3_SEGMENT_PHYAPDMEM_V01:
+			ret = do_ramdump(priv->m3_dump_dev_seg5, &segment, 1);
+			break;
+		default:
+			icnss_pr_err("Invalid Segment type: %d",
+				     event_data->m3_segment[i].type);
+		}
+
+		if (ret) {
+			status = ret;
+			icnss_pr_err("Failed to dump m3 %s segment, err = %d\n",
+				     event_data->m3_segment[i].name, ret);
+		}
+	}
+send_resp:
+	icnss_wlfw_m3_dump_upload_done_send_sync(priv, event_data->pdev_id,
+						 status);
+
+	return ret;
+}
+
 static void icnss_driver_event_work(struct work_struct *work)
 {
 	struct icnss_priv *priv =
@@ -1344,6 +1429,9 @@ static void icnss_driver_event_work(struct work_struct *work)
 			break;
 		case ICNSS_DRIVER_EVENT_QDSS_TRACE_FREE:
 			ret = icnss_qdss_trace_free_hdlr(priv);
+			break;
+		case ICNSS_DRIVER_EVENT_M3_DUMP_UPLOAD_REQ:
+			ret = icnss_m3_dump_upload_req_hdlr(priv, event->data);
 			break;
 		default:
 			icnss_pr_err("Invalid Event type: %d", event->type);
@@ -1807,6 +1895,58 @@ out:
 
 }
 
+static int icnss_create_ramdump_devices(struct icnss_priv *priv)
+{
+
+	if (!priv || !priv->pdev) {
+		icnss_pr_err("Platform priv or pdev is NULL\n");
+		return -EINVAL;
+	}
+
+	priv->msa0_dump_dev = create_ramdump_device("wcss_msa0",
+						    &priv->pdev->dev);
+	if (!priv->msa0_dump_dev)
+		return -ENOMEM;
+
+	if (priv->device_id == WCN6750_DEVICE_ID) {
+		priv->m3_dump_dev_seg1 = create_ramdump_device(
+					    ICNSS_M3_SEGMENT(
+						ICNSS_M3_SEGMENT_PHYAREG),
+					    &priv->pdev->dev);
+		if (!priv->m3_dump_dev_seg1)
+			return -ENOMEM;
+
+		priv->m3_dump_dev_seg2 = create_ramdump_device(
+					    ICNSS_M3_SEGMENT(
+						ICNSS_M3_SEGMENT_PHYA),
+					    &priv->pdev->dev);
+		if (!priv->m3_dump_dev_seg2)
+			return -ENOMEM;
+
+		priv->m3_dump_dev_seg3 = create_ramdump_device(
+					    ICNSS_M3_SEGMENT(
+						ICNSS_M3_SEGMENT_WMACREG),
+					    &priv->pdev->dev);
+		if (!priv->m3_dump_dev_seg3)
+			return -ENOMEM;
+
+		priv->m3_dump_dev_seg4 = create_ramdump_device(
+					    ICNSS_M3_SEGMENT(
+						ICNSS_M3_SEGMENT_WCSSDBG),
+					    &priv->pdev->dev);
+		if (!priv->m3_dump_dev_seg4)
+			return -ENOMEM;
+
+		priv->m3_dump_dev_seg5 = create_ramdump_device(
+					     ICNSS_M3_SEGMENT(
+						ICNSS_M3_SEGMENT_PHYAM3),
+					     &priv->pdev->dev);
+		if (!priv->m3_dump_dev_seg5)
+			return -ENOMEM;
+	}
+
+	return 0;
+}
 
 static int icnss_enable_recovery(struct icnss_priv *priv)
 {
@@ -1822,10 +1962,9 @@ static int icnss_enable_recovery(struct icnss_priv *priv)
 		goto enable_pdr;
 	}
 
-	priv->msa0_dump_dev = create_ramdump_device("wcss_msa0",
-						    &priv->pdev->dev);
-	if (!priv->msa0_dump_dev)
-		return -ENOMEM;
+	ret = icnss_create_ramdump_devices(priv);
+	if (ret)
+		return ret;
 
 	icnss_modem_ssr_register_notifier(priv);
 	if (test_bit(SSR_ONLY, &priv->ctrl_params.quirks)) {
@@ -1840,6 +1979,30 @@ enable_pdr:
 		return ret;
 
 	return 0;
+}
+
+static int icnss_trigger_ssr_smp2p(struct icnss_priv *priv)
+{
+	unsigned int value = 0;
+	int ret;
+
+	if (IS_ERR(priv->smp2p_info.smem_state))
+		return -EINVAL;
+
+	value |= priv->smp2p_info.seq++;
+	value <<= ICNSS_SMEM_SEQ_NO_POS;
+	value |= ICNSS_TRIGGER_SSR;
+	ret = qcom_smem_state_update_bits(
+			priv->smp2p_info.smem_state,
+			ICNSS_SMEM_VALUE_MASK,
+			value);
+	if (ret)
+		icnss_pr_dbg("Error in SMP2P sent ret: %d\n", ret);
+
+	icnss_pr_dbg("Initiate Root PD restart. SMP2P sent value: 0x%X\n",
+		     value);
+	set_bit(ICNSS_HOST_TRIGGERED_PDR, &priv->state);
+	return ret;
 }
 
 static int icnss_tcdev_get_max_state(struct thermal_cooling_device *tcdev,
@@ -2365,7 +2528,6 @@ EXPORT_SYMBOL(icnss_force_wake_request);
 int icnss_force_wake_release(struct device *dev)
 {
 	struct icnss_priv *priv = dev_get_drvdata(dev);
-	int count = 0;
 
 	if (!dev)
 		return -ENODEV;
@@ -2375,14 +2537,13 @@ int icnss_force_wake_release(struct device *dev)
 		return -EINVAL;
 	}
 
-	if (atomic_read(&priv->soc_wake_ref_count) > 1) {
-		count = atomic_dec_return(&priv->soc_wake_ref_count);
+	icnss_pr_dbg("Calling SOC Wake response");
+
+	if (icnss_atomic_dec_if_greater_one(&priv->soc_wake_ref_count)) {
 		icnss_pr_dbg("SOC previous release pending, Ref count: %d",
-			     count);
+			     atomic_read(&priv->soc_wake_ref_count));
 		return 0;
 	}
-
-	icnss_pr_dbg("Calling SOC Wake response");
 
 	icnss_soc_wake_event_post(priv, ICNSS_SOC_WAKE_RELEASE_EVENT,
 				  0, NULL);
@@ -2687,6 +2848,9 @@ int icnss_trigger_recovery(struct device *dev)
 		ret = -EPERM;
 		goto out;
 	}
+
+	if (priv->device_id == WCN6750_DEVICE_ID)
+		return icnss_trigger_ssr_smp2p(priv);
 
 	if (!test_bit(ICNSS_PDR_REGISTERED, &priv->state)) {
 		icnss_pr_err("PD restart not enabled to trigger recovery: state: 0x%lx\n",
@@ -3052,6 +3216,8 @@ static int icnss_msa_dt_parse(struct icnss_priv *priv)
 	icnss_pr_dbg("MSA pa: %pa, MSA va: 0x%pK MSA Memory Size: 0x%x\n",
 		     &priv->msa_pa, (void *)priv->msa_va, priv->msa_mem_size);
 
+	priv->use_prefix_path = of_property_read_bool(priv->pdev->dev.of_node,
+						      "qcom,fw-prefix");
 	return 0;
 
 out:
@@ -3135,6 +3301,23 @@ int icnss_get_iova_ipa(struct icnss_priv *priv, u64 *addr, u64 *size)
 	*size = priv->smmu_iova_ipa_len;
 
 	return 0;
+}
+
+void icnss_add_fw_prefix_name(struct icnss_priv *priv, char *prefix_name,
+			      char *name)
+{
+	if (!priv)
+		return;
+
+	if (!priv->use_prefix_path) {
+		scnprintf(prefix_name, ICNSS_MAX_FILE_NAME, "%s", name);
+		return;
+	}
+
+	scnprintf(prefix_name, ICNSS_MAX_FILE_NAME,
+		  QCA6750_PATH_PREFIX "%s", name);
+
+	icnss_pr_dbg("File added with prefix: %s\n", prefix_name);
 }
 
 static const struct platform_device_id icnss_platform_id_table[] = {
@@ -3229,6 +3412,7 @@ static int icnss_probe(struct platform_device *pdev)
 
 	priv->pdev = pdev;
 	priv->device_id = device_id->driver_data;
+	priv->is_chain1_supported = true;
 	INIT_LIST_HEAD(&priv->vreg_list);
 	INIT_LIST_HEAD(&priv->clk_list);
 	icnss_allow_recursive_recovery(dev);
@@ -3347,6 +3531,14 @@ static int icnss_remove(struct platform_device *pdev)
 	icnss_modem_ssr_unregister_notifier(priv);
 
 	destroy_ramdump_device(priv->msa0_dump_dev);
+
+	if (priv->device_id == WCN6750_DEVICE_ID) {
+		destroy_ramdump_device(priv->m3_dump_dev_seg1);
+		destroy_ramdump_device(priv->m3_dump_dev_seg2);
+		destroy_ramdump_device(priv->m3_dump_dev_seg3);
+		destroy_ramdump_device(priv->m3_dump_dev_seg4);
+		destroy_ramdump_device(priv->m3_dump_dev_seg5);
+	}
 
 	icnss_pdr_unregister_notifier(priv);
 

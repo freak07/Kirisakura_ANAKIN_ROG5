@@ -61,6 +61,7 @@
  */
 #define SMCINVOKE_SERVER_STATE_DEFUNCT  1
 
+#define CBOBJ_MAX_RETRIES 5
 #define FOR_ARGS(ndxvar, counts, section) \
 	for (ndxvar = OBJECT_COUNTS_INDEX_##section(counts); \
 		ndxvar < (OBJECT_COUNTS_INDEX_##section(counts) \
@@ -1002,6 +1003,8 @@ static void process_tzcb_req(void *buf, size_t buf_len, struct file **arr_filp)
 {
 	/* ret is going to TZ. Provide values from OBJECT_ERROR_<> */
 	int ret = OBJECT_ERROR_DEFUNCT;
+	int cbobj_retries = 0;
+	long timeout_jiff;
 	struct smcinvoke_cb_txn *cb_txn = NULL;
 	struct smcinvoke_tzcb_req *cb_req = NULL, *tmp_cb_req = NULL;
 	struct smcinvoke_server_info *srvr_info = NULL;
@@ -1079,9 +1082,26 @@ static void process_tzcb_req(void *buf, size_t buf_len, struct file **arr_filp)
 	 * as this CBObj is served by this server, srvr_info will be valid.
 	 */
 	wake_up_interruptible_all(&srvr_info->req_wait_q);
-	ret = wait_event_interruptible(srvr_info->rsp_wait_q,
-		(cb_txn->state == SMCINVOKE_REQ_PROCESSED) ||
-		(srvr_info->state == SMCINVOKE_SERVER_STATE_DEFUNCT));
+	/* timeout before 1s otherwise tzbusy would come */
+	timeout_jiff = msecs_to_jiffies(1000);
+
+	while (cbobj_retries < CBOBJ_MAX_RETRIES) {
+		ret = wait_event_interruptible_timeout(srvr_info->rsp_wait_q,
+			(cb_txn->state == SMCINVOKE_REQ_PROCESSED) ||
+			(srvr_info->state == SMCINVOKE_SERVER_STATE_DEFUNCT),
+			timeout_jiff);
+
+		if (ret == 0) {
+			pr_err("CBobj timed out cb-tzhandle:%d, retry:%d, op:%d counts :%d\n",
+			cb_req->hdr.tzhandle, cbobj_retries, cb_req->hdr.op, cb_req->hdr.counts);
+			pr_err("CBobj %d timedout pid %x,tid %x, srvr state=%d, srvr id:%u\n",
+			cb_req->hdr.tzhandle, current->pid, current->tgid, srvr_info->state,
+			srvr_info->server_id);
+		} else {
+			break;
+		}
+		cbobj_retries++;
+	}
 
 out:
 	/*
@@ -1091,18 +1111,26 @@ out:
 	 */
 	mutex_lock(&g_smcinvoke_lock);
 	hash_del(&cb_txn->hash);
-	if (cb_txn->state == SMCINVOKE_REQ_PROCESSED) {
-		/*
-		 * it is possible that server was killed immediately
-		 * after CB Req was processed but who cares now!
-		 */
-	} else if (!srvr_info ||
-		srvr_info->state == SMCINVOKE_SERVER_STATE_DEFUNCT) {
-		cb_req->result = OBJECT_ERROR_DEFUNCT;
-		pr_err("server invalid, res: %d\n", cb_req->result);
-	} else {
-		pr_debug("%s wait_event interrupted ret = %d\n", __func__, ret);
+	if (ret == 0) {
+		pr_err("CBObj timed out! No more retries\n");
 		cb_req->result = OBJECT_ERROR_ABORT;
+	} else if (ret < 0) {
+		pr_err("wait event interruped, ret: %d\n", ret);
+		cb_req->result = OBJECT_ERROR_ABORT;
+	} else {
+		if (cb_txn->state == SMCINVOKE_REQ_PROCESSED) {
+			/*
+			 * it is possible that server was killed immediately
+			 * after CB Req was processed but who cares now!
+			 */
+		} else if (!srvr_info ||
+			srvr_info->state == SMCINVOKE_SERVER_STATE_DEFUNCT) {
+			cb_req->result = OBJECT_ERROR_DEFUNCT;
+			pr_err("server invalid, res: %d\n", cb_req->result);
+		} else {
+			pr_err("%s: unexpected event happened\n", __func__);
+			cb_req->result = OBJECT_ERROR_ABORT;
+		}
 	}
 	--cb_reqs_inflight;
 	memcpy(buf, cb_req, buf_len);
@@ -1117,6 +1145,7 @@ static int marshal_out_invoke_req(const uint8_t *buf, uint32_t buf_size,
 				union smcinvoke_arg *args_buf)
 {
 	int ret = -EINVAL, i = 0;
+	int32_t temp_fd = UHANDLE_NULL;
 	union smcinvoke_tz_args *tz_args = NULL;
 	size_t offset = sizeof(struct smcinvoke_msg_hdr) +
 				OBJECT_COUNTS_TOTAL(req->counts) *
@@ -1157,9 +1186,14 @@ static int marshal_out_invoke_req(const uint8_t *buf, uint32_t buf_size,
 		 * is a CBObj. For CBObj, we have to ensure that it is sent
 		 * to server who serves it and that info comes from USpace.
 		 */
+		temp_fd = UHANDLE_NULL;
+
 		ret = get_uhandle_from_tzhandle(tz_args->handle,
 					TZHANDLE_GET_SERVER(tz_args->handle),
-				(int32_t *)&(args_buf[i].o.fd), NO_LOCK);
+				&temp_fd, NO_LOCK);
+
+		args_buf[i].o.fd = temp_fd;
+
 		if (ret)
 			goto out;
 		tz_args++;
@@ -1362,6 +1396,7 @@ static int marshal_in_tzcb_req(const struct smcinvoke_cb_txn *cb_txn,
 				struct smcinvoke_accept *user_req, int srvr_id)
 {
 	int ret = 0, i = 0;
+	int32_t temp_fd = UHANDLE_NULL;
 	union smcinvoke_arg tmp_arg;
 	struct smcinvoke_tzcb_req *tzcb_req = cb_txn->cb_req;
 	union smcinvoke_tz_args *tz_args = tzcb_req->args;
@@ -1438,8 +1473,13 @@ static int marshal_in_tzcb_req(const struct smcinvoke_cb_txn *cb_txn,
 		 * create a new FD and assign to output object's
 		 * context
 		 */
+		temp_fd = UHANDLE_NULL;
+
 		ret = get_uhandle_from_tzhandle(tz_args[i].handle, srvr_id,
-					(int32_t *)&(tmp_arg.o.fd), TAKE_LOCK);
+					&temp_fd, TAKE_LOCK);
+
+		tmp_arg.o.fd = temp_fd;
+
 		if (ret) {
 			ret = -EINVAL;
 			goto out;
