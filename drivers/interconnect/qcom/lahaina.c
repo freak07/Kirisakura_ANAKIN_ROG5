@@ -2745,7 +2745,7 @@ static int qnoc_probe(struct platform_device *pdev)
 	ret = clk_bulk_prepare_enable(qp->num_clks, qp->clks);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to enable clocks\n");
-	return ret;
+		return ret;
 	}
 
 	for (i = 0; i < num_nodes; i++) {
