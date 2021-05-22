@@ -8885,9 +8885,10 @@ static int ufshcd_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 	ret = ufshcd_link_state_transition(hba, req_link_state, 1);
 	if (ret)
 		goto set_dev_active;
-#if !defined(CONFIG_SCSI_UFSHCD_QTI)
-		ufshcd_vreg_set_lpm(hba);
+#if defined(CONFIG_SCSI_UFSHCD_QTI)
+	if (!hba->auto_bkops_enabled)
 #endif
+		ufshcd_vreg_set_lpm(hba);
 
 disable_clks:
 	/*
@@ -8918,10 +8919,6 @@ disable_clks:
 
 	/* Put the host controller in low power mode if possible */
 	ufshcd_hba_vreg_set_lpm(hba);
-#if defined(CONFIG_SCSI_UFSHCD_QTI)
-	if (!hba->auto_bkops_enabled)
-		ufshcd_vreg_set_lpm(hba);
-#endif
 	goto out;
 
 set_link_active:
@@ -8976,29 +8973,17 @@ static int ufshcd_resume(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 	old_pwr_mode = hba->curr_dev_pwr_mode;
 
 	ufshcd_hba_vreg_set_hpm(hba);
-#if defined(CONFIG_SCSI_UFSHCD_QTI)
-	ret = ufshcd_vreg_set_hpm(hba);
-	if (ret)
-		goto out;
-#endif
-
 	/* Make sure clocks are enabled before accessing controller */
 	ret = ufshcd_setup_clocks(hba, true);
 	if (ret)
-#if defined(CONFIG_SCSI_UFSHCD_QTI)
-		goto disable_vreg;
-#else
 		goto out;
-#endif
 
 	/* enable the host irq as host controller would be active soon */
 	ufshcd_enable_irq(hba);
 
-#if !defined(CONFIG_SCSI_UFSHCD_QTI)
 	ret = ufshcd_vreg_set_hpm(hba);
 	if (ret)
 		goto disable_irq_and_vops_clks;
-#endif
 
 	/*
 	 * Call vendor specific resume callback. As these callbacks may access
@@ -9007,11 +8992,7 @@ static int ufshcd_resume(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 	 */
 	ret = ufshcd_vops_resume(hba, pm_op);
 	if (ret)
-#if defined(CONFIG_SCSI_UFSHCD_QTI)
-		goto disable_irq_and_vops_clks;
-#else
 		goto disable_vreg;
-#endif
 
 	if (ufshcd_is_link_hibern8(hba)) {
 		ret = ufshcd_uic_hibern8_exit(hba);
@@ -9080,10 +9061,8 @@ set_old_link_state:
 	ufshcd_link_state_transition(hba, old_link_state, 0);
 vendor_suspend:
 	ufshcd_vops_suspend(hba, pm_op);
-#if !defined(CONFIG_SCSI_UFSHCD_QTI)
 disable_vreg:
 	ufshcd_vreg_set_lpm(hba);
-#endif
 disable_irq_and_vops_clks:
 	ufshcd_disable_irq(hba);
 	if (hba->clk_scaling.is_allowed)
@@ -9094,10 +9073,6 @@ disable_irq_and_vops_clks:
 		trace_ufshcd_clk_gating(dev_name(hba->dev),
 					hba->clk_gating.state);
 	}
-#if defined(CONFIG_SCSI_UFSHCD_QTI)
-disable_vreg:
-	ufshcd_vreg_set_lpm(hba);
-#endif
 out:
 	hba->pm_op_in_progress = 0;
 	if (ret)
