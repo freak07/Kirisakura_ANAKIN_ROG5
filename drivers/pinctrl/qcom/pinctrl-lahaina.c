@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2019-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -2048,7 +2048,7 @@ static const unsigned int config_mpm_wake_disable_gpios[] = {
 //	156,	//NA
 //	157,	//NA
 //	159,	//QLINK0_REQ
-	162 	//TS_BACK_INT_N
+	162, 	//TS_BACK_INT_N
 //	165,	//FT_INT1
 //	169,	//CODEC_ADC_I2S_WS
 //	172,	//NA
@@ -2063,7 +2063,7 @@ static const unsigned int config_mpm_wake_disable_gpios[] = {
 //	190,	//SSC_SPI_CS_N
 //	198,	//NA
 //	200,	//HST_BLE_UART_RX
-//	202 	//HST_WLAN_UART_RX
+	202 	//HST_WLAN_UART_RX
 };
 
 static void lahaina_pinctrl_config_mpm_wake_disable_gpios(void)

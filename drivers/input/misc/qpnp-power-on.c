@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2012-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2021, The Linux Foundation. All rights reserved.
  */
 
 #include <linux/debugfs.h>
@@ -235,6 +235,7 @@ struct qpnp_pon {
 	bool			kpdpwr_dbc_enable;
 	bool			resin_pon_reset;
 	ktime_t			kpdpwr_last_release_time;
+	bool			legacy_hard_reset_offset;
 };
 
 static struct qpnp_pon *sys_reset_dev;
@@ -272,6 +273,91 @@ static long g_filter = 25; //ms
 module_param(g_filter, long, S_IRUGO|S_IWUSR);
 #endif
 //ASUS_BSP_joe1_--
+
+
+static int
+qpnp_pon_masked_write(struct qpnp_pon *pon, u16 addr, u8 mask, u8 val)
+{
+	int rc;
+
+	rc = regmap_update_bits(pon->regmap, addr, mask, val);
+	if (rc)
+		dev_err(pon->dev, "Register write failed, addr=0x%04X, rc=%d\n",
+			addr, rc);
+	return rc;
+}
+
+static int qpnp_pon_write(struct qpnp_pon *pon, u16 addr, u8 val)
+{
+	int rc;
+
+	rc = regmap_write(pon->regmap, addr, val);
+	if (rc)
+		dev_err(pon->dev, "Register write failed, addr=0x%04X, rc=%d\n",
+			addr, rc);
+	return rc;
+}
+
+static int qpnp_pon_read(struct qpnp_pon *pon, u16 addr, unsigned int *val)
+{
+	int rc;
+
+	rc = regmap_read(pon->regmap, addr, val);
+	if (rc)
+		dev_err(pon->dev, "Register read failed, addr=0x%04X, rc=%d\n",
+			addr, rc);
+	return rc;
+}
+
+static bool is_pon_gen1(struct qpnp_pon *pon)
+{
+	return pon->subtype == PON_PRIMARY || pon->subtype == PON_SECONDARY;
+}
+
+static bool is_pon_gen2(struct qpnp_pon *pon)
+{
+	return pon->subtype == PON_GEN2_PRIMARY ||
+		pon->subtype == PON_GEN2_SECONDARY;
+}
+
+static bool is_pon_gen3(struct qpnp_pon *pon)
+{
+	return pon->subtype == PON_GEN3_PBS ||
+		pon->subtype == PON_GEN3_HLOS;
+}
+
+/**
+ * qpnp_pon_set_restart_reason() - Store device restart reason in PMIC register
+ *
+ * Returns 0 if PMIC feature is not available or store restart reason
+ * successfully.
+ * Returns < 0 for errors
+ *
+ * This function is used to store device restart reason in PMIC register.
+ * It checks here to see if the restart reason register has been specified.
+ * If it hasn't, this function should immediately return 0
+ */
+int qpnp_pon_set_restart_reason(enum pon_restart_reason reason)
+{
+	int rc = 0;
+	struct qpnp_pon *pon = sys_reset_dev;
+
+	if (!pon)
+		return 0;
+
+	if (!pon->store_hard_reset_reason)
+		return 0;
+
+	if ((is_pon_gen2(pon) || is_pon_gen3(pon)) && !pon->legacy_hard_reset_offset)
+		rc = qpnp_pon_masked_write(pon, QPNP_PON_SOFT_RB_SPARE(pon),
+					   GENMASK(7, 1), (reason << 1));
+	else
+		rc = qpnp_pon_masked_write(pon, QPNP_PON_SOFT_RB_SPARE(pon),
+					   GENMASK(7, 2), (reason << 2));
+
+	return rc;
+}
+EXPORT_SYMBOL(qpnp_pon_set_restart_reason);
 
 extern unsigned int b_press;
 /* ASUS_BSP + [ASDF]long press power key 6sec,reset device.. ++ */
@@ -629,90 +715,6 @@ static const char * const qpnp_poff_reason[] = {
 	[38] = "Triggered from S3_RESET_PBS_NACK",
 	[39] = "Triggered from S3_RESET_KPDPWR_ANDOR_RESIN",
 };
-
-static int
-qpnp_pon_masked_write(struct qpnp_pon *pon, u16 addr, u8 mask, u8 val)
-{
-	int rc;
-
-	rc = regmap_update_bits(pon->regmap, addr, mask, val);
-	if (rc)
-		dev_err(pon->dev, "Register write failed, addr=0x%04X, rc=%d\n",
-			addr, rc);
-	return rc;
-}
-
-static int qpnp_pon_write(struct qpnp_pon *pon, u16 addr, u8 val)
-{
-	int rc;
-
-	rc = regmap_write(pon->regmap, addr, val);
-	if (rc)
-		dev_err(pon->dev, "Register write failed, addr=0x%04X, rc=%d\n",
-			addr, rc);
-	return rc;
-}
-
-static int qpnp_pon_read(struct qpnp_pon *pon, u16 addr, unsigned int *val)
-{
-	int rc;
-
-	rc = regmap_read(pon->regmap, addr, val);
-	if (rc)
-		dev_err(pon->dev, "Register read failed, addr=0x%04X, rc=%d\n",
-			addr, rc);
-	return rc;
-}
-
-static bool is_pon_gen1(struct qpnp_pon *pon)
-{
-	return pon->subtype == PON_PRIMARY || pon->subtype == PON_SECONDARY;
-}
-
-static bool is_pon_gen2(struct qpnp_pon *pon)
-{
-	return pon->subtype == PON_GEN2_PRIMARY ||
-		pon->subtype == PON_GEN2_SECONDARY;
-}
-
-static bool is_pon_gen3(struct qpnp_pon *pon)
-{
-	return pon->subtype == PON_GEN3_PBS ||
-		pon->subtype == PON_GEN3_HLOS;
-}
-
-/**
- * qpnp_pon_set_restart_reason() - Store device restart reason in PMIC register
- *
- * Returns 0 if PMIC feature is not available or store restart reason
- * successfully.
- * Returns < 0 for errors
- *
- * This function is used to store device restart reason in PMIC register.
- * It checks here to see if the restart reason register has been specified.
- * If it hasn't, this function should immediately return 0
- */
-int qpnp_pon_set_restart_reason(enum pon_restart_reason reason)
-{
-	int rc = 0;
-	struct qpnp_pon *pon = sys_reset_dev;
-
-	if (!pon)
-		return 0;
-
-	if (!pon->store_hard_reset_reason)
-		return 0;
-
-	if (is_pon_gen2(pon) || is_pon_gen3(pon))
-		rc = qpnp_pon_masked_write(pon, QPNP_PON_SOFT_RB_SPARE(pon),
-					   GENMASK(7, 1), (reason << 1));
-	else
-		rc = qpnp_pon_masked_write(pon, QPNP_PON_SOFT_RB_SPARE(pon),
-					   GENMASK(7, 2), (reason << 2));
-
-	return rc;
-}
-EXPORT_SYMBOL(qpnp_pon_set_restart_reason);
 
 /*
  * qpnp_pon_check_hard_reset_stored() - Checks if the PMIC need to
@@ -2781,6 +2783,9 @@ static int qpnp_pon_probe(struct platform_device *pdev)
 
 	pon->store_hard_reset_reason = of_property_read_bool(dev->of_node,
 					"qcom,store-hard-reset-reason");
+
+	pon->legacy_hard_reset_offset = of_property_read_bool(pdev->dev.of_node,
+					"qcom,use-legacy-hard-reset-offset");
 
 	if (of_property_read_bool(dev->of_node, "qcom,secondary-pon-reset")) {
 		if (sys_reset) {

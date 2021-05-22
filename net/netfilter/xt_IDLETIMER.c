@@ -191,7 +191,7 @@ static ssize_t idletimer_tg_show(struct device *dev,
 		} else {
 			expires = timer->timer.expires;
 			time_diff =
-			jiffies_to_msecs(abs(expires - now)) / 1000;
+				jiffies_to_msecs(abs(expires - now)) / 1000;
 		}
 	}
 
@@ -487,46 +487,45 @@ static void reset_timer(const struct idletimer_tg_info *info,
 }
 
 static void reset_timer_v1(const struct idletimer_tg_info_v1 *info,
- struct sk_buff *skb)
+			   struct sk_buff *skb)
 {
- unsigned long now = jiffies;
- struct idletimer_tg *timer = info->timer;
- bool timer_prev;
+	unsigned long now = jiffies;
+	struct idletimer_tg *timer = info->timer;
+	bool timer_prev;
 
- spin_lock_bh(&timestamp_lock);
- timer_prev = timer->active;
- timer->active = true;
- /* timer_prev is used to guard overflow problem in time_before*/
- if (!timer_prev || time_before(timer->timer.expires, now)) {
- pr_debug("Starting timer (Expired, Jiffies): %lu, %lu\n",
- timer->timer.expires, now);
+	spin_lock_bh(&timestamp_lock);
+	timer_prev = timer->active;
+	timer->active = true;
+	/* timer_prev is used to guard overflow problem in time_before*/
+	if (!timer_prev || time_before(timer->timer.expires, now)) {
+		pr_debug("Starting timer (Expired, Jiffies): %lu, %lu\n",
+			 timer->timer.expires, now);
 
- /* Stores the uid resposible for waking up the radio */
- if (skb && skb->sk) {
- timer->uid =
- from_kuid_munged(current_user_ns(),
- sock_i_uid(skb_to_full_sk(skb)));
- }
+		/* Stores the uid resposible for waking up the radio */
+		if (skb && skb->sk) {
+			timer->uid =
+			from_kuid_munged(current_user_ns(),
+					 sock_i_uid(skb_to_full_sk(skb)));
+		}
 
- /* checks if there is a pending inactive notification*/
- if (timer->work_pending) {
- timer->delayed_timer_trigger = timer->last_modified_timer;
- }
- else {
- timer->work_pending = true;
- schedule_work(&timer->work);
- }
- }
- if (info->timer->timer_type & XT_IDLETIMER_ALARM) {
- ktime_t tout = ktime_set(info->timeout, 0);
+		/* checks if there is a pending inactive notification*/
+		if (timer->work_pending) {
+			timer->delayed_timer_trigger = timer->last_modified_timer;
+		} else {
+			timer->work_pending = true;
+			schedule_work(&timer->work);
+		}
+	}
+	if (info->timer->timer_type & XT_IDLETIMER_ALARM) {
+		ktime_t tout = ktime_set(info->timeout, 0);
 
- alarm_start_relative(&info->timer->alarm, tout);
- } else {
- timer->last_modified_timer = ktime_to_timespec64(ktime_get_boottime());
- mod_timer(&timer->timer,
- msecs_to_jiffies(info->timeout * 1000) + now);
- }
- spin_unlock_bh(&timestamp_lock);
+		alarm_start_relative(&info->timer->alarm, tout);
+	} else {
+		timer->last_modified_timer = ktime_to_timespec64(ktime_get_boottime());
+		mod_timer(&timer->timer,
+			  msecs_to_jiffies(info->timeout * 1000) + now);
+	}
+	spin_unlock_bh(&timestamp_lock);
 }
 
 /*
@@ -665,7 +664,7 @@ static int idletimer_tg_checkentry_v1(const struct xt_tgchk_param *par)
 				alarm_start_relative(&info->timer->alarm, tout);
 			}
 		} else {
-		    reset_timer_v1(info, NULL);
+			reset_timer_v1(info, NULL);
 		}
 		pr_debug("increased refcnt of timer %s to %u\n",
 			 info->label, info->timer->refcnt);
