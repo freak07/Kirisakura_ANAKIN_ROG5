@@ -3162,7 +3162,9 @@ static int sdhci_msm_cqe_add_host(struct sdhci_host *host,
 	 * Set the vendor specific ops needed for ICE.
 	 * Default implementation if the ops are not set.
 	 */
+#ifdef CONFIG_MMC_CQHCI_CRYPTO_QTI
 	cqhci_crypto_qti_set_vops(cq_host);
+#endif
 
 	ret = cqhci_init(cq_host, host->mmc, dma64);
 	if (ret) {

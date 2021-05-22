@@ -426,7 +426,6 @@ void cqhci_crypto_enable(struct cqhci_host *host)
 
 	return cqhci_crypto_enable_spec(host);
 }
-EXPORT_SYMBOL(cqhci_crypto_enable);
 
 void cqhci_crypto_disable(struct cqhci_host *host)
 {
@@ -435,7 +434,6 @@ void cqhci_crypto_disable(struct cqhci_host *host)
 
 	return cqhci_crypto_disable_spec(host);
 }
-EXPORT_SYMBOL(cqhci_crypto_disable);
 
 int cqhci_host_init_crypto(struct cqhci_host *host)
 {
@@ -445,7 +443,6 @@ int cqhci_host_init_crypto(struct cqhci_host *host)
 
 	return cqhci_host_init_crypto_spec(host, &cqhci_ksm_ops);
 }
-EXPORT_SYMBOL(cqhci_host_init_crypto);
 
 void cqhci_crypto_setup_rq_keyslot_manager(struct cqhci_host *host,
 					    struct request_queue *q)
@@ -475,7 +472,6 @@ int cqhci_crypto_get_ctx(struct cqhci_host *host,
 
 	return cqhci_prepare_crypto_desc_spec(host, mrq, ice_ctx);
 }
-EXPORT_SYMBOL(cqhci_crypto_get_ctx);
 
 int cqhci_complete_crypto_desc(struct cqhci_host *host,
 				struct mmc_request *mrq,
@@ -487,21 +483,18 @@ int cqhci_complete_crypto_desc(struct cqhci_host *host,
 
 	return 0;
 }
-EXPORT_SYMBOL(cqhci_complete_crypto_desc);
 
 void cqhci_crypto_debug(struct cqhci_host *host)
 {
 	if (host->crypto_vops && host->crypto_vops->debug)
 		host->crypto_vops->debug(host);
 }
-EXPORT_SYMBOL(cqhci_crypto_debug);
 
 void cqhci_crypto_set_vops(struct cqhci_host *host,
 			struct cqhci_host_crypto_variant_ops *crypto_vops)
 {
 	host->crypto_vops = crypto_vops;
 }
-EXPORT_SYMBOL(cqhci_crypto_set_vops);
 
 int cqhci_crypto_suspend(struct cqhci_host *host)
 {
@@ -510,7 +503,6 @@ int cqhci_crypto_suspend(struct cqhci_host *host)
 
 	return 0;
 }
-EXPORT_SYMBOL(cqhci_crypto_suspend);
 
 int cqhci_crypto_resume(struct cqhci_host *host)
 {
@@ -527,7 +519,6 @@ int cqhci_crypto_reset(struct cqhci_host *host)
 
 	return 0;
 }
-EXPORT_SYMBOL(cqhci_crypto_reset);
 
 int cqhci_crypto_recovery_finish(struct cqhci_host *host)
 {
@@ -539,7 +530,6 @@ int cqhci_crypto_recovery_finish(struct cqhci_host *host)
 
 	return 0;
 }
-EXPORT_SYMBOL(cqhci_crypto_recovery_finish);
 
 MODULE_DESCRIPTION("CQHCI Crypto Engine Support");
 MODULE_LICENSE("GPL v2");
