@@ -389,6 +389,7 @@ struct ufs_hba_variant_ops {
 	void	(*config_scaling_param)(struct ufs_hba *hba,
 					struct devfreq_dev_profile *profile,
 					void *data);
+
 	ANDROID_KABI_RESERVE(1);
 	ANDROID_KABI_RESERVE(2);
 	ANDROID_KABI_RESERVE(3);
@@ -1013,7 +1014,6 @@ struct ufs_hba {
 	u32 limit_rx_hs_gear;
 	u32 limit_tx_pwm_gear;
 	u32 limit_rx_pwm_gear;
-	u32 limit_phy_submode;
 	bool restore_needed;
 	u32 scsi_cmd_timeout;
 	bool auto_h8_err;
