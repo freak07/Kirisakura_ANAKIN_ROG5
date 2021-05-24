@@ -50,6 +50,10 @@ extern void rt_send_screen_resume(void);
 
 #define SEC_PANEL_NAME_MAX_LEN  256
 
+int switch_fps = 60;
+
+static unsigned int cur_refresh_rate = 60;
+
 u8 dbgfs_tx_cmd_buf[SZ_4K];
 static char dsi_display_primary[MAX_CMDLINE_PARAM_LEN];
 static char dsi_display_secondary[MAX_CMDLINE_PARAM_LEN];
@@ -7701,6 +7705,13 @@ error:
 	return rc;
 }
 
+unsigned int dsi_panel_get_refresh_rate(void)
+{
+	return READ_ONCE(cur_refresh_rate);
+}
+
+void sched_set_refresh_rate_walt(void);
+
 int dsi_display_set_mode(struct dsi_display *display,
 			 struct dsi_display_mode *mode,
 			 u32 flags)
@@ -7750,6 +7761,30 @@ int dsi_display_set_mode(struct dsi_display *display,
 			timing.h_active, timing.v_active, timing.refresh_rate);
 	SDE_EVT32(adj_mode.priv_info->mdp_transfer_time_us,
 			timing.h_active, timing.v_active, timing.refresh_rate);
+
+	WRITE_ONCE(cur_refresh_rate, mode->timing.refresh_rate);
+	switch_fps = mode->timing.refresh_rate;
+
+	if (switch_fps == 60)
+		{
+		pr_err("[WALT-Disp] set 60fps WALT RAVG_Window\n");
+		sched_set_refresh_rate_walt();
+		}
+	else if (switch_fps == 90)
+		{
+		pr_err("[WALT-Disp] set 90fps WALT RAVG_Window\n");
+		sched_set_refresh_rate_walt();
+		}
+	else if (switch_fps == 120)
+		{
+		pr_err("[WALT-Disp] set 120fps WALT RAVG_Window\n");
+		sched_set_refresh_rate_walt();
+		}
+	else if (switch_fps == 144)
+		{
+		pr_err("[WALT-Disp] set 144fps WALT RAVG_Window\n");
+		sched_set_refresh_rate_walt();
+		}
 
 	memcpy(display->panel->cur_mode, &adj_mode, sizeof(adj_mode));
 error:

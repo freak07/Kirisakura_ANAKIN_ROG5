@@ -9,6 +9,7 @@
 #include <linux/sched/stat.h>
 #include <trace/events/sched.h>
 #include "qc_vas.h"
+#include <drm/drm_refresh_rate.h>
 
 #include <trace/events/sched.h>
 
@@ -130,6 +131,9 @@ __read_mostly unsigned int sysctl_sched_window_stats_policy =
 	WINDOW_STATS_MAX_RECENT_AVG;
 
 unsigned int sysctl_sched_ravg_window_nr_ticks = (HZ / NR_WINDOWS_PER_SEC);
+
+static unsigned int display_sched_ravg_window_nr_ticks =
+	(HZ / NR_WINDOWS_PER_SEC);
 
 unsigned int sysctl_sched_dynamic_ravg_window_enable = (HZ == 250);
 
@@ -3828,11 +3832,16 @@ unlock:
 
 static inline void sched_window_nr_ticks_change(void)
 {
+	int new_ticks;
 	unsigned long flags;
 
 	spin_lock_irqsave(&sched_ravg_window_lock, flags);
-	new_sched_ravg_window = mult_frac(sysctl_sched_ravg_window_nr_ticks,
-						NSEC_PER_SEC, HZ);
+
+	new_ticks = min(display_sched_ravg_window_nr_ticks,
+			sysctl_sched_ravg_window_nr_ticks);
+
+	new_sched_ravg_window = new_ticks * (NSEC_PER_SEC / HZ);
+
 	spin_unlock_irqrestore(&sched_ravg_window_lock, flags);
 }
 
@@ -3859,4 +3868,34 @@ int sched_ravg_window_handler(struct ctl_table *table,
 unlock:
 	mutex_unlock(&mutex);
 	return ret;
+}
+
+void sched_set_refresh_rate_walt(void)
+{
+	if (HZ == 250 && sysctl_sched_dynamic_ravg_window_enable) {
+
+		unsigned int refresh_rate = dsi_panel_get_refresh_rate();
+
+		if (refresh_rate == 60)
+		{
+			pr_err("[WALT] set 60fps WALT RAVG_Window\n");
+			display_sched_ravg_window_nr_ticks = 5;
+		}
+		else if (refresh_rate == 90)
+		{
+			pr_err("[WALT] set 90fps WALT RAVG_Window\n");
+			display_sched_ravg_window_nr_ticks = 3;
+		}
+		else if (refresh_rate == 120)
+		{
+			pr_err("[WALT] set 120fps WALT RAVG_Window\n");
+			display_sched_ravg_window_nr_ticks = 2;
+		}
+		else if (refresh_rate == 144)
+		{
+			pr_err("[WALT] set 144fps WALT RAVG_Window\n");
+			display_sched_ravg_window_nr_ticks = 2;
+		}
+		sched_window_nr_ticks_change();
+	}
 }
