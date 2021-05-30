@@ -26,8 +26,11 @@ static inline struct msm_rpmh_master_stats *msm_rpmh_get_apss_data(void)
 }
 
 #endif
+#ifdef CONFIG_ASUS_POWER_DEBUG
 //[PM_debug +++]
 void msm_rpmh_master_stats_print(void);
 void soc_sleep_stats_print(void);
 //[PM_debug ---]
+#endif
+
 #endif /* __QCOM_RPM_STATS_LOG_H__ */

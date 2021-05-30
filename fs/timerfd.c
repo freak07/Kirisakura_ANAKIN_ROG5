@@ -27,7 +27,7 @@
 #include <linux/compat.h>
 #include <linux/rcupdate.h>
 
-#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+#ifdef CONFIG_ASUS_POWER_DEBUG
 //[PM_debug+++]
 extern int alarm_debug_count;
 extern int alarm_debug;
@@ -245,7 +245,7 @@ static __poll_t timerfd_poll(struct file *file, poll_table *wait)
 	spin_lock_irqsave(&ctx->wqh.lock, flags);
 	if (ctx->ticks)
 		events |= EPOLLIN;
-#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT	
+#ifdef CONFIG_ASUS_POWER_DEBUG	
     //[PM_debug+++]
     if(alarm_debug && alarm_debug_count){
         //printk("[PM_debug]%s +++", __func__);

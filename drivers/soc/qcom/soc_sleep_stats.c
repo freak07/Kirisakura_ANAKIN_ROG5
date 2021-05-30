@@ -59,10 +59,12 @@ struct stats_entry {
 	struct entry entry;
 	struct appended_entry appended_entry;
 };
-
+#ifdef CONFIG_ASUS_POWER_DEBUG
 //[PM_debug +++]
 struct soc_sleep_stats_data *gsoc_drv;
 //[PM_debug ---]
+#endif
+
 static inline u64 get_time_in_sec(u64 counter)
 {
 	do_div(counter, arch_timer_get_rate());
@@ -90,8 +92,7 @@ static inline ssize_t append_data_to_buf(char *buf, int length,
 			 data->entry.accumulated,
 			 data->appended_entry.client_votes);
 }
-#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
-//[PM_debug +++]
+#if 0
 int pre_aosd_count;
 bool need_dump_rpmh_master_stat;
 void soc_sleep_stats_print(bool suspend)
@@ -310,7 +311,9 @@ static int soc_sleep_stats_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, drv);
-    gsoc_drv = drv;
+#ifdef CONFIG_ASUS_POWER_DEBUG
+	gsoc_drv = drv;
+#endif
 	return 0;
 }
 

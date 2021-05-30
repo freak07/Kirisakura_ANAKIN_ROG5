@@ -918,7 +918,7 @@ void get_last_shutdown_log(void)
 	printk("get_last_shutdown_log: printk_buffer_slot2=%p, value=0x%lx\n", printk_buffer_slot2_addr, *printk_buffer_slot2_addr);
 	if (*printk_buffer_slot2_addr == (ulong)PRINTK_BUFFER_MAGIC)
 		save_last_shutdown_log("LastShutdown");
-	printk_buffer_rebase();
+	//printk_buffer_rebase();
 }
 EXPORT_SYMBOL(get_last_shutdown_log);
 

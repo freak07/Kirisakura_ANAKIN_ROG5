@@ -465,7 +465,8 @@ static const struct dev_pm_ops qcom_ipcc_dev_pm_ops = {
 	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(qcom_ipcc_pm_suspend, qcom_ipcc_pm_resume)
 };
 
-#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+	
+#ifdef CONFIG_ASUS_POWER_DEBUG
 //[PM_debug +++]
 static int suspend(struct platform_device *pdev, pm_message_t state);
 static int resume(struct platform_device *pdev);
@@ -506,7 +507,7 @@ static int resume(struct platform_device *pdev)
 static struct platform_driver qcom_ipcc_driver = {
 	.probe = qcom_ipcc_probe,
 	.remove = qcom_ipcc_remove,
-#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+#ifdef CONFIG_ASUS_POWER_DEBUG
 //[PM_debug +++]
     .suspend =  suspend,
     .resume =   resume,

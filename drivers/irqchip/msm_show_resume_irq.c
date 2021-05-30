@@ -7,11 +7,15 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 
+#ifdef CONFIG_ASUS_POWER_DEBUG
 //[PM_debug +++]
 //int msm_show_resume_irq_mask;
 /*Mask IRQ triggered number during gic_show_resume_irq() in kernel/drivers/irqchip/irq-gic-v3.c */
 int msm_show_resume_irq_mask = 1; 
 //[PM_debug ---]
+#endif
+
+int msm_show_resume_irq_mask;
 
 module_param_named(
 	debug_mask, msm_show_resume_irq_mask, int, 0664);

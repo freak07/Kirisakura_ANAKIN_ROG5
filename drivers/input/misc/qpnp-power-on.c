@@ -381,7 +381,6 @@ void wait_for_power_key_6s_work(struct work_struct *work)
 
 #define TIMEOUT_SLOW 30
 
-extern int boot_after_60sec;
 void wait_for_slowlog_work(struct work_struct *work)
 {
 	static int one_slowlog_instance_running = 0;
@@ -1329,7 +1328,6 @@ static int qpnp_pon_input_dispatch(struct qpnp_pon *pon, u32 pon_type)
 #if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
 	/* for phone hang debug */
 		pon_for_powerkey = pon;
-		if (boot_after_60sec) {
 			if (is_holding_power_key()) {
 				press_time = jiffies;
 			/*	if ((g_ASUS_hwID < ZS660KL_PR1) ||
@@ -1347,7 +1345,6 @@ static int qpnp_pon_input_dispatch(struct qpnp_pon *pon, u32 pon_type)
 				del_timer(&pwr_press_timer);
 				press_time = 0xFFFFFFFF;
 			}
-		}
 #endif
 		break;
 	case PON_RESIN:
@@ -1369,7 +1366,6 @@ static int qpnp_pon_input_dispatch(struct qpnp_pon *pon, u32 pon_type)
 		pon_rt_sts);
 	key_status = pon_rt_sts & pon_rt_bit;
 #if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
-	if (boot_after_60sec) {
 		if (cfg->key_code == 114) {
 			if (key_status) 
 				mod_timer(&voldown_press_timer, jiffies + msecs_to_jiffies(3000));
@@ -1377,7 +1373,6 @@ static int qpnp_pon_input_dispatch(struct qpnp_pon *pon, u32 pon_type)
 				voldown_key_6s_running = 0;
 				voldown_key_3s_running = 0;
 				del_timer(&voldown_press_timer);
-			}
 		}
 	}
 	printk("[keypad][qpnp-power-on.c] keycode=%d, state=%s\n", cfg->key_code, key_status?"press":"release");//ASUS BSP Hank +++
