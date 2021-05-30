@@ -91,6 +91,7 @@ static void __iomem *rpmh_unit_base;
 
 static DEFINE_MUTEX(rpmh_stats_mutex);
 
+#if 0
 //[PM_debug +++]
 void msm_rpmh_master_stats_print(void)
 {
@@ -135,6 +136,7 @@ void msm_rpmh_master_stats_print(void)
 }
 EXPORT_SYMBOL(msm_rpmh_master_stats_print);
 //[PM_debug ---]
+#endif
 static ssize_t msm_rpmh_master_stats_print_data(char *prvbuf, ssize_t length,
 				struct msm_rpmh_master_stats *record,
 				const char *name)
@@ -239,9 +241,11 @@ void msm_rpmh_master_stats_update(void)
 					GET_ADDR(REG_DATA_HI, i)) << 32);
 	}
 	msm_rpmh_apss_master_stats_update(profile_unit);
+#ifdef CONFIG_ASUS_POWER_DEBUG
     //[PM_debug +++]
     //msm_rpmh_master_stats_print();
     //[PM_debug ---]
+#endif
 }
 EXPORT_SYMBOL(msm_rpmh_master_stats_update);
 

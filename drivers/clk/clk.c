@@ -5,9 +5,12 @@
  *
  * Standard functionality for the common clock API.  See Documentation/driver-api/clk.rst
  */
+
+#ifdef CONFIG_ASUS_POWER_DEBUG
 //[PM_debug +++] 
 #define pr_fmt(fmt) "CLK: " fmt
 //[PM_debug ---] 
+#endif
 
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
@@ -27,10 +30,12 @@
 
 #include "clk.h"
 
+#ifdef CONFIG_ASUS_POWER_DEBUG
 //[PM_debug +++] 
 //#define CLK_COUNT 17 //precs codebase
 #define CLK_COUNT 7  //cs codebase
-//[PM_debug ---] 
+//[PM_debug ---]
+#endif
 
 static DEFINE_SPINLOCK(enable_lock);
 static DEFINE_MUTEX(prepare_lock);
@@ -3000,10 +3005,14 @@ EXPORT_SYMBOL_GPL(clk_is_match);
 
 static struct dentry *rootdir;
 static int inited = 0;
+
+#ifdef CONFIG_ASUS_POWER_DEBUG
 //[PM_debug +++]
 //clock debug
 static u32 debug_suspend = 1;
 //[PM_debug ---]
+#endif
+
 static DEFINE_MUTEX(clk_debug_lock);
 static HLIST_HEAD(clk_debug_list);
 
@@ -3450,6 +3459,8 @@ static int clock_debug_print_clock(struct clk_core *c, struct seq_file *s)
 
 	return 1;
 }
+
+#ifdef CONFIG_ASUS_POWER_DEBUG
 //[PM_debug +++]
 //clock debug
 static int clock_debug_get_clock_count(struct clk_core *c, struct seq_file *s)
@@ -3459,6 +3470,7 @@ static int clock_debug_get_clock_count(struct clk_core *c, struct seq_file *s)
 	return 1;
 }
 //[PM_debug ---]
+#endif
 
 /*
  * clock_debug_print_enabled_clocks() - Print names of enabled clocks
@@ -3471,6 +3483,8 @@ static void clock_debug_print_enabled_clocks(struct seq_file *s)
 	clock_debug_output(s, 0, "Enabled clocks:\n");
 
 	hlist_for_each_entry(core, &clk_debug_list, debug_node)
+
+#ifdef CONFIG_ASUS_POWER_DEBUG
     //[PM_debug +++]
     //clock debug
 		//cnt += clock_debug_print_clock(core, s);
@@ -3480,6 +3494,8 @@ static void clock_debug_print_enabled_clocks(struct seq_file *s)
 			clock_debug_print_clock(core, s);
 	}
     //[PM_debug ---]
+#endif
+
 	if (cnt)
 		clock_debug_output(s, 0, "Enabled clock count: %d\n", cnt);
 	else
