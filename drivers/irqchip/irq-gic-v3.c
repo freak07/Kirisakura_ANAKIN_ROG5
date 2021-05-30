@@ -46,10 +46,13 @@ int qrtr_first_msg = 0;
 
 #define FLAGS_WORKAROUND_GICR_WAKER_MSM8996	(1ULL << 0)
 
+#ifdef CONFIG_ASUS_POWER_DEBUG
 //[PM_debug +++]
 //irq debug
 int gic_irq_cnt,gic_resume_irq;//Add these values to save IRQ's counts and number
 //[PM_debug ---]
+#endif
+
 struct redist_region {
 	void __iomem		*redist_base;
 	phys_addr_t		phys_base;
@@ -597,12 +600,16 @@ static void gic_show_resume_irq(struct gic_chip_data *gic)
 	u32 enabled;
 	u32 pending[32];
 	void __iomem *base = gic_data.dist_base;
+
+#ifdef CONFIG_ASUS_POWER_DEBUG
 //[PM_debug +++]
 //irg debug
 //reset IRQ count and IRQ number every time.
 	gic_resume_irq=0;
 	gic_irq_cnt=0;
 //[PM_debug ---]
+#endif
+
 	if (!msm_show_resume_irq_mask)
 		return;
 
@@ -628,19 +635,23 @@ static void gic_show_resume_irq(struct gic_chip_data *gic)
 			name = desc->action->name;
 		else if (desc->irq_data.chip && desc->irq_data.chip->name)
 			name = desc->irq_data.chip->name;
+#ifdef CONFIG_ASUS_POWER_DEBUG
     //[PM_debug +++]
         //irq debug
         //save IRQ's counts and number
 		gic_resume_irq = irq;
 		gic_irq_cnt++;
+#endif
 		pr_warn("%s: irq:%d hwirq:%u triggered %s\n",
 			 __func__, irq, i, name);
 #if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT        
         qrtr_first_msg = 1; //You could try filter out the irq name by yourself.
 #endif        
 	}
+#ifdef CONFIG_ASUS_POWER_DEBUG
 	printk("irq count: %d\n", gic_irq_cnt);        
     //[PM_debug ---]
+#endif
 }
 
 static void gic_resume_one(struct gic_chip_data *gic)

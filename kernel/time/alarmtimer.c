@@ -60,7 +60,7 @@ static struct wakeup_source *ws;
 /* rtc timer and device for setting alarm wakeups at suspend */
 static struct rtc_timer		rtctimer;
 static struct rtc_device	*rtcdev;
-#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+#ifdef CONFIG_ASUS_POWER_DEBUG
 //[PM_debug+++]
 static int alarm_debug_count = 0;
 extern int alarm_debug;
@@ -176,7 +176,7 @@ static void alarmtimer_enqueue(struct alarm_base *base, struct alarm *alarm)
 {
 	if (alarm->state & ALARMTIMER_STATE_ENQUEUED)
 		timerqueue_del(&base->timerqueue, &alarm->node);
-	#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+#ifdef CONFIG_ASUS_POWER_DEBUG
     //[PM_debug+++]
     if(alarm_debug){
         pr_info("[PM_debug][alarm]%s: comm:%s pid:%d exp:%llu type:%d func:%pf \n", __func__,
@@ -184,7 +184,7 @@ static void alarmtimer_enqueue(struct alarm_base *base, struct alarm *alarm)
         ktime_to_ms(alarm->node.expires), alarm->type, alarm->function);//This print code could be removed for release build.
     }
     //[PM_debug---]
-	#endif
+#endif
 	timerqueue_add(&base->timerqueue, &alarm->node);
 	alarm->state |= ALARMTIMER_STATE_ENQUEUED;
 }
@@ -229,7 +229,7 @@ static enum hrtimer_restart alarmtimer_fired(struct hrtimer *timer)
 	alarmtimer_dequeue(base, alarm);
 	spin_unlock_irqrestore(&base->lock, flags);
 
-#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+#ifdef CONFIG_ASUS_POWER_DEBUG
 	//[PM_debug+++]
     if(alarm_debug){
         if(alarm_debug_count & 0x1){
@@ -280,7 +280,7 @@ static int alarmtimer_suspend(struct device *dev)
 	struct rtc_device *rtc;
 	unsigned long flags;
 	struct rtc_time tm;
-#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT	
+#ifdef CONFIG_ASUS_POWER_DEBUG
     //[PM_debug+++]
     struct alarm* min_timer = NULL;
     //[PM_debug---]
@@ -310,7 +310,7 @@ static int alarmtimer_suspend(struct device *dev)
 			continue;
 		delta = ktime_sub(next->expires, base->gettime());
 		if (!min || (delta < min)) {
-		#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT	
+#ifdef CONFIG_ASUS_POWER_DEBUG	
             //[PM_debug+++]
             min_timer = container_of(next, struct alarm, node);
             //[PM_debug---]
@@ -323,7 +323,7 @@ static int alarmtimer_suspend(struct device *dev)
 	if (min == 0)
 		return 0;
 
-#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+#ifdef CONFIG_ASUS_POWER_DEBUG
     //[PM_debug+++]
     if (min_timer){
         if(alarm_debug){
@@ -338,7 +338,7 @@ static int alarmtimer_suspend(struct device *dev)
 #endif
 	if (ktime_to_ns(min) < 2 * NSEC_PER_SEC) {
 		__pm_wakeup_event(ws, 2 * MSEC_PER_SEC);
-#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+#ifdef CONFIG_ASUS_POWER_DEBUG
     //[PM_debug+++]        
         dev_err(dev, "Nearest alarm wakeup time < 2sec, avoiding suspend\n");
     //[PM_debug---]
