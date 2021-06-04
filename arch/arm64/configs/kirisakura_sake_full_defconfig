@@ -6851,4 +6851,4 @@ CONFIG_DEFAULT_TCP_CONG="westwood"
 #
 # Wakelock Blocker
 #
-# CONFIG_BOEFFLA_WL_BLOCKER is not set
+CONFIG_BOEFFLA_WL_BLOCKER=y
