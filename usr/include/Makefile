@@ -64,6 +64,21 @@ header-test- += xen/gntdev.h
 header-test- += xen/privcmd.h
 header-test- += linux/usb/f_mtp.h
 
+header-test- += ais/media/ais_isp.h
+header-test- += ais/media/cam_lrme.h
+header-test- += ais/media/cam_cpas.h
+header-test- += ais/media/cam_fd.h
+header-test- += ais/media/cam_jpeg.h
+header-test- += ais/media/cam_sync.h
+header-test- += ais/media/cam_isp.h
+header-test- += ais/media/cam_icp.h
+header-test- += ais/media/cam_req_mgr.h
+header-test- += ais/media/cam_sensor.h
+header-test- += ais/media/cam_defs.h
+header-test- += ais/media/ais_sensor.h
+header-test- += display/media/msm_sde_rotator.h
+header-test- += vidc/media/msm_vidc_private.h
+
 # More headers are broken in some architectures
 
 ifeq ($(SRCARCH),arc)

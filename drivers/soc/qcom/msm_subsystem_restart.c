@@ -345,6 +345,12 @@ static DEVICE_ATTR_RO(devpath);
 /*AS-K ASUS SSR and Debug - devpath---*/
 #endif
 
+int subsys_get_restart_level(struct subsys_device *dev)
+{
+	return dev->restart_level;
+}
+EXPORT_SYMBOL(subsys_get_restart_level);
+
 static void subsys_set_state(struct subsys_device *subsys,
 			     enum subsys_state state)
 {

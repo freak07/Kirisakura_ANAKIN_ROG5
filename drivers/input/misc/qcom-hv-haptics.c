@@ -2875,17 +2875,19 @@ static ssize_t pattern_s_dbgfs_write(struct file *fp,
 {
 	struct haptics_effect *effect = fp->private_data;
 	struct pattern_s patterns[SAMPLES_PER_PATTERN] = {{0, 0, 0},};
-	char *str, *token;
+	char *str, *kbuf, *token;
 	u32 val, tmp[3 * SAMPLES_PER_PATTERN] = {0};
 	int rc, i = 0, j = 0;
 
 	if (count > CHAR_PER_PATTERN_S * SAMPLES_PER_PATTERN)
 		return -EINVAL;
 
-	str = kzalloc(CHAR_PER_PATTERN_S * SAMPLES_PER_PATTERN + 1, GFP_KERNEL);
-	if (!str)
+	kbuf = kzalloc(CHAR_PER_PATTERN_S * SAMPLES_PER_PATTERN + 1,
+						GFP_KERNEL);
+	if (!kbuf)
 		return -ENOMEM;
 
+	str = kbuf;
 	rc = copy_from_user(str, buf, count);
 	if (rc > 0) {
 		rc = -EFAULT;
@@ -2936,7 +2938,7 @@ static ssize_t pattern_s_dbgfs_write(struct file *fp,
 
 	rc = count;
 exit:
-	kfree(str);
+	kfree(kbuf);
 	return rc;
 }
 
@@ -3007,7 +3009,7 @@ static ssize_t fifo_s_dbgfs_write(struct file *fp,
 {
 	struct haptics_effect *effect = fp->private_data;
 	struct fifo_cfg *fifo = effect->fifo;
-	char *kbuf, *token;
+	char *str, *kbuf, *token;
 	int rc, i = 0;
 	int val;
 	u8 *samples;
@@ -3016,13 +3018,14 @@ static ssize_t fifo_s_dbgfs_write(struct file *fp,
 	if (!kbuf)
 		return -ENOMEM;
 
-	rc = copy_from_user(kbuf, buf, count);
+	str = kbuf;
+	rc = copy_from_user(str, buf, count);
 	if (rc > 0) {
 		rc = -EFAULT;
 		goto exit;
 	}
 
-	kbuf[count] = '\0';
+	str[count] = '\0';
 	*ppos += count;
 
 	samples = kcalloc(fifo->num_s, sizeof(*samples), GFP_KERNEL);
@@ -3031,7 +3034,7 @@ static ssize_t fifo_s_dbgfs_write(struct file *fp,
 		goto exit;
 	}
 
-	while ((token = strsep(&kbuf, " ")) != NULL) {
+	while ((token = strsep(&str, " ")) != NULL) {
 		rc = kstrtoint(token, 0, &val);
 		if (rc < 0) {
 			rc = -EINVAL;
@@ -3131,7 +3134,7 @@ static ssize_t brake_s_dbgfs_write(struct file *fp,
 {
 	struct haptics_effect *effect = fp->private_data;
 	struct brake_cfg *brake = effect->brake;
-	char *str, *token;
+	char *str, *kbuf, *token;
 	int rc, i = 0;
 	u32 val;
 	u8 samples[BRAKE_SAMPLE_COUNT] = {0};
@@ -3139,10 +3142,11 @@ static ssize_t brake_s_dbgfs_write(struct file *fp,
 	if (count > CHAR_PER_SAMPLE * BRAKE_SAMPLE_COUNT)
 		return -EINVAL;
 
-	str = kzalloc(CHAR_PER_SAMPLE * BRAKE_SAMPLE_COUNT + 1, GFP_KERNEL);
-	if (!str)
+	kbuf = kzalloc(CHAR_PER_SAMPLE * BRAKE_SAMPLE_COUNT + 1, GFP_KERNEL);
+	if (!kbuf)
 		return -ENOMEM;
 
+	str = kbuf;
 	rc = copy_from_user(str, buf, count);
 	if (rc > 0) {
 		rc = -EFAULT;
@@ -3174,7 +3178,7 @@ static ssize_t brake_s_dbgfs_write(struct file *fp,
 
 	rc = count;
 exit:
-	kfree(str);
+	kfree(kbuf);
 	return rc;
 }
 
