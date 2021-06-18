@@ -733,7 +733,6 @@ static void handle_thermal_trip(struct device *dev,
 	int idx = 0;
 	struct __sensor_param *sens_param = NULL;
 	bool notify = false;
-	unsigned long tz_status_mask = 0;
 
 	idx = find_sensor_index(dev, data);
 	if (idx < 0)
@@ -750,7 +749,6 @@ static void handle_thermal_trip(struct device *dev,
 			thermal_zone_device_update(zone,
 				THERMAL_EVENT_UNSPECIFIED);
 		} else {
-			set_bit(idx, &tz_status_mask);
 			if (!of_thermal_is_trips_triggered(zone, trip_temp))
 				continue;
 			notify = true;
@@ -763,15 +761,9 @@ static void handle_thermal_trip(struct device *dev,
 	 * It is better to notify at least one thermal zone if trip is violated
 	 * for none.
 	 */
-	if (temp_valid && !notify) {
-		idx = find_first_bit(&tz_status_mask, sens_param->tz_cnt);
-		if (idx < sens_param->tz_cnt) {
-			data = sens_param->tz_list[idx];
-			zone = data->tzd;
-			thermal_zone_device_update_temp(zone,
-				THERMAL_EVENT_UNSPECIFIED, trip_temp);
-		}
-	}
+	if (temp_valid && !notify)
+		thermal_zone_device_update_temp(tzd, THERMAL_EVENT_UNSPECIFIED,
+				trip_temp);
 }
 
 /*
@@ -1349,17 +1341,14 @@ static int thermal_of_populate_bind_params(struct device_node *np,
 
 	count = of_count_phandle_with_args(np, "cooling-device",
 					   "#cooling-cells");
-	if (count <= 0) {
+	if (!count) {
 		pr_err("Add a cooling_device property with at least one device\n");
-		ret = -ENOENT;
 		goto end;
 	}
 
 	__tcbp = kcalloc(count, sizeof(*__tcbp), GFP_KERNEL);
-	if (!__tcbp) {
-		ret = -ENOMEM;
+	if (!__tcbp)
 		goto end;
-	}
 
 	for (i = 0; i < count; i++) {
 		ret = of_parse_phandle_with_args(np, "cooling-device",

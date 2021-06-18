@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2018-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
  */
 
 #include <linux/soc/qcom/qmi.h>
@@ -19,7 +19,7 @@ static struct qmi_elem_info ts_sensor_type_v01_ei[] = {
 	{
 		.data_type      = QMI_EOTI,
 		.array_type       = NO_ARRAY,
-		.tlv_type       = QMI_COMMON_TLV_TYPE,
+		.array_type       = QMI_COMMON_TLV_TYPE,
 	},
 };
 
@@ -27,7 +27,7 @@ struct qmi_elem_info ts_get_sensor_list_req_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_EOTI,
 		.array_type       = NO_ARRAY,
-		.tlv_type       = QMI_COMMON_TLV_TYPE,
+		.array_type       = QMI_COMMON_TLV_TYPE,
 	},
 };
 
@@ -40,12 +40,12 @@ struct qmi_elem_info ts_get_sensor_list_resp_msg_v01_ei[] = {
 		.tlv_type       = 0x02,
 		.offset         =
 			offsetof(struct ts_get_sensor_list_resp_msg_v01, resp),
-		.ei_array       = qmi_response_type_v01_ei,
+		.ei_array	= qmi_response_type_v01_ei,
 	},
 	{
 		.data_type      = QMI_OPT_FLAG,
 		.elem_len       = 1,
-		.elem_size      = sizeof(u8),
+		.elem_size      = sizeof(uint8_t),
 		.array_type       = NO_ARRAY,
 		.tlv_type       = 0x10,
 		.offset         =
@@ -55,7 +55,7 @@ struct qmi_elem_info ts_get_sensor_list_resp_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_DATA_LEN,
 		.elem_len       = 1,
-		.elem_size      = sizeof(u8),
+		.elem_size      = sizeof(uint8_t),
 		.array_type       = NO_ARRAY,
 		.tlv_type       = 0x10,
 		.offset         =
@@ -74,40 +74,9 @@ struct qmi_elem_info ts_get_sensor_list_resp_msg_v01_ei[] = {
 		.ei_array      = ts_sensor_type_v01_ei,
 	},
 	{
-		.data_type      = QMI_OPT_FLAG,
-		.elem_len       = 1,
-		.elem_size      = sizeof(u8),
-		.array_type       = NO_ARRAY,
-		.tlv_type       = 0x11,
-		.offset         =
-			offsetof(struct ts_get_sensor_list_resp_msg_v01,
-					   sensor_list_ext01_valid),
-	},
-	{
-		.data_type      = QMI_DATA_LEN,
-		.elem_len       = 1,
-		.elem_size      = sizeof(u8),
-		.array_type       = NO_ARRAY,
-		.tlv_type       = 0x11,
-		.offset         =
-			offsetof(struct ts_get_sensor_list_resp_msg_v01,
-					   sensor_list_ext01_len),
-	},
-	{
-		.data_type      = QMI_STRUCT,
-		.elem_len       = QMI_TS_SENSOR_LIST_EXT01_MAX_V01,
-		.elem_size      = sizeof(struct ts_sensor_type_v01),
-		.array_type       = VAR_LEN_ARRAY,
-		.tlv_type       = 0x11,
-		.offset         =
-			offsetof(struct ts_get_sensor_list_resp_msg_v01,
-					   sensor_list_ext01),
-		.ei_array      = ts_sensor_type_v01_ei,
-	},
-	{
 		.data_type      = QMI_EOTI,
 		.array_type       = NO_ARRAY,
-		.tlv_type       = QMI_COMMON_TLV_TYPE,
+		.array_type       = QMI_COMMON_TLV_TYPE,
 	},
 };
 
@@ -126,7 +95,7 @@ struct qmi_elem_info ts_register_notification_temp_req_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_UNSIGNED_1_BYTE,
 		.elem_len       = 1,
-		.elem_size      = sizeof(u8),
+		.elem_size      = sizeof(uint8_t),
 		.array_type       = NO_ARRAY,
 		.tlv_type       = 0x02,
 		.offset         = offsetof(
@@ -136,7 +105,7 @@ struct qmi_elem_info ts_register_notification_temp_req_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_OPT_FLAG,
 		.elem_len       = 1,
-		.elem_size      = sizeof(u8),
+		.elem_size      = sizeof(uint8_t),
 		.array_type       = NO_ARRAY,
 		.tlv_type       = 0x10,
 		.offset         = offsetof(
@@ -146,7 +115,7 @@ struct qmi_elem_info ts_register_notification_temp_req_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_UNSIGNED_4_BYTE,
 		.elem_len       = 1,
-		.elem_size      = sizeof(u32),
+		.elem_size      = sizeof(int),
 		.array_type       = NO_ARRAY,
 		.tlv_type       = 0x10,
 		.offset         = offsetof(
@@ -156,7 +125,7 @@ struct qmi_elem_info ts_register_notification_temp_req_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_OPT_FLAG,
 		.elem_len       = 1,
-		.elem_size      = sizeof(u8),
+		.elem_size      = sizeof(uint8_t),
 		.array_type       = NO_ARRAY,
 		.tlv_type       = 0x11,
 		.offset         = offsetof(
@@ -166,7 +135,7 @@ struct qmi_elem_info ts_register_notification_temp_req_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_UNSIGNED_4_BYTE,
 		.elem_len       = 1,
-		.elem_size      = sizeof(u32),
+		.elem_size      = sizeof(int),
 		.array_type       = NO_ARRAY,
 		.tlv_type       = 0x11,
 		.offset         = offsetof(
@@ -176,7 +145,7 @@ struct qmi_elem_info ts_register_notification_temp_req_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_OPT_FLAG,
 		.elem_len       = 1,
-		.elem_size      = sizeof(u8),
+		.elem_size      = sizeof(uint8_t),
 		.array_type       = NO_ARRAY,
 		.tlv_type       = 0x12,
 		.offset         = offsetof(
@@ -186,7 +155,7 @@ struct qmi_elem_info ts_register_notification_temp_req_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_UNSIGNED_4_BYTE,
 		.elem_len       = 1,
-		.elem_size      = sizeof(u32),
+		.elem_size      = sizeof(uint32_t),
 		.array_type       = NO_ARRAY,
 		.tlv_type       = 0x12,
 		.offset         = offsetof(
@@ -196,7 +165,7 @@ struct qmi_elem_info ts_register_notification_temp_req_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_EOTI,
 		.array_type       = NO_ARRAY,
-		.tlv_type       = QMI_COMMON_TLV_TYPE,
+		.array_type       = QMI_COMMON_TLV_TYPE,
 	},
 };
 
@@ -215,7 +184,7 @@ struct qmi_elem_info ts_register_notification_temp_resp_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_EOTI,
 		.array_type       = NO_ARRAY,
-		.tlv_type       = QMI_COMMON_TLV_TYPE,
+		.array_type       = QMI_COMMON_TLV_TYPE,
 	},
 };
 
@@ -242,7 +211,7 @@ struct qmi_elem_info ts_temp_report_ind_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_OPT_FLAG,
 		.elem_len       = 1,
-		.elem_size      = sizeof(u8),
+		.elem_size      = sizeof(uint8_t),
 		.array_type       = NO_ARRAY,
 		.tlv_type       = 0x10,
 		.offset         = offsetof(struct ts_temp_report_ind_msg_v01,
@@ -251,7 +220,7 @@ struct qmi_elem_info ts_temp_report_ind_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_UNSIGNED_4_BYTE,
 		.elem_len       = 1,
-		.elem_size      = sizeof(u32),
+		.elem_size      = sizeof(int),
 		.array_type       = NO_ARRAY,
 		.tlv_type       = 0x10,
 		.offset         = offsetof(struct ts_temp_report_ind_msg_v01,
@@ -260,7 +229,7 @@ struct qmi_elem_info ts_temp_report_ind_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_OPT_FLAG,
 		.elem_len       = 1,
-		.elem_size      = sizeof(u8),
+		.elem_size      = sizeof(uint8_t),
 		.array_type       = NO_ARRAY,
 		.tlv_type       = 0x11,
 		.offset         = offsetof(struct ts_temp_report_ind_msg_v01,
@@ -269,7 +238,7 @@ struct qmi_elem_info ts_temp_report_ind_msg_v01_ei[] = {
 	{
 		.data_type      = QMI_UNSIGNED_4_BYTE,
 		.elem_len       = 1,
-		.elem_size      = sizeof(u32),
+		.elem_size      = sizeof(uint32_t),
 		.array_type       = NO_ARRAY,
 		.tlv_type       = 0x11,
 		.offset         = offsetof(struct ts_temp_report_ind_msg_v01,
@@ -277,8 +246,8 @@ struct qmi_elem_info ts_temp_report_ind_msg_v01_ei[] = {
 	},
 	{
 		.data_type      = QMI_EOTI,
-		.array_type     = NO_ARRAY,
-		.tlv_type       = QMI_COMMON_TLV_TYPE,
+		.array_type       = NO_ARRAY,
+		.array_type       = QMI_COMMON_TLV_TYPE,
 	},
 };
 
