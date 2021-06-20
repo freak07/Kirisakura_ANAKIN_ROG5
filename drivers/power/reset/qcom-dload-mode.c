@@ -252,7 +252,11 @@ static int qcom_dload_panic(struct notifier_block *this, unsigned long event,
 	poweroff->in_panic = true;
 	if (enable_dump){
 		msm_enable_dump_mode(true);
-		reboot_mode = REBOOT_WARM;
+
+	// Perform a warm reboot
+	set_download_mode(QCOM_DOWNLOAD_NODUMP);
+	reboot_mode = REBOOT_WARM;
+	mb();
 	}
 	return NOTIFY_OK;
 }
@@ -265,8 +269,7 @@ static int qcom_dload_reboot(struct notifier_block *this, unsigned long event,
 						     reboot_nb);
 
 	/* Clean shutdown, disable dump mode to allow normal restart */
-	if (!poweroff->in_panic)
-		set_download_mode(QCOM_DOWNLOAD_NODUMP);
+	set_download_mode(QCOM_DOWNLOAD_NODUMP);
 
 	if (cmd) {
 		if (!strcmp(cmd, "edl"))
