@@ -163,7 +163,7 @@ static int ddr_cdev_probe(struct platform_device *pdev)
 			cdev_name, ret);
 		goto err_exit;
 	}
-	dev_dbg(dev, "Cooling device [%s] registered.\n", cdev_name);
+	dev_err(dev, "Cooling device [%s] registered.\n", cdev_name);
 	dev_set_drvdata(dev, ddr_cdev);
 
 	return 0;
