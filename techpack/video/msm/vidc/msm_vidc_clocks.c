@@ -525,7 +525,10 @@ static int msm_dcvs_scale_clocks(struct msm_vidc_inst *inst,
 	} else if ((dcvs->dcvs_flags & MSM_VIDC_DCVS_DECR &&
 		    bufs_with_fw >= dcvs->nom_threshold) ||
 		   (dcvs->dcvs_flags & MSM_VIDC_DCVS_INCR &&
-		    bufs_with_fw <= dcvs->nom_threshold))
+		    bufs_with_fw <= dcvs->nom_threshold) ||
+		   (inst->session_type == MSM_VIDC_ENCODER &&
+		    dcvs->dcvs_flags & MSM_VIDC_DCVS_DECR &&
+		    bufs_with_fw >= dcvs->min_threshold))
 		dcvs->dcvs_flags = 0;
 
 	s_vpr_p(inst->sid, "DCVS: bufs_with_fw %d Th[%d %d %d] Flag %#x\n",
@@ -1234,9 +1237,11 @@ static int msm_vidc_decide_work_mode_ar50_lt(struct msm_vidc_inst *inst)
 		return -EINVAL;
 	}
 
+	latency.enable = false;
 	hdev = inst->core->device;
 	if (inst->clk_data.low_latency_mode) {
 		pdata.video_work_mode = HFI_WORKMODE_1;
+		latency.enable = true;
 		goto decision_done;
 	}
 
@@ -1256,20 +1261,25 @@ static int msm_vidc_decide_work_mode_ar50_lt(struct msm_vidc_inst *inst)
 		}
 	} else if (inst->session_type == MSM_VIDC_ENCODER) {
 		pdata.video_work_mode = HFI_WORKMODE_1;
+		/* For WORK_MODE_1, set Low Latency mode by default */
+		latency.enable = true;
 		if (inst->rc_type == V4L2_MPEG_VIDEO_BITRATE_MODE_VBR ||
 				inst->rc_type ==
 					V4L2_MPEG_VIDEO_BITRATE_MODE_MBR ||
 				inst->rc_type ==
 					V4L2_MPEG_VIDEO_BITRATE_MODE_MBR_VFR ||
 				inst->rc_type ==
-					V4L2_MPEG_VIDEO_BITRATE_MODE_CQ)
+					V4L2_MPEG_VIDEO_BITRATE_MODE_CQ) {
 			pdata.video_work_mode = HFI_WORKMODE_2;
+			latency.enable = false;
+		}
 	} else {
 		return -EINVAL;
 	}
 
 decision_done:
-
+	s_vpr_h(inst->sid, "Configuring work mode = %u low latency = %u",
+			pdata.video_work_mode, latency.enable);
 	inst->clk_data.work_mode = pdata.video_work_mode;
 	rc = call_hfi_op(hdev, session_set_property,
 			(void *)inst->session, HFI_PROPERTY_PARAM_WORK_MODE,
@@ -1277,17 +1287,12 @@ decision_done:
 	if (rc)
 		s_vpr_e(inst->sid, "Failed to configure Work Mode\n");
 
-	/* For WORK_MODE_1, set Low Latency mode by default to HW. */
-
-	if (inst->session_type == MSM_VIDC_ENCODER &&
-			inst->clk_data.work_mode == HFI_WORKMODE_1) {
-		latency.enable = true;
+	if (inst->session_type == MSM_VIDC_ENCODER && latency.enable) {
 		rc = call_hfi_op(hdev, session_set_property,
 			(void *)inst->session,
 			HFI_PROPERTY_PARAM_VENC_LOW_LATENCY_MODE,
 			(void *)&latency, sizeof(latency));
 	}
-
 	rc = msm_comm_scale_clocks_and_bus(inst, 1);
 
 	return rc;
@@ -1393,8 +1398,7 @@ int msm_vidc_decide_work_mode_iris2(struct msm_vidc_inst *inst)
 	}
 
 	s_vpr_h(inst->sid, "Configuring work mode = %u low latency = %u",
-			pdata.video_work_mode,
-			latency.enable);
+			pdata.video_work_mode, latency.enable);
 
 	if (inst->session_type == MSM_VIDC_ENCODER) {
 		rc = call_hfi_op(hdev, session_set_property,
@@ -1426,6 +1430,7 @@ static inline int msm_vidc_power_save_mode_enable(struct msm_vidc_inst *inst,
 	void *pdata = NULL;
 	struct hfi_device *hdev = NULL;
 	u32 hfi_perf_mode;
+	struct v4l2_ctrl *ctrl;
 
 	hdev = inst->core->device;
 	if (inst->session_type != MSM_VIDC_ENCODER) {
@@ -1435,6 +1440,9 @@ static inline int msm_vidc_power_save_mode_enable(struct msm_vidc_inst *inst,
 		return 0;
 	}
 
+	ctrl = get_ctrl(inst, V4L2_CID_MPEG_VIDC_VENC_COMPLEXITY);
+	if (!is_realtime_session(inst) && !ctrl->val)
+		enable = true;
 	prop_id = HFI_PROPERTY_CONFIG_VENC_PERF_MODE;
 	hfi_perf_mode = enable ? HFI_VENC_PERFMODE_POWER_SAVE :
 		HFI_VENC_PERFMODE_MAX_QUALITY;
@@ -1444,7 +1452,7 @@ static inline int msm_vidc_power_save_mode_enable(struct msm_vidc_inst *inst,
 			sizeof(hfi_perf_mode));
 	if (rc) {
 		s_vpr_e(inst->sid, "%s: Failed to set power save mode\n",
-			__func__, inst);
+			__func__);
 		return rc;
 	}
 	inst->flags = enable ?

@@ -264,6 +264,7 @@
 #define HFI_VENUS_HEIGHT_ALIGNMENT 32
 
 #define SYSTEM_LAL_TILE10 192
+#define NUM_MBS_360P (((480 + 15) >> 4) * ((360 + 15) >> 4))
 #define NUM_MBS_720P (((1280 + 15) >> 4) * ((720 + 15) >> 4))
 #define NUM_MBS_4k (((4096 + 15) >> 4) * ((2304 + 15) >> 4))
 #define MB_SIZE_IN_PIXEL (16 * 16)
@@ -493,17 +494,17 @@ int msm_vidc_get_num_ref_frames(struct msm_vidc_inst *inst)
 	max_layer = get_ctrl(inst,
 		V4L2_CID_MPEG_VIDC_VIDEO_HEVC_MAX_HIER_CODING_LAYER);
 	if (frame_t->val == V4L2_MPEG_VIDEO_HEVC_HIERARCHICAL_CODING_P &&
-		max_layer->val > 0) {
+		max_layer->val > 1) {
 		codec = get_v4l2_codec(inst);
 		/* LTR and B - frame not supported with hybrid HP */
 		if (inst->hybrid_hp)
-			num_ref = (max_layer->val - 1);
+			num_ref = (max_layer->val + 1) >> 1;
 		else if (codec == V4L2_PIX_FMT_HEVC)
 			num_ref = ((max_layer->val + 1) / 2) + ltr_count;
-		else if ((codec == V4L2_PIX_FMT_H264) && (max_layer->val <= 4))
-			num_ref = ((1 << (max_layer->val - 1)) - 1) + ltr_count;
+		else if ((codec == V4L2_PIX_FMT_H264) && (max_layer->val < 4))
+			num_ref = (max_layer->val - 1) + ltr_count;
 		else
-			num_ref = ((max_layer->val + 1) / 2) + ltr_count;
+			num_ref = max_layer->val + ltr_count;
 	}
 
 	if (is_hier_b_session(inst)) {
@@ -913,6 +914,8 @@ u32 msm_vidc_calculate_dec_input_frame_size(struct msm_vidc_inst *inst, u32 buff
 	if (inst->core->platform_data->vpu_ver == VPU_VERSION_AR50_LITE) {
 		base_res_mbs = inst->capability.cap[CAP_MBS_PER_FRAME].max;
 		div_factor = 1;
+		if (num_mbs < NUM_MBS_720P)
+			base_res_mbs = base_res_mbs * 2;
 	}
 	/* For HEIF image, use the actual resolution to calc buffer size */
 	if (is_heif_decoder(inst)) {
@@ -982,8 +985,9 @@ u32 msm_vidc_calculate_enc_output_frame_size(struct msm_vidc_inst *inst)
 	f = &inst->fmts[OUTPUT_PORT].v4l2_fmt;
 	/*
 	 * Encoder output size calculation: 32 Align width/height
-	 * For resolution < 720p : YUVsize * 4
-	 * For resolution > 720p & <= 4K : YUVsize / 2
+	 * For CQ or heic session : YUVsize * 2
+	 * For resolution <= 480x360p : YUVsize * 2
+	 * For resolution > 360p & <= 4K : YUVsize / 2
 	 * For resolution > 4k : YUVsize / 4
 	 * Initially frame_size = YUVsize * 2;
 	 */
@@ -996,24 +1000,30 @@ u32 msm_vidc_calculate_enc_output_frame_size(struct msm_vidc_inst *inst)
 	mbs_per_frame = NUM_MBS_PER_FRAME(width, height);
 	frame_size = (width * height * 3);
 
-	if (mbs_per_frame < NUM_MBS_720P)
-		frame_size = frame_size << 1;
+	if (inst->rc_type == V4L2_MPEG_VIDEO_BITRATE_MODE_CQ ||
+		is_grid_session(inst) || is_image_session(inst))
+		goto calc_done;
+
+	if (mbs_per_frame <= NUM_MBS_360P)
+		(void)frame_size; /* Default frame_size = YUVsize * 2 */
 	else if (mbs_per_frame <= NUM_MBS_4k)
 		frame_size = frame_size >> 2;
 	else
 		frame_size = frame_size >> 3;
 
-	if ((inst->rc_type == RATE_CONTROL_OFF) ||
-		(inst->rc_type == V4L2_MPEG_VIDEO_BITRATE_MODE_CQ))
+	if (inst->rc_type == RATE_CONTROL_OFF)
 		frame_size = frame_size << 1;
 
 	if (inst->rc_type == RATE_CONTROL_LOSSLESS)
 		frame_size = (width * height * 9) >> 2;
 
 	/* multiply by 10/8 (1.25) to get size for 10 bit case */
-	if (f->fmt.pix_mp.pixelformat == V4L2_PIX_FMT_HEVC)
+	if (inst->core->platform_data->vpu_ver != VPU_VERSION_AR50_LITE &&
+		f->fmt.pix_mp.pixelformat == V4L2_PIX_FMT_HEVC) {
 		frame_size = frame_size + (frame_size >> 2);
+	}
 
+calc_done:
 	return ALIGN(frame_size, SZ_4K);
 }
 
@@ -1075,6 +1085,9 @@ u32 msm_vidc_calculate_enc_output_extra_size(struct msm_vidc_inst *inst)
 
 	if (inst->prop.extradata_ctrls & EXTRADATA_ADVANCED)
 		size += sizeof(struct msm_vidc_metadata_ltr_payload);
+
+	if (inst->prop.extradata_ctrls & EXTRADATA_ENC_FRAME_QP)
+		size += sizeof(struct msm_vidc_frame_qp_payload);
 
 	/* Add size for extradata none */
 	if (size)
@@ -1426,7 +1439,7 @@ static inline u32 calculate_enc_scratch_size(struct msm_vidc_inst *inst,
 		bitbin_size = ALIGN(bitstream_size, VENUS_DMA_ALIGNMENT);
 	}
 	if (aligned_width * aligned_height >= 3840 * 2160)
-		size_singlePipe = bitbin_size / 4;
+		size_singlePipe = bitbin_size / num_vpp_pipes;
 	else if (num_vpp_pipes > 2)
 		size_singlePipe = bitbin_size / 2;
 	else

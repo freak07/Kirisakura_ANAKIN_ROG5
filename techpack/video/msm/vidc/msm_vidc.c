@@ -1267,7 +1267,9 @@ static void msm_vidc_buf_queue(struct vb2_buffer *vb2)
 
 	if (rc) {
 		print_vb2_buffer("failed vb2-qbuf", inst, vb2);
-		msm_comm_generate_session_error(inst);
+		vb2_buffer_done(vb2, VB2_BUF_STATE_DONE);
+		msm_vidc_queue_v4l2_event(inst,
+			V4L2_EVENT_MSM_VIDC_SYS_ERROR);
 	}
 }
 
@@ -1646,6 +1648,7 @@ fail_bufq_capture:
 	DEINIT_MSM_VIDC_LIST(&inst->pending_getpropq);
 	DEINIT_MSM_VIDC_LIST(&inst->outputbufs);
 	DEINIT_MSM_VIDC_LIST(&inst->registeredbufs);
+	DEINIT_MSM_VIDC_LIST(&inst->refbufs);
 	DEINIT_MSM_VIDC_LIST(&inst->eosbufs);
 	DEINIT_MSM_VIDC_LIST(&inst->input_crs);
 	DEINIT_MSM_VIDC_LIST(&inst->etb_data);
@@ -1773,6 +1776,7 @@ int msm_vidc_destroy(struct msm_vidc_inst *inst)
 	DEINIT_MSM_VIDC_LIST(&inst->pending_getpropq);
 	DEINIT_MSM_VIDC_LIST(&inst->outputbufs);
 	DEINIT_MSM_VIDC_LIST(&inst->registeredbufs);
+	DEINIT_MSM_VIDC_LIST(&inst->refbufs);
 	DEINIT_MSM_VIDC_LIST(&inst->eosbufs);
 	DEINIT_MSM_VIDC_LIST(&inst->input_crs);
 	DEINIT_MSM_VIDC_LIST(&inst->etb_data);

@@ -522,7 +522,7 @@ static struct msm_vidc_ctrl msm_venc_ctrls[] = {
 		.minimum = EXTRADATA_NONE,
 		.maximum = EXTRADATA_ADVANCED | EXTRADATA_ENC_INPUT_ROI |
 			EXTRADATA_ENC_INPUT_HDR10PLUS |
-			EXTRADATA_ENC_INPUT_CVP,
+			EXTRADATA_ENC_INPUT_CVP | EXTRADATA_ENC_FRAME_QP,
 		.default_value = EXTRADATA_NONE,
 		.menu_skip_mask = 0,
 		.qmenu = NULL,
@@ -595,6 +595,16 @@ static struct msm_vidc_ctrl msm_venc_ctrls[] = {
 			V4L2_MPEG_VIDC_VIDEO_HEVC_MAX_HIER_CODING_LAYER_0,
 		.step = 1,
 		.menu_skip_mask = 0,
+	},
+	{
+		.id = V4L2_CID_MPEG_VIDC_VENC_COMPLEXITY,
+		.name = "Encoder complexity",
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.minimum = 0,
+		.maximum = 100,
+		.default_value = 100,
+		.step = 1,
+		.qmenu = NULL,
 	},
 	{
 		.id = V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_TYPE,
@@ -1231,6 +1241,7 @@ int msm_venc_inst_init(struct msm_vidc_inst *inst)
 	msm_vidc_init_buffer_size_calculators(inst);
 	inst->static_rotation_flip_enabled = false;
 	inst->external_blur = false;
+	inst->hdr10_sei_enabled = false;
 	return rc;
 }
 
@@ -1555,7 +1566,7 @@ static int msm_venc_update_bitrate(struct msm_vidc_inst *inst)
 	u32 cabac_max_bitrate = 0;
 
 	if (!inst) {
-		d_vpr_e("%s: invalid params %pK\n", __func__);
+		d_vpr_e("%s: invalid params\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1722,6 +1733,7 @@ int msm_venc_s_ctrl(struct msm_vidc_inst *inst, struct v4l2_ctrl *ctrl)
 		u32 info_type = ((u32)ctrl->val >> 28) & 0xF;
 		u32 val = (ctrl->val & 0xFFFFFFF);
 
+		inst->hdr10_sei_enabled = true;
 		s_vpr_h(sid, "Ctrl:%d, HDR Info with value %u (%#X)",
 				info_type, val, ctrl->val);
 		switch (info_type) {
@@ -1782,7 +1794,8 @@ int msm_venc_s_ctrl(struct msm_vidc_inst *inst, struct v4l2_ctrl *ctrl)
 				msm_vidc_calculate_enc_input_extra_size(inst);
 		}
 
-		if (inst->prop.extradata_ctrls & EXTRADATA_ADVANCED) {
+		if ((inst->prop.extradata_ctrls & EXTRADATA_ADVANCED) ||
+		(inst->prop.extradata_ctrls & EXTRADATA_ENC_FRAME_QP)) {
 			f = &inst->fmts[OUTPUT_PORT].v4l2_fmt;
 			f->fmt.pix_mp.num_planes = 2;
 			f->fmt.pix_mp.plane_fmt[1].sizeimage =
@@ -1908,17 +1921,17 @@ int msm_venc_s_ctrl(struct msm_vidc_inst *inst, struct v4l2_ctrl *ctrl)
 			}
 		} else if (inst->state == MSM_VIDC_START_DONE) {
 			if (!inst->external_blur) {
-				s_vpr_e(sid, "external blur not enabled");
+				s_vpr_e(sid, "%s: external blur not enabled", __func__);
 				break;
 			}
 			if (ctrl->val == MSM_VIDC_BLUR_EXTERNAL_DYNAMIC) {
 				s_vpr_h(sid,
-					"external blur setting already enabled\n",
+					"%s: external blur setting already enabled\n",
 					__func__);
 				break;
 			} else if (ctrl->val == MSM_VIDC_BLUR_INTERNAL) {
 				s_vpr_e(sid,
-					"cannot change to internal blur config dynamically\n",
+					"%s: cannot change to internal blur config dynamically\n",
 					__func__);
 				break;
 			} else {
@@ -1970,6 +1983,14 @@ int msm_venc_s_ctrl(struct msm_vidc_inst *inst, struct v4l2_ctrl *ctrl)
 	case V4L2_CID_MPEG_VIDC_VIDEO_FULL_RANGE:
 		inst->full_range = ctrl->val;
 		break;
+	case V4L2_CID_MPEG_VIDC_VENC_BITRATE_BOOST:
+		inst->boost_enabled = true;
+		break;
+	case V4L2_CID_MPEG_VIDC_VENC_COMPLEXITY:
+		if (is_realtime_session(inst)) {
+			s_vpr_h(sid, "Client is setting complexity for RT session\n");
+		}
+		break;
 	case V4L2_CID_MPEG_VIDEO_H264_ENTROPY_MODE:
 		inst->entropy_mode = msm_comm_v4l2_to_hfi(
 			V4L2_CID_MPEG_VIDEO_H264_ENTROPY_MODE,
@@ -2010,7 +2031,6 @@ int msm_venc_s_ctrl(struct msm_vidc_inst *inst, struct v4l2_ctrl *ctrl)
 	case V4L2_CID_MPEG_VIDEO_VBV_DELAY:
 	case V4L2_CID_MPEG_VIDEO_H264_CHROMA_QP_INDEX_OFFSET:
 	case V4L2_CID_MPEG_VIDC_VENC_BITRATE_SAVINGS:
-	case V4L2_CID_MPEG_VIDC_VENC_BITRATE_BOOST:
 	case V4L2_CID_MPEG_VIDC_VENC_QPRANGE_BOOST:
 	case V4L2_CID_MPEG_VIDC_SUPERFRAME:
 		s_vpr_h(sid, "Control set: ID : 0x%x Val : %d\n",
@@ -2496,7 +2516,8 @@ int msm_venc_set_intra_period(struct msm_vidc_inst *inst)
 
 	intra_period.pframes = gop_size->val;
 
-	if (!max_layer->val && codec == V4L2_PIX_FMT_H264) {
+	/* max_layer 0/1 indicates absence of layer encoding */
+	if (max_layer->val < 2) {
 		/*
 		 * At this point we've already made decision on bframe.
 		 * Control value gives updated bframe value.
@@ -2547,19 +2568,7 @@ int msm_venc_set_intra_period(struct msm_vidc_inst *inst)
 				sizeof(adaptive_p_b_intra_period));
 
 	} else {
-		//ASUS_BSP+++
-		//Modify i-frame period for asus slow motion mode
-		if(intra_period.bframes == 0) {
-			if( intra_period.pframes >= 120 ) {
-				intra_period.pframes = 30;
-				s_vpr_e(inst->sid, "Modify pframe=%d bframe=%d\n",intra_period.pframes ,intra_period.bframes);
-			}
-		} else {
-			//Should fix it if b-frame is supported for H.264.
-			s_vpr_e(inst->sid,"WARNING: skip adjust i-frame period due to b-frame is activity.");
-		}
-		//ASUS_BSP---
-		s_vpr_e(inst->sid, "%s: pframes: %d bframes: %d\n",
+		s_vpr_h(inst->sid, "%s: pframes: %d bframes: %d\n",
 				__func__, intra_period.pframes,
 				intra_period.bframes);
 		rc = call_hfi_op(hdev, session_set_property, inst->session,
@@ -3505,12 +3514,14 @@ int msm_venc_set_bitrate_boost_margin(struct msm_vidc_inst *inst, u32 enable)
 	struct v4l2_ctrl *ctrl = NULL;
 	struct hfi_bitrate_boost_margin boost_margin;
 	int minqp, maxqp;
+	uint32_t vpu;
 
 	if (!inst || !inst->core) {
 		d_vpr_e("%s: invalid params %pK\n", __func__, inst);
 		return -EINVAL;
 	}
 	hdev = inst->core->device;
+	vpu = inst->core->platform_data->vpu_ver;
 
 	if (!enable) {
 		boost_margin.margin = 0;
@@ -3519,11 +3530,20 @@ int msm_venc_set_bitrate_boost_margin(struct msm_vidc_inst *inst, u32 enable)
 
 	ctrl = get_ctrl(inst, V4L2_CID_MPEG_VIDC_VENC_BITRATE_BOOST);
 
-	/* Mapped value to 0, 25 or 50*/
+	/*
+	 * For certain SOC, default value should be 0 unless client enabled
+	 */
+	if (!inst->boost_enabled && vpu == VPU_VERSION_AR50_LITE) {
+		ctrl->val = 0;
+		update_ctrl(ctrl, 0, inst->sid);
+	}
+	/* Mapped value to 0, 15, 25 or 50*/
 	if (ctrl->val >= 50)
 		boost_margin.margin = 50;
-	else
+	else if (ctrl->val >= 25)
 		boost_margin.margin = (u32)(ctrl->val/25) * 25;
+	else
+		boost_margin.margin = (u32)(ctrl->val/15) * 15;
 
 setprop:
 	s_vpr_h(inst->sid, "%s: %d\n", __func__, boost_margin.margin);
@@ -3807,6 +3827,12 @@ int msm_venc_set_hp_max_layer(struct msm_vidc_inst *inst)
 		s_vpr_e(inst->sid, "%s: get hybrid hier-P decision failed\n",
 			__func__);
 		return rc;
+	}
+	if (!inst->hybrid_hp && max_layer->val > 4) {
+		update_ctrl(max_layer, 0, inst->sid);
+		s_vpr_h(inst->sid,
+			"%s: Hier-P requested beyond max capability\n", __func__);
+		return 0;
 	}
 
 	/*
@@ -4561,7 +4587,8 @@ int msm_venc_set_hdr_info(struct msm_vidc_inst *inst)
 	}
 	hdev = inst->core->device;
 
-	if (get_v4l2_codec(inst) != V4L2_PIX_FMT_HEVC)
+	if (get_v4l2_codec(inst) != V4L2_PIX_FMT_HEVC ||
+		!inst->hdr10_sei_enabled)
 		return 0;
 
 	profile = get_ctrl(inst, V4L2_CID_MPEG_VIDEO_HEVC_PROFILE);
@@ -4602,6 +4629,11 @@ int msm_venc_set_extradata(struct msm_vidc_inst *inst)
 		// Enable Advanced Extradata - LTR Info
 		msm_comm_set_extradata(inst,
 			HFI_PROPERTY_PARAM_VENC_LTR_INFO, 0x1);
+
+	if (inst->prop.extradata_ctrls & EXTRADATA_ENC_FRAME_QP)
+		// Enable AvgQP Extradata
+		msm_comm_set_extradata(inst,
+			HFI_PROPERTY_PARAM_VENC_FRAME_QP_EXTRADATA, 0x1);
 
 	if (inst->prop.extradata_ctrls & EXTRADATA_ENC_INPUT_ROI)
 		// Enable ROIQP Extradata
