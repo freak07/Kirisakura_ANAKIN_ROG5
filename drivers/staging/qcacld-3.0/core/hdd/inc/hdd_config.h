@@ -788,7 +788,7 @@ struct dhcp_server {
  */
 #define CFG_READ_MAC_ADDR_FROM_MAC_FILE CFG_INI_BOOL( \
 	"read_mac_addr_from_mac_file", \
-	0, \
+	1, \
 	"Use/ignore MAC address from cfg file")
 
 /*
