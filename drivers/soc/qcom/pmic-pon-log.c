@@ -574,7 +574,7 @@ void writePowerOnOff2Evtlog(struct nvmem_device *nvmem,int addr_start){
 		
 }
 
-void reverse_pm_pon_logs(){
+void reverse_pm_pon_logs(void){
 	struct pmic_pon_log_entry temp;
 	int i;
 	for( i = 0;i <=pm_pon_logs_count/2; i++){
