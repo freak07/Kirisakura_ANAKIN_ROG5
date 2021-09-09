@@ -1,0 +1,133 @@
+/* Copyright (c) 2020, Pixelworks
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+#include "pxlw-iris6-cfg-ams678-fhd-60Hz-plus-dsc-cmd.dtsi"
+#include "pxlw-iris6-cfg-ams678-fhd-120Hz-plus-dsc-cmd.dtsi"
+#include "pxlw-iris6-cfg-ams678-fhd-144Hz-plus-dsc-cmd.dtsi"
+
+&tlmm {
+	pxlw_iris_gpio: pxlw_iris_gpio {
+		iris_wakeup_active: iris_wakeup_active {
+			mux {
+				pins = "gpio172";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio172";
+				drive-strength = <8>;
+				bias-disable;
+			};
+		};
+
+		iris_wakeup_suspend: iris_wakeup_suspend {
+			mux {
+				pins = "gpio172";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio172";
+				drive-strength = <2>;
+				bias-pull-down;
+			};
+		};
+
+		iris_abyp_ready_active: iris_abyp_ready_active {
+			mux {
+				pins = "gpio84";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio84";
+				drive-strength = <8>;
+				bias-disable;
+			};
+		};
+
+		iris_abyp_ready_suspend: iris_abyp_ready_suspend {
+			mux {
+				pins = "gpio84";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio84";
+				drive-strength = <2>;
+				bias-pull-down;
+			};
+		};
+	};
+};
+
+&soc {
+	pxlw_iris: pxlw,iris {
+		compatible = "pxlw,iris";
+		index = <0>;
+
+		pinctrl-names = "iris_active", "iris_suspend";
+		pinctrl-0 = <&iris_wakeup_active &iris_abyp_ready_active>;
+		pinctrl-1 = <&iris_wakeup_suspend &iris_abyp_ready_suspend>;
+
+        //qcom,iris-reset-gpio = <&tlmm 75 0>;
+	    qcom,iris-wakeup-gpio = <&tlmm 172 0>;
+	    qcom,iris-abyp-ready-gpio = <&tlmm 84 0>;
+	/*todo*/
+        //qcom,iris-vdd-gpio = <&tlmm 175 0>;
+	};
+};
+//PW: PX8618_I3C +++
+//&qupv3_se8_i2c {
+//        status = "ok";
+//        pw-i3c@26 {  //i2c: 22, i3c: 26
+//		status = "ok";
+//		compatible = "pixelworks,iris";
+//		reg = <0x26>;
+//        };
+//};
+//PW: PX8618_I3C ---
+
+&soc {
+	pxlw,iris {
+		compatible = "pxlw,iris";
+		index = <0>;
+	};
+};
+
+&dsi_ams678_fhd_plus_dsc_cmd {
+	qcom,mdss-dsi-display-timings {
+		timing@0{
+			pxlw,iris-lightup-config = <&mdss_iris_cfg_ams678_fhd_plus_dsc_60hz_cmd>;
+		};
+
+		timing@1{
+			pxlw,iris-lightup-config = <&mdss_iris_cfg_ams678_fhd_plus_dsc_120hz_cmd>;
+		};
+	};
+};
+
+&dsi_ams678_er2_fhd_plus_dsc_cmd {
+	qcom,mdss-dsi-display-timings {
+		timing@0{
+			pxlw,iris-lightup-config = <&mdss_iris_cfg_ams678_fhd_plus_dsc_60hz_cmd>;
+		};
+
+		timing@1{
+			pxlw,iris-lightup-config = <&mdss_iris_cfg_ams678_fhd_plus_dsc_120hz_cmd>;
+		};
+
+		timing@2{
+			pxlw,iris-lightup-config = <&mdss_iris_cfg_ams678_fhd_plus_dsc_144hz_cmd>;
+		};
+	};
+};

@@ -1,0 +1,934 @@
+/dts-v1/;
+/plugin/;
+
+#include "lahaina-mtp.dtsi"
+#include "dsi-panel-sake-samsung-fhd-cmd.dtsi"
+#include "dsi-panel-boe-2k-video.dtsi"
+#include "sake-goodix-fp.dtsi"
+#include <dt-bindings/regulator/qcom,rpmh-regulator-levels.h>
+
+/ {
+	model = "Qualcomm Technologies, Inc. SAKE EVB";
+	compatible = "qcom,lahaina-mtp", "qcom,lahaina", "qcom,mtp";
+	qcom,board-id = <39 0>;
+};
+
+/*   ====================================
+*    overlay for display - start
+*    ====================================
+*/
+
+&soc {
+	dsi_panel_pwr_supply_vci_no_labibb: dsi_panel_pwr_supply_vci_no_labibb {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		qcom,panel-supply-entry@0 {
+			reg = <0>;
+			qcom,supply-name = "vddio";
+			qcom,supply-min-voltage = <1800000>;
+			qcom,supply-max-voltage = <1800000>;
+			qcom,supply-enable-load = <60700>;
+			qcom,supply-disable-load = <80>;
+		};
+
+		qcom,panel-supply-entry@1 {
+			reg = <1>;
+			qcom,supply-name = "vdd";
+			qcom,supply-min-voltage = <3000000>;
+			qcom,supply-max-voltage = <3000000>;
+			qcom,supply-enable-load = <10000>;
+			qcom,supply-disable-load = <0>;
+			qcom,supply-post-on-sleep = <0>;
+			qcom,supply-pre-off-sleep = <10>;
+		};
+	};
+
+};
+
+&sde_dsi {
+	/delete-property/ avdd-supply;
+	qcom,dsi-default-panel = <&dsi_samsung_fhd_cmd>;
+
+};
+
+&dsi_samsung_fhd_cmd {
+	qcom,panel-supply-entries = <&dsi_panel_pwr_supply_vci_no_labibb>;
+	qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_dcs";
+	qcom,mdss-dsi-bl-min-level = <1>;
+	qcom,mdss-dsi-bl-max-level = <1023>;
+
+	qcom,platform-te-gpio = <&tlmm 82 0>; // default is 82
+	qcom,platform-reset-gpio = <&tlmm 24 0>;
+
+	qcom,ulps-enabled;
+	qcom,dsi-select-clocks = "mux_byte_clk0", "mux_pixel_clk0";
+	qcom,mdss-dsi-display-timings {
+		timing@0 {
+			qcom,mdss-dsi-panel-phy-timings = [00 20 08 08 18 17 08
+				08 08 02 04 00 1B 0D];
+			qcom,display-topology = <2 2 1>;
+			qcom,default-topology-index = <0>;
+		};
+		timing@1 {
+			qcom,mdss-dsi-panel-phy-timings = [00 20 08 08 18 17 08
+				08 08 02 04 00 1B 0D];
+			qcom,display-topology = <2 2 1>;
+			qcom,default-topology-index = <0>;
+		};
+		timing@2 {
+			qcom,mdss-dsi-panel-phy-timings = [00 20 08 08 18 17 08
+				08 08 02 04 00 1B 0D];
+			qcom,display-topology = <2 2 1>;
+			qcom,default-topology-index = <0>;
+		};
+	};
+};
+
+&dsi_boe_2k_vid {
+	qcom,panel-supply-entries = <&dsi_panel_pwr_supply_vci_no_labibb>;
+	qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_dcs";
+	qcom,mdss-dsi-bl-min-level = <1>;
+	qcom,mdss-dsi-bl-max-level = <4095>;
+	qcom,mdss-dsi-mode-sel-gpio-state = "single_port";
+	qcom,platform-te-gpio = <&tlmm 82 0>; // default is 82
+	qcom,platform-reset-gpio = <&tlmm 24 0>;
+
+	qcom,mdss-dsi-display-timings {
+		timing@0 {
+			qcom,mdss-dsi-panel-phy-timings = [00 22 09 09 25 24 09
+				09 06 02 04 00 1C 19];
+			qcom,display-topology = <1 0 1>;
+			qcom,default-topology-index = <0>;
+		};
+	};
+};
+
+&mdss_mdp {
+	qcom,sde-mixer-display-pref = "primary", "none", "none",
+				"none", "none", "none";
+};
+
+&sde_dp {
+	/delete-property/ qcom,dp-aux-switch;
+	qcom,dp-gpio-aux-switch;
+
+	qcom,aux-en-gpio = <&tlmm 93 0>;
+	qcom,aux-sel-gpio = <&pm8350c_gpios 1 0x0>;
+
+
+	pinctrl-names = "mdss_dp_active", "mdss_dp_sleep";
+	pinctrl-0 = <&sde_dp_aux_active >;
+	pinctrl-1 = <&sde_dp_aux_suspend>;
+};
+
+&tlmm {
+	/delete-property/ display_panel_avdd_default;
+
+	sde_dp_aux_active: sde_dp_aux_active {
+		mux {
+			pins = "gpio93";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio93";
+			bias-disable = <0>; /* no pull */
+			drive-strength = <8>;
+		};
+	};
+
+	sde_dp_aux_suspend: sde_dp_aux_suspend {
+		mux {
+			pins = "gpio93";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio93";
+			bias-disable = <0>; /* no pull */
+			drive-strength = <2>;
+		};
+	};
+};
+
+&qupv3_se13_i2c {
+	fsa4480: fsa4480@42 {
+		status = "disable";
+	};
+};
+
+// FM RTC6226 +++
+&qupv3_se13_i2c {
+	status = "ok";
+	nq@64 {
+		compatible = "rtc6226";
+		reg = <0x64>;
+		fmint-gpio = <&tlmm 50 0>;
+		vdd-supply = <&L7E>;
+		rtc6226,vdd-supply-voltage = <2800000 2800000>;
+		vio-supply = <&S10B>;
+		rtc6226,vio-supply-voltage = <1800000 1800000 >;
+	};
+};
+// FM RTC6226 ---
+
+// Touch_BSP FT3518U +++
+&qupv3_se4_i2c {
+	status = "ok";
+//	/delete-property/ qcom,i2c-touch-active;
+
+	st_fts@49 {
+		status = "disable";
+	};
+
+	focaltech@38{
+		compatible = "focaltech,fts";
+		reg = <0x38>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <23 0x2008>;
+		focaltech,reset-gpio = <&tlmm 22 0x01>;
+		focaltech,irq-gpio = <&tlmm 23 0x2008>;
+		focaltech,vddio = <&tlmm 14 0x00>;
+		focaltech,max-touch-number = <10>;
+		focaltech,display-coords = <0 0 1080 2400>;
+
+		vdd-supply = <&L3C>;
+		focaltech,regulator_dvdd = "vdd";
+		vcc_i2c-supply = <&L2C>;
+		focaltech,regulator_dvcc_i2c = "vcc_i2c";
+
+		pinctrl-names = "pmx_ts_active", "pmx_ts_suspend","pmx_ts_release";
+		pinctrl-0 = <&ts_active>;
+		pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
+		pinctrl-2 = <&ts_release>;
+	};
+};
+
+// AWINIC AW8697 Haptic +++
+&qupv3_se6_i2c {
+	status = "ok";
+	aw8697_haptic@5A {
+		compatible = "awinic,aw8697_haptic";
+		reg = <0x5A>;
+		reset-gpio = <&tlmm 106 0x0>;
+		vdd-supply = <&S10B>;
+		vib_regulator_dvdd = "vdd";
+		irq-gpio = <&tlmm 44 0>;
+		vib_mode = < 0 >;   /*mode:   RAM mode->0; CONT mode -> 1*/
+		vib_f0_pre = < 2050 >;
+		vib_f0_cali_percen = < 7 >;
+		vib_cont_drv_lev = < 105 >;
+		vib_cont_drv_lvl_ov = < 125 >;
+		vib_cont_td = < 0x009a >;
+		vib_cont_zc_thr = < 0x0ff1 >;
+		vib_cont_num_brk = < 3 >;
+		vib_f0_coeff = < 260 >; /*Don't modify it    2.604167*/
+		vib_f0_trace_parameter = < 0x05 0x03 0x02 0x0f >;
+		vib_bemf_config = < 0x10 0x08 0x03 0xf8 >;
+		vib_sw_brake = < 0x2c >;
+		vib_tset = < 0x12 >;
+		vib_r_spare = < 0x68 >;
+		vib_bstdbg = < 0x30 0xeb 0xd4 0 0 0 >;
+		status = "okay";
+	};
+};
+// AWINIC AW8697 Haptic End ---
+
+// Touch_BSP FT3518U ---
+
+// ASUS BSP Clay: ams-tmd27553 +++  
+&qupv3_se0_i2c {
+        status = "ok";		
+		tmd2755@39 {
+			compatible         = "ams,tmd2755";
+			reg                = <0x39>;     /*0x39 for hardware*/
+			interrupt-parent   = <&tlmm>;
+			interrupts         = <89 8>;     /*high-to-low trigger*/
+			qcom,alsps-gpio = <&tlmm 89 8>;
+			prox_name          = "tmd2755-prox";
+			als_name           = "tmd2755-als";
+			ppers              = <1>;  /* 0x01 */
+			prox_thresh_min    = <900>; 
+			prox_thresh_max    = <3000>; 
+			prox_pulse_cnt     = <63>;
+			prox_apc           = <0>;     /* 0 -> APC enabled */
+			prox_pulse_len     = <14>;
+			prox_gain1         = <1>;     /* 4x */
+			prox_gain2         = <3>;     /* 10x */
+			poffset            = <(-119)>; /* negative values need parens */
+			prox_drive         = <5>;
+			prox_time          = <31>;  /* 2816 usec */
+			prox_wtime         = <4>;   /* 2.88 ms per unit */
+			/* ------------------------------------------------------------*/
+			apers              = <0x01>;
+			als_gain           = <8>;
+			als_auto_gain      = <1>;
+			als_deltap         = <10>;   /* % from current to set thresholds to cause INT */
+			als_time           = <0x23>; /* 0x3f 64 integration cycles - 178 ms 65535 max count */
+			als_wtime         = <17>;   /* 2.88 ms -> 33.4 ms if pwlong is set */
+			/* ------------------------------------------------------------*/
+			dgf                = <1>;
+			ch0_coef0          = <450>; /* Coeff A */
+			h0_coef1          = <9>;  /* Coeff C */
+			ch1_coef0          = <32715>; /* Coeff B */
+			ch1_coef1          = <0>;  /* Coeff D */
+			coef_scale         = <1000>;
+			/* ------------------------------------------------------------*/
+			vcc_psensor-supply = <&pm8350c_l7>;
+			pinctrl-names = "alsps_gpio_high","alsps_gpio_low";
+			pinctrl-0 = <&vcnl36866_default>;
+			pinctrl-1 = <&vcnl36866_sleep>;
+		};
+};
+&apps_rsc {
+	rpmh-regulator-ldoc8 {
+		L8C: pm8350c_l8: regulator-pm8350c-l8 {
+			regulator-always-on;	/* ASUS BSP Always Enable 1.8V for I2C & Sensors */
+		};
+	};
+
+	rpmh-regulator-ldoc7 {
+		L7C: pm8350c_l7: regulator-pm8350c-l7 {
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			qcom,init-voltage = <3300000>;
+		};
+	};
+};
+
+&tlmm {	
+	vcnl36866_int_pin {
+		vcnl36866_default: vcnl36866_default {
+			mux {
+				pins = "gpio89";
+				function = "gpio";
+			};
+				config {
+				pins = "gpio89";
+				bias-pull-up;
+				drive-strength = <6>;
+			};
+		};
+			vcnl36866_sleep: vcnl36866_sleep {
+			mux {
+				pins = "gpio89";
+				function = "gpio";
+			};
+				config {
+				pins = "gpio89";
+				bias-pull-up;
+				drive-strength = <6>;
+			};
+		};
+	};
+};
+// ASUS BSP Clay: ams-tmd27553 ---
+
+/*   ====================================
+*    overlay for display - end
+*    ====================================
+*/
+
+/*    ====================================
+ *    overlay for lahainap-v2.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahainap-v2.dtsi - end
+ *    ====================================
+ */
+
+
+
+/*    ====================================
+ *    overlay for lahainap.dtsi - start
+ *    ====================================
+ */
+
+&pcie1 {
+	status = "disabled";
+};
+
+/*    ====================================
+ *    overlay for lahainap.dtsi - end
+ *    ====================================
+ */
+
+
+
+/*    ====================================
+ *    overlay for lahaina-mtp.dtsi - start
+ *    ====================================
+ */
+ //[+++] ASUS_BSP : Add for charger
+ &battery_charger {
+ 	io-channels = <&pmk8350_vadc PM8350B_ADC7_AMUX_THM4_100K_PU>;
+ 	io-channel-names ="pm8350b_amux_thm4";
+};
+//[---] ASUS_BSP : Add for charger
+ 
+/*    ====================================
+ *    overlay for lahaina-mtp.dtsi - end
+ *    ====================================
+ */
+
+
+/*    ====================================
+ *    overlay for lahaina-pm.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahaina-pm.dtsi - end
+ *    ====================================
+ */
+
+
+
+/*    ====================================
+ *    overlay for lahaina-pinctrl.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahaina-pinctrl.dtsi - end
+ *    ====================================
+ */
+
+
+
+/*    ====================================
+ *    overlay for lahaina-pmic-overlay.dtsi - start
+ *    ====================================
+ */
+//[+++] ASUS_BSP : frank_tao
+
+&pm8350_gpios {
+
+	/delete-node/ pm8350_rear_tof_therm;	
+
+};
+
+&pmr735a_gpios {
+	pmr735a_wifi_pa_therm3 {
+		pmr735a_wifi_pa_therm3_default: pmr735a_wifi_pa_therm3_default {
+			pins = "gpio1";
+			function = "normal";
+			bias-high-impedance;
+		};
+	};
+
+	pmr735a_pa_therm1 {
+		pmr735a_pa_therm1_default: pmr735a_pa_therm1_default {
+			pins = "gpio2";
+			function = "normal";
+			bias-high-impedance;
+		};
+	};
+
+	pmr735a_pa_therm2 {
+		pmr735a_pa_therm2_default: pmr735a_pa_therm2_default {
+			pins = "gpio3";
+			function = "normal";
+			bias-high-impedance;
+		};
+	};
+};
+
+&pmk8350_vadc {
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pmr735a_wifi_pa_therm3_default &pmr735a_pa_therm1_default &pmr735a_pa_therm2_default >;
+
+	/delete-node/ pm8350_rear_tof_therm;
+
+	pmr735a_wifi_pa_therm3 {
+		reg = <PMR735A_ADC7_GPIO1_100K_PU>;
+		label = "pmr735a_wifi_pa_therm3";
+		qcom,ratiometric;
+		qcom,hw-settle-time = <200>;
+		qcom,pre-scaling = <1 1>;
+	};
+	
+	pmr735a_pa_therm1 {
+		reg = <PMR735A_ADC7_GPIO2_100K_PU>;
+		label = "pmr735a_pa_therm1";
+		qcom,ratiometric;
+
+		qcom,hw-settle-time = <200>;
+		qcom,pre-scaling = <1 1>;
+	};	
+	pmr735a_pa_therm2 {
+		reg = <PMR735A_ADC7_GPIO3_100K_PU>;
+		label = "pmr735a_pa_therm2";
+	
+		qcom,ratiometric;
+		qcom,hw-settle-time = <200>;
+		qcom,pre-scaling = <1 1>;
+	};	
+};
+&pmk8350_adc_tm {
+
+	io-channels =	<&pmk8350_vadc PM8350_ADC7_AMUX_THM1_100K_PU>,
+			<&pmk8350_vadc PM8350_ADC7_AMUX_THM2_100K_PU>,
+			<&pmk8350_vadc PM8350_ADC7_AMUX_THM3_100K_PU>,
+			<&pmk8350_vadc PM8350_ADC7_AMUX_THM4_100K_PU>,
+			<&pmk8350_vadc PM8350B_ADC7_GPIO2_100K_PU>,
+			<&pmk8350_vadc PMK8350_ADC7_AMUX_THM1_100K_PU>,
+			<&pmk8350_vadc PMR735A_ADC7_GPIO2_100K_PU>,
+			<&pmk8350_vadc PMR735A_ADC7_GPIO3_100K_PU>;
+
+	/delete-node/ pm8350_rear_tof_therm;
+	/delete-node/ pm8350b_usb_conn_therm;
+
+	pmr735a_pa_therm1 {
+		reg = <PMR735A_ADC7_GPIO2_100K_PU>;
+		qcom,ratiometric;
+		qcom,hw-settle-time = <200>;
+	};
+		
+	pmr735a_pa_therm2 {
+		reg = <PMR735A_ADC7_GPIO3_100K_PU>;
+		qcom,ratiometric;
+		qcom,hw-settle-time = <200>;
+	};
+};
+
+&thermal_zones {
+	/delete-node/ tof-therm-usr;
+	/delete-node/ conn-therm-usr;
+
+	camera-therm-usr {
+		polling-delay = <1000>;
+	};
+
+	pa-therm1-usr {
+		polling-delay-passive = <0>;
+		polling-delay = <0>;
+		thermal-governor = "user_space";
+		thermal-sensors = <&pmk8350_adc_tm PMR735A_ADC7_GPIO2_100K_PU>;
+		wake-capable-sensor;
+		trips {
+			active-config0 {
+				temperature = <125000>;
+				hysteresis = <1000>;
+				type = "passive";
+			};
+		};
+	};
+	
+	pa-therm2-usr {
+		polling-delay-passive = <0>;
+		polling-delay = <0>;
+		thermal-governor = "user_space";
+		thermal-sensors = <&pmk8350_adc_tm PMR735A_ADC7_GPIO3_100K_PU>;
+		wake-capable-sensor;
+		trips {
+			active-config0 {
+				temperature = <125000>;
+				hysteresis = <1000>;
+				type = "passive";
+			};
+		};
+	};
+	
+	virtual-therm {
+		polling-delay-passive = <0>;
+		polling-delay = <0>;
+		thermal-governor = "user_space";
+		thermal-sensors = <&pmk8350_adc_tm PM8350_ADC7_AMUX_THM2_100K_PU>;
+		wake-capable-sensor;
+		trips {
+			active-config0 {
+				temperature = <125000>;
+				hysteresis = <1000>;
+				type = "passive";
+			};
+		};
+	};
+};
+
+//[--] ASUS_BSP : frank_tao
+
+// ASUS BSP Camera +++
+&L7I {
+        regulator-max-microvolt = <3100000>;
+        qcom,min-dropout-voltage = <0>;
+};
+&L5I {
+        regulator-max-microvolt = <3300000>;
+        qcom,min-dropout-voltage = <0>;
+};
+&L7J {
+        regulator-min-microvolt = <2800000>;
+        qcom,min-dropout-voltage = <0>;
+};
+//ASUS BSP Camera ---
+
+/*    ====================================
+ *    overlay for lahaina-pmic-overlay.dtsi - end
+ *    ====================================
+ */
+
+
+/*    ====================================
+ *    overlay for pm8350.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for pm8350.dtsi - end
+ *    ====================================
+ */
+
+
+/*    ====================================
+ *    overlay for pmk8350.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for pmk8350.dtsi - end
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for pm8350b.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for pm8350b.dtsi - end
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for pm8350c.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for pm8350c.dtsi - end
+ *    ====================================
+ */
+
+
+/*    ====================================
+ *    overlay for lahaina-regulators.dtsi - start
+ *    ====================================
+ */
+&apps_rsc {
+	rpmh-regulator-ldoe7 {
+		compatible = "qcom,rpmh-vrm-regulator";
+		qcom,resource-name = "ldoe7";
+		qcom,regulator-type = "pmic5-ldo";
+		qcom,supported-modes =
+			<RPMH_REGULATOR_MODE_LPM
+			 RPMH_REGULATOR_MODE_HPM>;
+		qcom,mode-threshold-currents = <0 10000>;
+		L7E: pmr735a_l7: regulator-pmr735a-l7 {
+			regulator-name = "pmr735a_l7";
+			qcom,set = <RPMH_REGULATOR_SET_ALL>;
+			regulator-min-microvolt = <2800000>;
+			regulator-max-microvolt = <2800000>;
+			qcom,init-voltage = <2800000>;
+			qcom,init-mode = <RPMH_REGULATOR_MODE_HPM>;
+			regulator-always-on;
+		};
+	};
+};
+/*    ====================================
+ *    overlay for lahaina-regulators.dtsi - end
+ *    ====================================
+ */
+  
+
+ 
+/*    ====================================
+ *    overlay for lahaina-audio.dtsi - start
+ *    ====================================
+ */
+ 
+&wsa_macro {
+	status = "disabled";
+};
+
+&bolero {
+	qcom,num-macros = <3>;
+	bolero-clk-rsc-mngr {
+		clock-names = "tx_core_clk", "tx_npl_clk", "rx_core_clk", "rx_npl_clk",
+			 "va_core_clk", "va_npl_clk";
+		clocks = <&clock_audio_tx_1 0>, <&clock_audio_tx_2 0>,
+			<&clock_audio_rx_1 0>, <&clock_audio_rx_2 0>,
+			<&clock_audio_va_1 0>, <&clock_audio_va_2 0>;
+	};
+};
+
+&clock_audio_wsa_1 {
+	status = "disabled";
+};
+
+&clock_audio_wsa_2 {
+	status = "disabled";
+};
+
+&swr_dmic_04 {
+	status = "disabled";
+};
+
+&swr_dmic_03 {
+	status = "disabled";
+};
+
+&swr_dmic_02 {
+	status = "disabled";
+};
+
+&swr_dmic_01 {
+	status = "disabled";
+};
+
+&swr_haptics {
+	status = "disabled";
+};
+ 
+&lahaina_snd {
+	qcom,pri-mi2s-gpios = <&pri_mi2s_gpios>;
+	qcom,wsa-max-devs;
+	qcom,audio-routing =
+		"AMIC1", "Analog Mic1",
+		"Analog Mic1", "MIC BIAS1",
+		"AMIC2", "Analog Mic2",
+		"Analog Mic2", "MIC BIAS2",
+		"AMIC3", "Analog Mic3",
+		"Analog Mic3", "MIC BIAS3",
+		"AMIC4", "Analog Mic4",
+		"Analog Mic4", "MIC BIAS4",
+		"AMIC5", "Analog Mic5",
+		"Analog Mic5", "MIC BIAS3",
+		"IN1_HPHL", "HPHL_OUT",
+		"IN2_HPHR", "HPHR_OUT",
+		"IN3_AUX", "AUX_OUT",
+		"RX_TX DEC0_INP", "TX DEC0 MUX",
+		"RX_TX DEC1_INP", "TX DEC1 MUX",
+		"RX_TX DEC2_INP", "TX DEC2 MUX",
+		"RX_TX DEC3_INP", "TX DEC3 MUX",
+		"TX SWR_INPUT", "WCD_TX_OUTPUT",
+		"VA SWR_INPUT", "VA_SWR_CLK",
+		"VA SWR_INPUT", "WCD_TX_OUTPUT",
+		"VA_AIF1 CAP", "VA_SWR_CLK",
+		"VA_AIF2 CAP", "VA_SWR_CLK",
+		"VA_AIF3 CAP", "VA_SWR_CLK";
+	asoc-codec  = <&stub_codec>, <&bolero>,
+		      <&wcd938x_codec>, <&ext_disp_audio_codec>;
+	asoc-codec-names = "msm-stub-codec.1", "bolero_codec",
+			   "wcd938x_codec", "msm-ext-disp-audio-codec-rx";
+};
+
+&q6core {
+    pri_mi2s_gpios: pri_mi2s_pinctrl {
+        compatible = "qcom,msm-cdc-pinctrl";
+        pinctrl-names = "aud_active", "aud_sleep";
+        pinctrl-0 = <&pri_aux_pcm_clk_active &pri_aux_pcm_din_active &pri_aux_pcm_dout_active &pri_aux_pcm_sync_active>;
+        pinctrl-1 = <&pri_aux_pcm_clk_sleep &pri_aux_pcm_din_sleep &pri_aux_pcm_dout_sleep &pri_aux_pcm_sync_sleep>;
+        #gpio-cells = <0>;
+    };
+};
+
+&rx_swr_gpios {
+	qcom,tlmm-pins = <171>;
+};
+
+&tx_swr_gpios {
+	qcom,tlmm-pins = <168>;
+};
+
+&dai_mi2s0 {
+    qcom,msm-mi2s-rx-lines = <2>;
+    qcom,msm-mi2s-tx-lines = <1>;
+};
+
+&wcd938x_codec {
+       qcom,tx_swr_ch_map = 
+            <0 ADC1 0x1 0 SWRM_TX1_CH1>,
+            <0 ADC2 0x2 0 SWRM_TX1_CH2>,
+            <1 ADC3 0x1 0 SWRM_TX1_CH3>,
+            <1 ADC4 0x2 0 SWRM_TX1_CH4>,
+            <2 MBHC 0x4 0 SWRM_TX2_CH3>;
+		
+       qcom,cdc-micbias1-mv = <2700>;
+       qcom,cdc-micbias2-mv = <2800>;
+       qcom,cdc-micbias3-mv = <2700>;
+       qcom,cdc-micbias4-mv = <2700>;
+};
+
+&qupv3_se17_i2c {
+	status = "ok";
+
+	cs35l45@30 {
+		compatible = "cirrus,cs35l45";
+		reg = <0x30>;
+		VA-supply = <&S10B>;
+		VP-supply = <&S10B>;
+		reset-gpios = <&tlmm 104 0>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <90 8>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&rcv_irq_default>;
+
+		sound-name-prefix = "RCV";
+		cirrus,dsp-part-name = "cs35l45-rcv";
+		cirrus,fast-switch = "cs35l45-rcv-music.txt", "cs35l45-rcv-outdoor.txt", "cs35l45-rcv-voice.txt";
+
+		cirrus,asp-sdout-hiz-ctrl = <0x3>;
+		cirrus,bst-bpe-il-lim-config {
+			bst-bpe-il-lim-thld-hyst = <0x0>;
+			bst-bpe-il-lim-thld-del2 = <0x0>;
+			bst-bpe-il-lim-thld-del1 = <0x0>;
+			bst-bpe-il-lim1-thld = <0x31>;
+		};
+		cirrus,ldpm-config {
+			ldpm-gp1-boost-sel = <0x1>;
+			ldpm-gp1-amp-sel = <0x1>;
+			ldpm-gp1-delay = <0x3>;
+			ldpm-gp1-pcm-thld = <0x6>;
+			ldpm-gp2-imon-sel = <0x1>;
+			ldpm-gp2-vmon-sel = <0x1>;
+			ldpm-gp2-delay = <0x3>;
+			ldpm-gp2-pcm-thld = <0x6>;
+		};
+		cirrus,gpio-ctrl1 {
+			gpio-ctrl = <0x02>;
+		};
+		cirrus,gpio-ctrl2 {
+			gpio-ctrl = <0x04>;
+		};
+	};
+
+	cs35l45@31 {
+		compatible = "cirrus,cs35l45";
+		reg = <0x31>;
+		VA-supply = <&S10B>;
+		VP-supply = <&S10B>;
+		reset-gpios = <&tlmm 105 0>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <2 8>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&spk_irq_default>;
+
+		sound-name-prefix = "SPK";
+		cirrus,dsp-part-name = "cs35l45-spk";
+		cirrus,fast-switch = "cs35l45-spk-music.txt", "cs35l45-spk-outdoor.txt", "cs35l45-spk-voice.txt";
+
+		cirrus,asp-sdout-hiz-ctrl = <0x3>;
+		cirrus,bst-bpe-il-lim-config {
+			bst-bpe-il-lim-thld-hyst = <0x0>;
+			bst-bpe-il-lim-thld-del2 = <0x0>;
+			bst-bpe-il-lim-thld-del1 = <0x0>;
+			bst-bpe-il-lim1-thld = <0x31>;
+		};
+		cirrus,ldpm-config {
+			ldpm-gp1-boost-sel = <0x1>;
+			ldpm-gp1-amp-sel = <0x1>;
+			ldpm-gp1-delay = <0x3>;
+			ldpm-gp1-pcm-thld = <0x6>;
+			ldpm-gp2-imon-sel = <0x1>;
+			ldpm-gp2-vmon-sel = <0x1>;
+			ldpm-gp2-delay = <0x3>;
+			ldpm-gp2-pcm-thld = <0x6>;
+		};
+		cirrus,gpio-ctrl1 {
+			gpio-ctrl = <0x02>;
+		};
+		cirrus,gpio-ctrl2 {
+			gpio-ctrl = <0x04>;
+		};
+	};
+};
+
+&tlmm {
+	rcv_irq_default: rcv_irq_default {
+		mux {
+			pins = "gpio90";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio90";
+			drive-strength = <2>;
+			bias-pull-up;
+			input-enable;
+		};
+	};
+
+	spk_irq_default: spk_irq_default {
+		mux {
+			pins = "gpio2";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio2";
+			drive-strength = <2>;
+			bias-pull-up;
+			input-enable;
+		};
+	};
+};
+
+//[+++] ASUS_BSP : Add for battery_charger
+&battery_charger {
+    POGO_OTG_EN = <&tlmm 3 0x0>;
+};
+//[---] ASUS_BSP : Add for battery_charger
+
+/*    ====================================
+ *    overlay for lahaina-audio.dtsi - end
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahaina-audio-overlay.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahaina-audio-overlay.dtsi - end
+ *    ====================================
+ */
+
+
+/*    ====================================
+ *    overlay for lahaina-thermal-overlay.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahaina-thermal-overlay.dtsi - end
+ *    ====================================
+ */
+
+ 
+/*    ====================================
+ *    overlay for lahaina-gpu.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahaina-gpu.dtsi - end
+ *    ====================================
+ */
+
+
+/*    ====================================
+ *    overlay for lahaina-usb.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahaina-usb.dtsi - end
+ *    ====================================
+ */
+ 

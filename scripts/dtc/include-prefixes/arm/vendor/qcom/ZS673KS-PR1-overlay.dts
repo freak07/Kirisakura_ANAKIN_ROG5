@@ -1,0 +1,254 @@
+/dts-v1/;
+/plugin/;
+
+#include "ZS673KS-ER2-overlay.dts"
+
+/ {
+	model = "Qualcomm Technologies, Inc. ASUS PR1";
+	compatible = "qcom,lahaina-mtp", "qcom,lahaina", "qcom,mtp";
+	qcom,board-id = <80 0>;
+};
+
+/*   ====================================
+*    overlay for display - start
+*    ====================================
+*/
+
+/*   ====================================
+*    overlay for display - end
+*    ====================================
+*/
+
+/*    ====================================
+ *    overlay for lahainap-v2.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahainap-v2.dtsi - end
+ *    ====================================
+ */
+
+
+
+/*    ====================================
+ *    overlay for lahainap.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahainap.dtsi - end
+ *    ====================================
+ */
+
+
+
+/*    ====================================
+ *    overlay for lahaina-mtp.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahaina-mtp.dtsi - end
+ *    ====================================
+ */
+
+&qupv3_se0_i2c {
+	ms51@16 {
+		nuvoton,hw_stage = <5>;
+	};
+};
+
+//ASUS_BSP: NFC +++
+&qupv3_se15_i2c{
+	nq@28{
+	    status = "ok";
+	    qcom,sn-ven = <&tlmm 66 0x00>;
+	};
+};
+//ASUS_BSP: NFC ---
+
+//ASUS_BSP: usb redriver +++
+&usb1 {
+	vcc_redriver-supply = <&pm8008j_l6>;
+	REDRIVER_RSTN = <&tlmm 3 0x0>;
+	REDRIVER_EQ_EN = <&tlmm 62 0x0>;
+};
+//ASUS_BSP: usb redriver ---
+
+/*    ====================================
+ *    overlay for lahaina-pm.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahaina-pm.dtsi - end
+ *    ====================================
+ */
+
+
+
+/*    ====================================
+ *    overlay for lahaina-pinctrl.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahaina-pinctrl.dtsi - end
+ *    ====================================
+ */
+
+
+
+/*    ====================================
+ *    overlay for lahaina-pmic-overlay.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahaina-pmic-overlay.dtsi - end
+ *    ====================================
+ */
+
+
+/*    ====================================
+ *    overlay for pm8350.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for pm8350.dtsi - end
+ *    ====================================
+ */
+
+
+/*    ====================================
+ *    overlay for pmk8350.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for pmk8350.dtsi - end
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for pm8350b.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for pm8350b.dtsi - end
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for pm8350c.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for pm8350c.dtsi - end
+ *    ====================================
+ */
+
+
+/*    ====================================
+ *    overlay for lahaina-regulators.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahaina-regulators.dtsi - end
+ *    ====================================
+ */
+  
+ 
+/*    ====================================
+ *    overlay for lahaina-audio.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahaina-audio.dtsi - end
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahaina-audio-overlay.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahaina-audio-overlay.dtsi - end
+ *    ====================================
+ */
+
+
+/*    ====================================
+ *    overlay for lahaina-thermal-overlay.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahaina-thermal-overlay.dtsi - end
+ *    ====================================
+ */
+
+ 
+/*    ====================================
+ *    overlay for lahaina-gpu.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahaina-gpu.dtsi - end
+ *    ====================================
+ */
+
+
+/*    ====================================
+ *    overlay for lahaina-usb.dtsi - start
+ *    ====================================
+ */
+
+&usb2_phy1 {
+	qcom,param-override-seq = <0x67 0x6c	/* override_x0 */
+				   0x0e 0x70	/* override_x1 */
+				   0x24 0x74>;	/* override_x2 */
+};
+
+/*    ====================================
+ *    overlay for lahaina-usb.dtsi - end
+ *    ====================================
+ */
+
+
+//ASUS_BSP Hank_Jhu : hall sensor for station +++
+&soc {
+	asustek_lid {
+		status = "disabled";
+		compatible = "asustek_lid";
+		pinctrl-names = "asustek_lid_active", "asustek_lid_suspend";
+		pinctrl-0 = <&asustek_lid_active>;
+		pinctrl-1 = <&asustek_lid_suspend>;
+		gpios = <&tlmm 80 0x1>;
+		asustek_lid,wakeup;
+	};
+};
+//ASUS_BSP Hank_Jhu : hall sensor for station ---
+
+//ASUS_BSP Hank_Jhu : hall sensor for bumper +++
+&soc {
+	/* hall sensor for Bumper */
+	asustek_lid2 {
+		status = "disabled";
+		compatible = "asustek_lid2";
+		pinctrl-names = "asustek_lid2_active", "asustek_lid2_suspend";
+		pinctrl-0 = <&asustek_lid2_active>;
+		pinctrl-1 = <&asustek_lid2_suspend>;
+		gpios = <&tlmm 119 0x1>;
+		asustek_lid2,wakeup;
+	};
+};
+//ASUS_BSP Hank_Jhu : hall sensor for bumper ---
