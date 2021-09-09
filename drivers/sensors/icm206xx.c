@@ -419,7 +419,7 @@ static irqreturn_t icm_interrupt_routine(int irq, void *data)
 	g_icm_timestamp = ktime_to_timespec(ktime_get_boottime());
 	return IRQ_WAKE_THREAD;
 }
-void icm_reset_ois_channel()
+void icm_reset_ois_channel(void)
 {
 	int ret;
 	icm_dbgmsg("E\n");
