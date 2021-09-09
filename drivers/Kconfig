@@ -237,14 +237,4 @@ source "drivers/motor/aw8697_haptic/Kconfig"
 # ASUS_BSP Deeo: AuraLight
 source "drivers/aura_sync/Kconfig"
 
-source "drivers/tuxera/Kconfig"
-
-source "drivers/tuxera/zs673ks/exfat/user/Kconfig"
-
-source "drivers/tuxera/zs673ks/exfat/userdebug/Kconfig"
-
-source "drivers/tuxera/zs673ks/ntfs/user/Kconfig"
-
-source "drivers/tuxera/zs673ks/ntfs/userdebug/Kconfig"
-
 endmenu
