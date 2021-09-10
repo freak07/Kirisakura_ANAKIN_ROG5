@@ -31,6 +31,16 @@
 /*
  * Convenience kcontrol builders
  */
+
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT 
+extern int snd_soc_info_volsw_range(struct snd_kcontrol *kcontrol,
+        struct snd_ctl_elem_info *uinfo);
+extern int snd_soc_put_volsw_range(struct snd_kcontrol *kcontrol,
+        struct snd_ctl_elem_value *ucontrol);
+extern int snd_soc_get_volsw_range(struct snd_kcontrol *kcontrol,
+        struct snd_ctl_elem_value *ucontrol);
+#endif
+
 #define SOC_DOUBLE_VALUE(xreg, shift_left, shift_right, xmax, xinvert, xautodisable) \
 	((unsigned long)&(struct soc_mixer_control) \
 	{.reg = xreg, .rreg = xreg, .shift = shift_left, \
@@ -613,12 +623,23 @@ int snd_soc_get_volsw_sx(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
 int snd_soc_put_volsw_sx(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
+
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT	
+extern int snd_soc_info_volsw_range(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_info *uinfo);
+extern int snd_soc_put_volsw_range(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol);
+extern int snd_soc_get_volsw_range(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol);
+#else
 int snd_soc_info_volsw_range(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_info *uinfo);
 int snd_soc_put_volsw_range(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
 int snd_soc_get_volsw_range(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
+#endif
+
 int snd_soc_limit_volume(struct snd_soc_card *card,
 	const char *name, int max);
 int snd_soc_bytes_info(struct snd_kcontrol *kcontrol,

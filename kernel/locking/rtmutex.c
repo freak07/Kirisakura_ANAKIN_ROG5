@@ -22,6 +22,7 @@
 
 #include "rtmutex_common.h"
 
+extern struct rt_mutex fake_rtmutex;
 /*
  * lock->owner state tracking:
  *
@@ -1193,7 +1194,11 @@ __rt_mutex_slowlock(struct rt_mutex *lock, int state,
 
 		debug_rt_mutex_print_deadlock(waiter);
 
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+		task_thread_info(current)->pWaitingRTMutex=lock;
 		schedule();
+		task_thread_info(current)->pWaitingRTMutex=&fake_rtmutex;
+#endif		
 
 		raw_spin_lock_irq(&lock->wait_lock);
 		set_current_state(state);

@@ -393,15 +393,25 @@ int cnss_pci_check_link_status(struct cnss_pci_data *pci_priv)
 static void cnss_pci_select_window(struct cnss_pci_data *pci_priv, u32 offset)
 {
 	u32 window = (offset >> WINDOW_SHIFT) & WINDOW_VALUE_MASK;
+	u32 window_enable = WINDOW_ENABLE_BIT | window;
+	u32 val;
 
-	writel_relaxed(WINDOW_ENABLE_BIT | window,
-		       QCA6390_PCIE_REMAP_BAR_CTRL_OFFSET +
-		       pci_priv->bar);
+	writel_relaxed(window_enable, pci_priv->bar +
+		       QCA6390_PCIE_REMAP_BAR_CTRL_OFFSET);
 
 	if (window != pci_priv->remap_window) {
 		pci_priv->remap_window = window;
 		cnss_pr_dbg("Config PCIe remap window register to 0x%x\n",
-			    WINDOW_ENABLE_BIT | window);
+			    window_enable);
+	}
+
+	/* Read it back to make sure the write has taken effect */
+	val = readl_relaxed(pci_priv->bar + QCA6390_PCIE_REMAP_BAR_CTRL_OFFSET);
+	if (val != window_enable) {
+		cnss_pr_err("Failed to config window register to 0x%x, current value: 0x%x\n",
+			    window_enable, val);
+		if (!cnss_pci_check_link_status(pci_priv))
+			CNSS_ASSERT(0);
 	}
 }
 
@@ -740,7 +750,6 @@ static int cnss_set_pci_link(struct cnss_pci_data *pci_priv, bool link_up)
 		if (pci_priv->drv_connected_last) {
 			cnss_pr_vdbg("Use PCIe DRV suspend\n");
 			pm_ops = MSM_PCIE_DRV_SUSPEND;
-			pm_options |= MSM_PCIE_CONFIG_NO_DRV_PC;
 			if (pci_priv->device_id != QCA6390_DEVICE_ID &&
 			    pci_priv->device_id != QCA6490_DEVICE_ID)
 				cnss_set_pci_link_status(pci_priv, PCI_GEN1);
@@ -1410,6 +1419,40 @@ out:
 	return ret;
 }
 
+/**
+ * cnss_wlan_adsp_pc_enable: Control ADSP power collapse setup
+ * @dev: Platform driver pci private data structure
+ * @control: Power collapse enable / disable
+ *
+ * This function controls ADSP power collapse (PC). It must be called
+ * based on wlan state.  ADSP power collapse during wlan RTPM suspend state
+ * results in delay during periodic QMI stats PCI link up/down. This delay
+ * causes additional power consumption.
+ * Introduced in SM8350.
+ *
+ * Result: 0 Success. negative error codes.
+ */
+static int cnss_wlan_adsp_pc_enable(struct cnss_pci_data *pci_priv,
+				    bool control)
+{
+	struct pci_dev *pci_dev = pci_priv->pci_dev;
+	int ret = 0;
+	u32 pm_options = PM_OPTIONS_DEFAULT;
+
+	if (control)
+		pm_options &= ~MSM_PCIE_CONFIG_NO_DRV_PC;
+	else
+		pm_options |= MSM_PCIE_CONFIG_NO_DRV_PC;
+
+	ret = msm_pcie_pm_control(MSM_PCIE_DRV_PC_CTRL, pci_dev->bus->number,
+				  pci_dev, NULL, pm_options);
+	if (ret)
+		return ret;
+
+	cnss_pr_dbg("%s ADSP power collapse\n", control ? "Enable" : "Disable");
+	return 0;
+}
+
 int cnss_pci_start_mhi(struct cnss_pci_data *pci_priv)
 {
 	int ret = 0;
@@ -1439,6 +1482,8 @@ int cnss_pci_start_mhi(struct cnss_pci_data *pci_priv)
 	}
 
 	ret = cnss_pci_set_mhi_state(pci_priv, CNSS_MHI_POWER_ON);
+	if (ret == 0)
+		cnss_wlan_adsp_pc_enable(pci_priv, false);
 
 	if (cnss_get_host_build_type() == QMI_HOST_BUILD_TYPE_PRIMARY_V01)
 		pci_priv->mhi_ctrl->timeout_ms = timeout;
@@ -1463,7 +1508,7 @@ static void cnss_pci_power_off_mhi(struct cnss_pci_data *pci_priv)
 		cnss_pr_dbg("MHI is already powered off\n");
 		return;
 	}
-
+	cnss_wlan_adsp_pc_enable(pci_priv, true);
 	cnss_pci_set_mhi_state_bit(pci_priv, CNSS_MHI_RESUME);
 	cnss_pci_set_mhi_state_bit(pci_priv, CNSS_MHI_POWERING_OFF);
 
@@ -1650,7 +1695,9 @@ static void cnss_pci_time_sync_work_hdlr(struct work_struct *work)
 	if (cnss_pci_pm_runtime_get_sync(pci_priv, RTPM_ID_CNSS) < 0)
 		goto runtime_pm_put;
 
+	mutex_lock(&pci_priv->bus_lock);
 	cnss_pci_update_timestamp(pci_priv);
+	mutex_unlock(&pci_priv->bus_lock);
 	schedule_delayed_work(&pci_priv->time_sync_work,
 			      msecs_to_jiffies(time_sync_period_ms));
 
@@ -2756,7 +2803,9 @@ static int cnss_pci_suspend(struct device *dev)
 		goto clear_flag;
 
 	if (!pci_priv->disable_pc) {
+		mutex_lock(&pci_priv->bus_lock);
 		ret = cnss_pci_suspend_bus(pci_priv);
+		mutex_unlock(&pci_priv->bus_lock);
 		if (ret)
 			goto resume_driver;
 	}

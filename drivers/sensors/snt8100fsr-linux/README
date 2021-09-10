@@ -1,0 +1,22 @@
+Linux Driver Source for the Sentons SNT8100FSR Touch/Force Detection Device
+
+Code Style:
+
+	Please follow the code style guidlines here: 
+		https://www.kernel.org/doc/Documentation/CodingStyle
+
+Features:
+
+	- Modular code base with glue logic residing in main.c
+	- Convenient global configuration settings in config.h
+	- Memory management system tracks all allocations and verifies there are no 
+	  buffer underrun or overrun conditions
+	- Workqueue management to allow any component of the driver to easily register
+	  a callback after a specified delay in workqueue.c
+	- Debug macros which ensure the easiest possible debug statements. A prefix 
+	  of "snt8100fsr: " and the current function name is set to the beginning of 
+	  each string automatically. Also, no "\n" required at the end of debug strings
+	- Interrupt driven or polled mode firmware uploads to the hardware device
+	- Interrupt driven track report processing as to waste no power while idle
+	- Linux Input Driver module (input_device.c) to register system wide input events
+	  such as RESET_BUTTON, VOLUME_UP, etc

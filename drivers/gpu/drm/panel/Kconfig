@@ -355,4 +355,11 @@ config DRM_PANEL_TRULY_NT35597_WQXGA
 	help
 	  Say Y here if you want to enable support for Truly NT35597 WQXGA Dual DSI
 	  Video Mode panel
+
+config DRM_PANEL_FUTABA_SSD1362
+	tristate "Futaba ssd1362 PMOLED"
+	depends on SPI && MACH_ASUS_ZS673KS
+	default y
+	help
+	  Say Y here if you want to enable support for Futaba ssd1362 PMOLED panel
 endmenu

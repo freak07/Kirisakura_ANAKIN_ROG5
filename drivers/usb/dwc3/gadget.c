@@ -33,6 +33,20 @@
 static int __dwc3_gadget_start(struct dwc3 *dwc);
 static void dwc3_gadget_disconnect_interrupt(struct dwc3 *dwc);
 
+#ifdef CONFIG_USB_EC_DRIVER
+extern uint8_t gDongleType;
+#else
+static uint8_t gDongleType;
+#endif
+
+enum POGO_ID {
+	NO_INSERT = 0,
+	INBOX,
+	STATION,
+	DT,
+	OTHER,
+};
+
 /**
  * dwc3_gadget_set_test_mode - enables usb2 test modes
  * @dwc: pointer to our context structure
@@ -803,7 +817,7 @@ static void dwc3_remove_requests(struct dwc3 *dwc, struct dwc3_ep *dep)
 
 	dwc3_stop_active_transfer(dep, true, false);
 
-	if (dep->number == 1 && dwc->ep0state != EP0_SETUP_PHASE) {
+	if (dep->number == 0 && dwc->ep0state != EP0_SETUP_PHASE) {
 		unsigned int dir;
 
 		dbg_log_string("CTRLPEND", dwc->ep0state);
@@ -2345,6 +2359,9 @@ static int dwc3_gadget_vbus_session(struct usb_gadget *_gadget, int is_active)
 	struct dwc3 *dwc = gadget_to_dwc(_gadget);
 	unsigned long flags;
 	int ret = 0;
+	char *udc1[2] = {"UDC_NAME=a600000.dwc3", NULL};
+	char *udc2[2] = {"UDC_NAME=a800000.dwc3", NULL};
+	char *udc_name[2];
 
 	if (dwc->dr_mode <= USB_DR_MODE_HOST)
 		return -EPERM;
@@ -2356,6 +2373,20 @@ static int dwc3_gadget_vbus_session(struct usb_gadget *_gadget, int is_active)
 	disable_irq(dwc->irq);
 
 	flush_work(&dwc->bh_work);
+
+	if (is_active) {
+
+		if (!strcmp(&udc1[0][9], kobject_name(&dwc->dev->kobj))) {
+			udc_name[0] = udc1[0];
+			udc_name[1] = udc1[1];
+		} else {
+			udc_name[0] = udc2[0];
+			udc_name[1] = udc2[1];
+		}
+
+		dev_info(dwc->dev, "udc event : %s\n", udc_name[0]);
+		kobject_uevent_env(&dwc->dev->kobj, KOBJ_CHANGE, udc_name);
+	}
 
 	spin_lock_irqsave(&dwc->lock, flags);
 
@@ -3246,7 +3277,7 @@ static void dwc3_gadget_disconnect_interrupt(struct dwc3 *dwc)
 	int			reg;
 
 	dbg_event(0xFF, "DISCONNECT INT", 0);
-	dev_dbg(dwc->dev, "Notify OTG from %s\n", __func__);
+	dev_info(dwc->dev, "Notify OTG from %s\n", __func__);
 	dwc->b_suspend = false;
 	dwc3_notify_event(dwc, DWC3_CONTROLLER_NOTIFY_OTG_EVENT, 0);
 
@@ -3264,6 +3295,10 @@ static void dwc3_gadget_disconnect_interrupt(struct dwc3 *dwc)
 	dwc->link_state = DWC3_LINK_STATE_SS_DIS;
 	usb_gadget_set_state(&dwc->gadget, USB_STATE_NOTATTACHED);
 
+#if defined ASUS_ZS673KS_PROJECT
+	dwc->retries_reset = 0;
+	dwc->retries_suspend = 0;
+#endif
 	dwc->connected = false;
 }
 
@@ -3271,7 +3306,14 @@ static void dwc3_gadget_reset_interrupt(struct dwc3 *dwc)
 {
 	u32			reg;
 
+#if defined ASUS_ZS673KS_PROJECT
+	if (!dwc->connected) {
+		dwc3_notify_event(dwc, DWC3_CONTROLLER_NOTIFY_OTG_EVENT, 1);
+	}
+	dwc->retries_reset++;
+#endif
 	dwc->connected = true;
+
 
 	/*
 	 * WORKAROUND: DWC3 revisions <1.88a have an issue which
@@ -3305,7 +3347,7 @@ static void dwc3_gadget_reset_interrupt(struct dwc3 *dwc)
 	}
 
 	dbg_event(0xFF, "BUS RESET", dwc->gadget.speed);
-	dev_dbg(dwc->dev, "Notify OTG from %s\n", __func__);
+	dev_info(dwc->dev, "Notify OTG from %s\n", __func__);
 	dwc->b_suspend = false;
 	dwc3_notify_event(dwc, DWC3_CONTROLLER_NOTIFY_OTG_EVENT, 0);
 
@@ -3485,6 +3527,7 @@ static void dwc3_gadget_wakeup_interrupt(struct dwc3 *dwc)
 {
 	enum dwc3_link_state link_state = dwc->link_state;
 
+	dev_info(dwc->dev, "%s\n", __func__);
 	dbg_log_string("WAKEUP: link_state:%d", link_state);
 	dwc->link_state = DWC3_LINK_STATE_U0;
 
@@ -3604,7 +3647,7 @@ static void dwc3_gadget_suspend_interrupt(struct dwc3 *dwc,
 	enum dwc3_link_state next = evtinfo & DWC3_LINK_STATE_MASK;
 
 	dbg_event(0xFF, "SUSPEND INT", next);
-	dev_dbg(dwc->dev, "%s Entry to %d\n", __func__, next);
+	dev_info(dwc->dev, "%s Entry to %d\n", __func__, next);
 
 	if (dwc->link_state != next && next == DWC3_LINK_STATE_U3) {
 		/*
@@ -3621,7 +3664,12 @@ static void dwc3_gadget_suspend_interrupt(struct dwc3 *dwc,
 			return;
 		}
 
-		dwc3_suspend_gadget(dwc);
+		if (gDongleType == DT) {
+			dev_info(dwc->dev, "DT unplug usb");
+			dwc3_notify_event(dwc, DWC3_CONTROLLER_ERROR_EVENT, 0);
+			return;
+		} else
+			dwc3_suspend_gadget(dwc);
 
 		dev_dbg(dwc->dev, "Notify OTG from %s\n", __func__);
 		dwc->b_suspend = true;
@@ -3691,6 +3739,9 @@ static void dwc3_gadget_interrupt(struct dwc3 *dwc,
 		if (dwc->revision >= DWC3_REVISION_230A) {
 			dbg_event(0xFF, "GAD SUS", 0);
 			dwc->dbg_gadget_events.suspend++;
+#if defined ASUS_ZS673KS_PROJECT
+			dwc->retries_suspend++;
+#endif
 			/*
 			 * Ignore suspend event until the gadget enters into
 			 * USB_STATE_CONFIGURED state.

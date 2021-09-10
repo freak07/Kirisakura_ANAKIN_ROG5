@@ -186,3 +186,32 @@ obj-$(CONFIG_SIOX)		+= siox/
 obj-$(CONFIG_GNSS)		+= gnss/
 obj-$(CONFIG_INTERCONNECT)	+= interconnect/
 obj-$(CONFIG_COUNTER)		+= counter/
+
+#ASUS_BSP Vibrator +++
+obj-$(CONFIG_TSPDRV) += motor/tspdrv/
+#ASUS_BSP Vibrator ---
+
+# ASUS_BSP Deeo : AURA SYNC driver
+obj-y				+= aura_sync/
+
+# ASUS_BSP Clay : ALSPSsensor and Airtrigger driver
+obj-$(CONFIG_SENSORS_SSC)       += sensors/
+
+#ASUS_BSP ec hid driver
+ifeq ($(CONFIG_MACH_ASUS_ZS673KS),y)
+obj-y				+= ec_hid_driver/
+
+#ASUS_BSP gamepad hid driver
+obj-y				+= gamepad_hid_driver/
+
+#Tuxera
+ifeq ($(ASUS_BUILD_PROJECT),ZS673KS)
+	ifdef CONFIG_TUXERA_USERDEBUG
+		obj-y				+= tuxera/zs673ks/exfat/userdebug/
+		obj-y				+= tuxera/zs673ks/ntfs/userdebug/
+	else
+		obj-y				+= tuxera/zs673ks/exfat/user/
+		obj-y				+= tuxera/zs673ks/ntfs/user/
+	endif
+endif
+endif

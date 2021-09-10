@@ -44,6 +44,11 @@ struct thread_info {
 #ifdef CONFIG_SHADOW_CALL_STACK
 	void			*shadow_call_stack;
 #endif
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+       struct mutex *          pWaitingMutex;          //ASUS_BSP + [thomas]Add for slow log
+       struct completion *     pWaitingCompletion;     //ASUS_BSP + [thomas]Add for slow log
+       struct rt_mutex *       pWaitingRTMutex;        //ASUS_BSP + [thomas]Add for slow log
+#endif       
 };
 
 #define thread_saved_pc(tsk)	\

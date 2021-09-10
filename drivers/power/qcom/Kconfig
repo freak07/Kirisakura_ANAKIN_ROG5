@@ -1,0 +1,4 @@
+config ASUS_POWER_DEBUG
+        bool "ASUS POWER DEBUG"
+        help
+          This enables asus power debug feature

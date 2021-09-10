@@ -420,9 +420,8 @@ static void adreno_input_event(struct input_handle *handle, unsigned int type,
 		 */
 
 		device->flags |= KGSL_FLAG_WAKE_ON_TOUCH;
+		kgsl_start_idle_timer(device);
 
-		mod_timer(&device->idle_timer,
-			jiffies + device->pwrctrl.interval_timeout);
 	} else if (device->state == KGSL_STATE_SLUMBER) {
 		schedule_work(&adreno_dev->input_work);
 	}
@@ -1075,8 +1074,7 @@ static int adreno_of_get_power(struct adreno_device *adreno_dev,
 
 	l3_pwrlevel_probe(device, pdev->dev.of_node);
 
-	/* Default timeout is 80 ms across all targets */
-	device->pwrctrl.interval_timeout = msecs_to_jiffies(80);
+	device->pwrctrl.interval_timeout = CONFIG_QCOM_KGSL_IDLE_TIMEOUT;
 
 	device->pwrctrl.minbw_timeout = 10;
 
@@ -1239,6 +1237,8 @@ static int adreno_probe_llcc(struct adreno_device *adreno_dev,
 				"Unable to get the GPU LLC slice: %d\n", ret);
 	}
 
+	adreno_dev->gpu_llc_slice_enable = true;
+
 	/* Get the system cache slice descriptor for GPU pagetables */
 	adreno_dev->gpuhtw_llc_slice = llcc_slice_getd(LLCC_GPUHTW);
 	ret = PTR_ERR_OR_ZERO(adreno_dev->gpuhtw_llc_slice);
@@ -1252,6 +1252,8 @@ static int adreno_probe_llcc(struct adreno_device *adreno_dev,
 			dev_warn(&pdev->dev,
 				"Unable to get GPU HTW LLC slice: %d\n", ret);
 	}
+
+	adreno_dev->gpuhtw_llc_slice_enable = true;
 
 	return 0;
 }
@@ -1879,8 +1881,7 @@ static void adreno_pwrctrl_active_count_put(struct adreno_device *adreno_dev)
 			kgsl_pwrscale_update(device);
 		}
 
-		mod_timer(&device->idle_timer,
-			jiffies + device->pwrctrl.interval_timeout);
+		kgsl_start_idle_timer(device);
 	}
 
 	trace_kgsl_active_count(device,

@@ -900,6 +900,53 @@ static void msm_ssphy_qmp_enable_clks(struct msm_ssphy_qmp *phy, bool on)
 	}
 }
 
+static unsigned int reg_offset;
+
+static ssize_t tune_reg_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	struct msm_ssphy_qmp *phy = dev_get_drvdata(dev);
+	u32 reg_value;
+
+	reg_value = readl_relaxed(phy->base + reg_offset);
+
+	dev_info(dev, "reg_value=0x%x\n", reg_value);
+
+	return snprintf(buf, PAGE_SIZE, "0x%x\n", (u8)reg_value);
+}
+
+static ssize_t tune_reg_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	int ret;
+	struct qmp_reg_val *reg;
+	struct msm_ssphy_qmp *phy = dev_get_drvdata(dev);
+	u32 reg_value;
+
+	ret = sscanf(buf, "%x %x", &reg_offset, &reg_value);
+
+	if (ret == 1) {
+		dev_info(dev, "reg_offset=0x%x\n", reg_offset);
+	} else if (ret == 2) {
+
+		reg = (struct qmp_reg_val *)phy->qmp_phy_init_seq;
+
+		while (reg->offset != -1) {
+			if (reg->offset == reg_offset) {
+				reg->val = reg_value;
+				break;
+			}
+			reg++;
+		}
+
+		dev_info(dev, "reg_offset=0x%x reg_value=0x%x\n", reg->offset, reg->val);
+	}
+
+	return count;
+}
+
+static DEVICE_ATTR_RW(tune_reg);
+
 static int msm_ssphy_qmp_probe(struct platform_device *pdev)
 {
 	struct msm_ssphy_qmp *phy;
@@ -1039,6 +1086,7 @@ static int msm_ssphy_qmp_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
+
 	/* Set default core voltage values */
 	phy->core_voltage_levels[CORE_LEVEL_NONE] = 0;
 	phy->core_voltage_levels[CORE_LEVEL_MIN] = USB_SSPHY_1P2_VOL_MIN;
@@ -1102,6 +1150,7 @@ static int msm_ssphy_qmp_probe(struct platform_device *pdev)
 	phy->phy.notify_connect		= msm_ssphy_qmp_notify_connect;
 	phy->phy.notify_disconnect	= msm_ssphy_qmp_notify_disconnect;
 
+	device_create_file(&pdev->dev, &dev_attr_tune_reg);
 	ret = usb_add_phy_dev(&phy->phy);
 
 err:

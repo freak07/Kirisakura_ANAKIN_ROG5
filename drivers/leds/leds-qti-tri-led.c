@@ -254,7 +254,7 @@ static int qpnp_tri_led_set(struct qpnp_led_dev *led)
 		led->blinking = true;
 		led->breathing = false;
 	} else if (led->led_setting.breath) {
-		led->cdev.brightness = LED_FULL;
+		led->cdev.brightness = led->cdev.brightness;
 		led->blinking = false;
 		led->breathing = true;
 	} else {
@@ -378,7 +378,7 @@ static ssize_t breath_store(struct device *dev, struct device_attribute *attr,
 
 	led->led_setting.blink = false;
 	led->led_setting.breath = breath;
-	led->led_setting.brightness = breath ? LED_FULL : LED_OFF;
+	led->led_setting.brightness = breath ? led->cdev.brightness : LED_OFF;
 	rc = qpnp_tri_led_set(led);
 	if (rc < 0)
 		dev_err(led->chip->dev, "Set led failed for %s, rc=%d\n",

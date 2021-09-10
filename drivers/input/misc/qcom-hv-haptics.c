@@ -467,6 +467,7 @@ struct haptics_chip {
 	bool				fifo_empty_irq_en;
 	bool				swr_slave_enabled;
 	bool				clamp_at_5v;
+	struct hrtimer			hap_disable_timer;
 };
 
 struct haptics_reg_info {
@@ -1160,15 +1161,17 @@ static int haptics_enable_play(struct haptics_chip *chip, bool en)
 		if (((val & CAL_RC_CLK_MASK) ==
 				CAL_RC_CLK_AUTO_VAL << CAL_RC_CLK_SHIFT)
 				&& is_boost_vreg_enabled_in_open_loop(chip)) {
+			val = CAL_RC_CLK_DISABLED_VAL << CAL_RC_CLK_SHIFT;
 			rc = haptics_masked_write(chip, chip->cfg_addr_base,
 					HAP_CFG_CAL_EN_REG, CAL_RC_CLK_MASK,
-					CAL_RC_CLK_DISABLED_VAL);
+					val);
 			if (rc < 0)
 				return rc;
 
+			val = CAL_RC_CLK_AUTO_VAL << CAL_RC_CLK_SHIFT;
 			rc = haptics_masked_write(chip, chip->cfg_addr_base,
 					HAP_CFG_CAL_EN_REG, CAL_RC_CLK_MASK,
-					CAL_RC_CLK_AUTO_VAL);
+					val);
 			if (rc < 0)
 				return rc;
 
@@ -1761,6 +1764,8 @@ static int haptics_load_custom_effect(struct haptics_chip *chip,
 
 	dev_dbg(chip->dev, "custom data length %d with play-rate %d Hz\n",
 			custom_data.length, custom_data.play_rate_hz);
+	printk("haptic_d: %s: custom data length %d with play-rate %d Hz\n",
+			__func__, custom_data.length, custom_data.play_rate_hz);
 	rc = haptics_convert_sample_period(chip, custom_data.play_rate_hz);
 	if (rc < 0) {
 		dev_err(chip->dev, "Can't support play rate: %d Hz\n",
@@ -1866,7 +1871,8 @@ static int haptics_load_periodic_effect(struct haptics_chip *chip,
 	mutex_lock(&chip->play.lock);
 	dev_dbg(chip->dev, "upload effect %d, vmax_mv=%d\n",
 			chip->effects[i].id, play->vmax_mv);
-
+	printk("haptic_d: %s: upload effect %d, vmax_mv=%d\n",
+			__func__, chip->effects[i].id, play->vmax_mv);
 	if (chip->play.in_calibration) {
 		dev_err(chip->dev, "calibration in progress, ignore playing predefined effect\n");
 		rc = -EBUSY;
@@ -1914,6 +1920,9 @@ static int haptics_upload_effect(struct input_dev *dev,
 		amplitude = tmp / 0x7fff;
 		dev_dbg(chip->dev, "upload constant effect, length = %dus, amplitude = %d\n",
 				length_us, amplitude);
+        printk("haptic_d: FF_CONSTANT : len = %d us, amplitude = %d\n",
+				length_us, amplitude); 
+
 		haptics_load_constant_effect(chip, amplitude);
 		if (rc < 0) {
 			dev_err(chip->dev, "set direct play failed, rc=%d\n",
@@ -2023,6 +2032,7 @@ static int haptics_playback(struct input_dev *dev, int effect_id, int val)
 	int rc;
 
 	dev_dbg(chip->dev, "playback val = %d\n", val);
+	printk("haptic_d: playback val = %d\n", val);
 	if (!!val) {
 		rc = haptics_enable_play(chip, true);
 		if (rc < 0)
@@ -3598,7 +3608,6 @@ static int haptics_init_swr_slave_regulator(struct haptics_chip *chip)
 	return rc;
 }
 
-#define PBS_SW_TRG_LRA_ISC_CFG_BIT	BIT(7)
 static int haptics_pbs_trigger_isc_config(struct haptics_chip *chip)
 {
 	int rc;
@@ -3608,7 +3617,7 @@ static int haptics_pbs_trigger_isc_config(struct haptics_chip *chip)
 		return -ENODEV;
 	}
 
-	rc = qpnp_pbs_trigger_event(chip->pbs_node, PBS_SW_TRG_LRA_ISC_CFG_BIT);
+	rc = qpnp_pbs_trigger_single_event(chip->pbs_node);
 	if (rc < 0)
 		dev_err(chip->dev, "Trigger PBS to config ISC failed, rc=%d\n",
 				rc);
@@ -3897,10 +3906,78 @@ static ssize_t lra_impedance_show(struct class *c,
 }
 static CLASS_ATTR_RO(lra_impedance);
 
+static enum hrtimer_restart qti_hap_disable_timer(struct hrtimer *timer)
+{
+	struct haptics_chip *chip = container_of(timer, struct haptics_chip,
+			hap_disable_timer);
+	int rc;
+
+	rc = haptics_enable_play(chip, false);
+	if (rc < 0)
+		printk("haptic_d: vibrator off 2 fail!!! \n");
+	else
+		printk("haptic_d: vibrator off 2 !!! \n");
+
+	return HRTIMER_NORESTART;
+}
+
+static ssize_t vibrator_on_store(struct class *c,
+		struct class_attribute *attr, const char *buf, size_t count)
+ {
+ 	struct haptics_chip *chip = container_of(c,
+ 			struct haptics_chip, hap_class);
+	bool val;
+	int rc;
+	u8 amplitude=255;
+	ktime_t rem;
+	s64 time_us;
+
+	if (kstrtobool(buf, &val))
+ 		return -EINVAL;
+
+	if (val) {
+		if (hrtimer_active(&chip->hap_disable_timer)) {
+			rem = hrtimer_get_remaining(&chip->hap_disable_timer);
+			time_us = ktime_to_us(rem);
+			printk("haptic_d: remaining play time : %lld us\n", time_us);
+			//usleep_range(time_us, time_us + 100);
+			goto fin;
+		}else{
+			hrtimer_start(&chip->hap_disable_timer,
+			ktime_set(0, 10 * NSEC_PER_SEC),
+			HRTIMER_MODE_REL);
+		}
+
+		rc = haptics_load_constant_effect(chip, amplitude);
+		if (rc < 0)
+			printk("haptic_d: %s: load constant effect fail!!! \n",__func__);
+		rc = haptics_enable_play(chip, true);
+		if (rc < 0)
+			printk("haptic_d: vibrator on fail!!! \n");
+		else
+			printk("haptic_d: vibrator on !!! \n");
+	} else {
+
+		if (hrtimer_active(&chip->hap_disable_timer))
+			hrtimer_cancel(&chip->hap_disable_timer);
+
+		rc = haptics_enable_play(chip, false);
+		if (rc < 0)
+			printk("haptic_d: vibrator off fail!!! \n");
+		else
+			printk("haptic_d: vibrator off !!! \n");
+	}
+
+fin:
+	return count;
+ }
+static CLASS_ATTR_WO(vibrator_on);
+
 static struct attribute *hap_class_attrs[] = {
 	&class_attr_lra_calibration.attr,
 	&class_attr_lra_frequency_hz.attr,
 	&class_attr_lra_impedance.attr,
+	&class_attr_vibrator_on.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(hap_class);
@@ -4004,6 +4081,10 @@ static int haptics_probe(struct platform_device *pdev)
 		goto destroy_ff;
 	}
 
+	hrtimer_init(&chip->hap_disable_timer, CLOCK_MONOTONIC,
+						HRTIMER_MODE_REL);
+	chip->hap_disable_timer.function = qti_hap_disable_timer;
+
 	dev_set_drvdata(chip->dev, chip);
 	chip->hap_class.name = "qcom-haptics";
 	chip->hap_class.class_groups = hap_class_groups;
@@ -4018,6 +4099,9 @@ static int haptics_probe(struct platform_device *pdev)
 	if (rc < 0)
 		dev_err(chip->dev, "Creating debugfs failed, rc=%d\n", rc);
 #endif
+
+	printk("haptic_d: probe complete\n");
+
 	return 0;
 destroy_ff:
 	input_ff_destroy(chip->input_dev);
@@ -4040,6 +4124,11 @@ static int haptics_remove(struct platform_device *pdev)
 
 	return 0;
 }
+//[PM_debug+++]
+#if defined ASUS_ZS673KS_PROJECT
+extern bool bBTM_OTG_EN;
+#endif
+//[PM_debug---]
 
 #ifdef CONFIG_PM_SLEEP
 static int haptics_suspend(struct device *dev)
@@ -4049,6 +4138,14 @@ static int haptics_suspend(struct device *dev)
 	u8 val = 0;
 	int rc;
 
+    //[PM_debug+++]
+#if defined ASUS_ZS673KS_PROJECT
+    if(bBTM_OTG_EN){
+        printk("%s:skip suspend!", __func__);
+        return 0;
+    }
+#endif
+    //[PM_debug---]
 	if (chip->cfg_revision == HAP_CFG_V1)
 		return 0;
 

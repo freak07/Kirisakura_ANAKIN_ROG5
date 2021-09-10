@@ -33,6 +33,12 @@
 #include <linux/wakeup_reason.h>
 
 #include "power.h"
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+//[PM_debug +++]
+#include <linux/pm_debug.h>
+//[PM_debug ---]
+#endif
+
 
 const char * const pm_labels[] = {
 	[PM_SUSPEND_TO_IDLE] = "freeze",
@@ -89,7 +95,12 @@ static void s2idle_begin(void)
 static void s2idle_enter(void)
 {
 	trace_suspend_resume(TPS("machine_suspend"), PM_SUSPEND_TO_IDLE, true);
-
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+    //[PM_debug +++]
+    //printk("[PM][Mark_debug_PM]%s:%s:%d:+++\n", __FILE__, __func__, __LINE__);
+    pm_printk("+++\n");
+    //[PM_debug ---]
+#endif
 	raw_spin_lock_irq(&s2idle_lock);
 	if (pm_wakeup_pending())
 		goto out;
@@ -115,12 +126,24 @@ static void s2idle_enter(void)
 	s2idle_state = S2IDLE_STATE_NONE;
 	raw_spin_unlock_irq(&s2idle_lock);
 
+    //printk("[PM][Mark_debug_PM]%s:%s:%d:---\n", __FILE__, __func__, __LINE__);
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+    //[PM_debug +++]
+    pm_printk("---\n");
+    //[PM_debug ---]
+#endif    
 	trace_suspend_resume(TPS("machine_suspend"), PM_SUSPEND_TO_IDLE, false);
 }
 
 static void s2idle_loop(void)
 {
 	pm_pr_dbg("suspend-to-idle\n");
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT  
+    //[PM_debug +++]
+    //printk("[PM][Mark_debug_PM]%s:%s:%d:suspend-to-idle\n", __FILE__, __func__, __LINE__);
+    pm_printk("suspend-to-idle\n");
+    //[PM_debug ---]
+#endif    
 
 	/*
 	 * Suspend-to-idle equals:
@@ -146,6 +169,12 @@ static void s2idle_loop(void)
 	}
 
 	pm_pr_dbg("resume from suspend-to-idle\n");
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+    //[PM_debug +++]
+    //printk("[PM][Mark_debug_PM]%s:%s:%d:resume from suspend-to-idle\n", __FILE__, __func__, __LINE__);
+    pm_printk("resume from suspend-to-idle\n");
+    //[PM_debug ---]
+#endif    
 }
 
 void s2idle_wake(void)
@@ -393,6 +422,11 @@ void __weak arch_suspend_enable_irqs(void)
  */
 static int suspend_enter(suspend_state_t state, bool *wakeup)
 {
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+//[PM_debug +++]
+	char suspend_abort[MAX_SUSPEND_ABORT_LEN];
+//[PM_debug ---]
+#endif
 	int error, last_dev;
 
 	error = platform_suspend_prepare(state);
@@ -450,10 +484,17 @@ static int suspend_enter(suspend_state_t state, bool *wakeup)
 		if (!(suspend_test(TEST_CORE) || *wakeup)) {
 			trace_suspend_resume(TPS("machine_suspend"),
 				state, true);
+			suspend_happened = true;
 			error = suspend_ops->enter(state);
 			trace_suspend_resume(TPS("machine_suspend"),
 				state, false);
 		} else if (*wakeup) {
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT	
+		//[PM_debug +++]
+			pm_get_active_wakeup_sources(suspend_abort, MAX_SUSPEND_ABORT_LEN);
+			log_suspend_abort_reason(suspend_abort);
+		//[PM_debug ---]
+#endif            
 			error = -EBUSY;
 		}
 		syscore_resume();
@@ -482,13 +523,19 @@ static int suspend_enter(suspend_state_t state, bool *wakeup)
 	return error;
 }
 
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+//[PM_debug +++]
+extern void msm_rpmh_master_stats_print(void); //drivers/soc/qcom/rpmh_master_stat.c
+extern void soc_sleep_stats_print(bool suspend);  //drivers/soc_qcom/soc_sleep_stats.c
+//[PM_debug ---]
+#endif
 /**
  * suspend_devices_and_enter - Suspend devices and enter system sleep state.
  * @state: System sleep state to enter.
  */
 int suspend_devices_and_enter(suspend_state_t state)
 {
-	int error;
+	int error, last_dev;
 	bool wakeup = false;
 
 	if (!sleep_state_supported(state))
@@ -502,14 +549,25 @@ int suspend_devices_and_enter(suspend_state_t state)
 	error = platform_suspend_begin(state);
 	if (error)
 		goto Close;
+		
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+//[PM_debug +++]
+    pm_printk("unattended_timer: del_timer\n");
+    del_pm_timer();
+    msm_rpmh_master_stats_print();
+    soc_sleep_stats_print(1);
+//[PM_debug ---]
+#endif
 
 	suspend_console();
 	suspend_test_start();
 	error = dpm_suspend_start(PMSG_SUSPEND);
 	if (error) {
+		last_dev = suspend_stats.last_failed_dev + REC_FAILED_NUM - 1;
+		last_dev %= REC_FAILED_NUM;
 		pr_err("Some devices failed to suspend, or early wake event detected\n");
-		log_suspend_abort_reason(
-				"Some devices failed to suspend, or early wake event detected");
+		log_suspend_abort_reason("%s device failed to suspend, or early wake event detected",
+			suspend_stats.failed_devs[last_dev]);
 		goto Recover_platform;
 	}
 	suspend_test_finish("suspend devices");
@@ -526,6 +584,14 @@ int suspend_devices_and_enter(suspend_state_t state)
 	suspend_test_finish("resume devices");
 	trace_suspend_resume(TPS("resume_console"), state, true);
 	resume_console();
+	
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT	
+//[PM_debug +++]
+    msm_rpmh_master_stats_print();
+    soc_sleep_stats_print(0);
+//[PM_debug ---]
+#endif
+
 	trace_suspend_resume(TPS("resume_console"), state, false);
 
  Close:
@@ -564,6 +630,11 @@ static int enter_state(suspend_state_t state)
 	int error;
 
 	trace_suspend_resume(TPS("suspend_enter"), state, true);
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+    //[PM_debug +++]
+    pm_printk("+++\n");
+    //[PM_debug ---]
+#endif    
 	if (state == PM_SUSPEND_TO_IDLE) {
 #ifdef CONFIG_PM_DEBUG
 		if (pm_test_level != TEST_NONE && pm_test_level <= TEST_CPUS) {
@@ -587,6 +658,11 @@ static int enter_state(suspend_state_t state)
 	}
 
 	pm_pr_dbg("Preparing system for sleep (%s)\n", mem_sleep_labels[state]);
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT	
+    //[PM_debug +++]
+    pm_printk("Preparing system for sleep (%s)\n",mem_sleep_labels[state]);
+    //[PM_debug ---]
+#endif
 	pm_suspend_clear_flags();
 	error = suspend_prepare(state);
 	if (error)
@@ -597,6 +673,11 @@ static int enter_state(suspend_state_t state)
 
 	trace_suspend_resume(TPS("suspend_enter"), state, false);
 	pm_pr_dbg("Suspending system (%s)\n", mem_sleep_labels[state]);
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT	
+    //[PM_debug +++]
+    pm_printk("Suspending system (%s)\n", mem_sleep_labels[state]);
+    //[PM_debug ---]
+#endif
 	pm_restrict_gfp_mask();
 	error = suspend_devices_and_enter(state);
 	pm_restore_gfp_mask();
@@ -604,9 +685,19 @@ static int enter_state(suspend_state_t state)
  Finish:
 	events_check_enabled = false;
 	pm_pr_dbg("Finishing wakeup.\n");
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT	
+    //[PM_debug +++]
+    pm_printk("Finishing wakeup.\n");
+    //[PM_debug ---]
+#endif
 	suspend_finish();
  Unlock:
 	mutex_unlock(&system_transition_mutex);
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+    //[PM_debug +++]
+    pm_printk("---\n");
+    //[PM_debug ---]
+#endif
 	return error;
 }
 

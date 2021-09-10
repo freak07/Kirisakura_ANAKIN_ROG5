@@ -1042,6 +1042,19 @@ static void spi_geni_set_sampling_rate(struct spi_geni_master *mas,
 		__func__, cfg_reg108, cfg_reg109, cfg_seq_start);
 }
 
+int asus_get_se_proto(struct spi_device *spi)
+{
+	struct spi_controller *ctlr = spi->controller;
+	struct spi_geni_master *mas = spi_master_get_devdata(ctlr);
+	int proto = -1;
+	
+	mutex_lock(&spi->controller->bus_lock_mutex);
+	mutex_lock(&spi->controller->io_mutex);
+	proto = get_se_proto(mas->base);
+	mutex_unlock(&spi->controller->io_mutex);
+	mutex_unlock(&spi->controller->bus_lock_mutex);
+	return proto;
+}
 /*
  * spi_geni_mas_setup is done once per spi session.
  * In LA, it is called in prepare_transfer_hardware whereas

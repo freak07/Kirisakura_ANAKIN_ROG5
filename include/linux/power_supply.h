@@ -402,6 +402,15 @@ struct power_supply_battery_info {
 	int resist_table_size;
 };
 
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+//ASUS_BSP Beryl +++ 
+#define QTI_POWER_SUPPLY_CHARGED   0x0001
+#define QTI_POWER_SUPPLY_UNCHARGED 0x0002
+extern void qti_charge_register_notify(struct notifier_block *nb);
+extern void qti_charge_unregister_notify(struct notifier_block *nb);
+//ASUS_BSP Beryl ---
+#endif
+
 extern struct atomic_notifier_head power_supply_notifier;
 extern int power_supply_reg_notifier(struct notifier_block *nb);
 extern void power_supply_unreg_notifier(struct notifier_block *nb);

@@ -1091,6 +1091,14 @@ config SOCK_CGROUP_DATA
 
 endif # CGROUPS
 
+config CGF_NOTIFY_EVENT
+	bool "Freezer cgroup event notifier"
+	help
+	  Provides a way of notifing the cgroup freezer to migrate the tasks.
+	  For example: migrate the FROZEN task to THAWED crgoup while OOM or LMK
+	  send a SIGKILL signal to a FROZEN task.
+	  default y
+
 menuconfig NAMESPACES
 	bool "Namespaces support" if EXPERT
 	depends on MULTIUSER

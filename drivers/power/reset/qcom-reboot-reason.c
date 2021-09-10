@@ -32,6 +32,13 @@ static struct poweroff_reason reasons[] = {
 	{ "dm-verity device corrupted",	0x04 },
 	{ "dm-verity enforcing",	0x05 },
 	{ "keys clear",			0x06 },
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+	{ "shutdown",			0x08 },
+	{ "EnterShippingMode",		0x09 },
+	{ "oem-08",			0x0a },
+	{ "official-unlock",		0x0a },
+	{ "oem-78",			0x0b },
+#endif
 	{}
 };
 

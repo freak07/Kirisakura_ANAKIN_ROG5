@@ -444,8 +444,13 @@ int mipi_dsi_create_packet(struct mipi_dsi_packet *packet,
 		return -EINVAL;
 
 	/* do some minimum sanity checking */
+#if defined(CONFIG_PXLW_IRIS)
+	if (!mipi_dsi_packet_format_is_short(msg->type & 0x3f) &&
+		!mipi_dsi_packet_format_is_long(msg->type & 0x3f))
+#else
 	if (!mipi_dsi_packet_format_is_short(msg->type) &&
 	    !mipi_dsi_packet_format_is_long(msg->type))
+#endif
 		return -EINVAL;
 
 	if (msg->channel > 3)
@@ -463,7 +468,11 @@ int mipi_dsi_create_packet(struct mipi_dsi_packet *packet,
 	 * Short write packets encode up to two parameters in header bytes 1
 	 * and 2.
 	 */
+#if defined(CONFIG_PXLW_IRIS)
+	if (mipi_dsi_packet_format_is_long(msg->type & 0x3f)) {
+#else
 	if (mipi_dsi_packet_format_is_long(msg->type)) {
+#endif
 		packet->header[1] = (msg->tx_len >> 0) & 0xff;
 		packet->header[2] = (msg->tx_len >> 8) & 0xff;
 

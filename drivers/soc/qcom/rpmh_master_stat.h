@@ -15,5 +15,8 @@ void msm_rpmh_master_stats_update(void);
 static inline void msm_rpmh_master_stats_update(void) {}
 
 #endif
-
+//[PM_debug +++]
+void msm_rpmh_master_stats_print(void);
+void soc_sleep_stats_print(void);
+//[PM_debug ---]
 #endif /* __QCOM_RPM_STATS_LOG_H__ */

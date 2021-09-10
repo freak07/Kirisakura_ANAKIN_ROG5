@@ -698,6 +698,40 @@ void a6xx_start(struct adreno_device *adreno_dev)
 	}
 }
 
+/* Offsets into the MX/CX mapped register regions */
+#define RDPM_MX_OFFSET 0xf00
+#define RDPM_CX_OFFSET 0xf18
+
+void a6xx_rdpm_mx_freq_update(struct a6xx_gmu_device *gmu,
+		u32 freq)
+{
+	if (gmu->rdpm_mx_virt) {
+		writel_relaxed(freq/1000,
+			(gmu->rdpm_mx_virt + RDPM_MX_OFFSET));
+
+		/*
+		 * ensure previous writes post before this one,
+		 * i.e. act like normal writel()
+		 */
+		wmb();
+	}
+}
+
+void a6xx_rdpm_cx_freq_update(struct a6xx_gmu_device *gmu,
+		u32 freq)
+{
+	if (gmu->rdpm_cx_virt) {
+		writel_relaxed(freq/1000,
+			(gmu->rdpm_cx_virt + RDPM_CX_OFFSET));
+
+		/*
+		 * ensure previous writes post before this one,
+		 * i.e. act like normal writel()
+		 */
+		wmb();
+	}
+}
+
 void a6xx_unhalt_sqe(struct adreno_device *adreno_dev)
 {
 	struct kgsl_device *device = KGSL_DEVICE(adreno_dev);
@@ -1394,10 +1428,12 @@ static void a6xx_llc_configure_gpu_scid(struct adreno_device *adreno_dev)
 	/*
 	 * On A660, the SCID programming for UCHE traffic is done in
 	 * A6XX_GBIF_SCACHE_CNTL0[14:10]
+	 * GFO ENABLE BIT(8) : LLC uses a 64 byte cache line size enabling
+	 * GFO allows it allocate partial cache lines
 	 */
 	if (adreno_is_a660(adreno_dev))
-		kgsl_regrmw(device, A6XX_GBIF_SCACHE_CNTL0, 0x1f << 10,
-			gpu_scid << 10);
+		kgsl_regrmw(device, A6XX_GBIF_SCACHE_CNTL0, (0x1f << 10) |
+				BIT(8), (gpu_scid << 10) | BIT(8));
 }
 
 /*
@@ -2133,9 +2169,6 @@ int a6xx_probe_common(struct platform_device *pdev,
 	adreno_dev->preempt.preempt_level = 1;
 	adreno_dev->preempt.skipsaverestore = true;
 	adreno_dev->preempt.usesgmem = true;
-
-	adreno_dev->gpu_llc_slice_enable = true;
-	adreno_dev->gpuhtw_llc_slice_enable = true;
 
 	/* Set the GPU busy counter for frequency scaling */
 	adreno_dev->perfctr_pwr_lo = A6XX_GMU_CX_GMU_POWER_COUNTER_XOCLK_0_L;

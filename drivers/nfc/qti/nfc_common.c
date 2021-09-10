@@ -294,14 +294,6 @@ int nfc_misc_probe(struct nfc_dev *nfc_dev,
 
 	nfc_dev->ipcl = ipc_log_context_create(NUM_OF_IPC_LOG_PAGES,
 						dev_name(nfc_dev->nfc_device), 0);
-	if (!nfc_dev->ipcl) {
-		pr_err("nfc ipc log create failed\n");
-		device_destroy(nfc_dev->nfc_class, nfc_dev->devno);
-		cdev_del(&nfc_dev->c_dev);
-		class_destroy(nfc_dev->nfc_class);
-		unregister_chrdev_region(nfc_dev->devno, count);
-		return -ENXIO;
-	}
 
 	nfc_dev->kbuflen = MAX_BUFFER_SIZE;
 	nfc_dev->kbuf = kzalloc(MAX_BUFFER_SIZE, GFP_KERNEL | GFP_DMA);
@@ -524,7 +516,9 @@ int nfc_ese_pwr(struct nfc_dev *nfc_dev, unsigned long arg)
 static int nfc_ioctl_power_states(struct nfc_dev *nfc_dev, unsigned long arg)
 {
 	int ret = 0;
-
+#ifndef ASUS_PICASSO_PROJECT
+	pr_info("%s: [NFC] nfc_ioctl_power_states:%lu\n", __func__, arg);
+#endif //Not ASUS_PICASSO_PROJECT
 	if (arg == NFC_POWER_OFF) {
 		/*
 		 * We are attempting a hardware reset so let us disable
@@ -561,7 +555,13 @@ static int nfc_ioctl_power_states(struct nfc_dev *nfc_dev, unsigned long arg)
 		 * We are switching to download Mode, toggle the enable pin
 		 * in order to set the NFCC in the new mode
 		 */
-
+#ifndef ASUS_PICASSO_PROJECT
+		pr_info("%s: [NFC] We are switching to Download Mode.\n", __func__);
+		if (!nfc_dev->i2c_dev.irq_enabled) {
+			pr_info("%s: [NFC] enable irq for FW Dowload Mode.", __func__);
+			i2c_enable_irq(nfc_dev);
+		}
+#endif //Not ASUS_PICASSO_PROJECT
 		gpio_set_ven(nfc_dev, 1);
 
 		if (gpio_is_valid(nfc_dev->gpio.dwl_req)) {
@@ -748,6 +748,7 @@ int nfc_dev_close(struct inode *inode, struct file *filp)
 	return 0;
 }
 
+#ifdef ASUS_PICASSO_PROJECT
 int is_data_available_for_read(struct nfc_dev *nfc_dev)
 {
 	int ret;
@@ -977,3 +978,4 @@ done:
 
 	return ret;
 }
+#endif //ASUS_PICASSO_PROJECT

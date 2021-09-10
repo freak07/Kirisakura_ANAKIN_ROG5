@@ -12,6 +12,14 @@
 #include <linux/suspend.h>
 #include <linux/timer.h>
 #include <soc/qcom/minidump.h>
+#include <soc/qcom/ramdump.h>
+#include <soc/qcom/subsystem_notif.h>
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+#include <linux/gpio.h>
+#include <linux/of_gpio.h>
+#include <linux/module.h>
+#include <linux/regulator/consumer.h>
+#endif
 
 #include "main.h"
 #include "bus.h"
@@ -55,6 +63,16 @@ static struct cnss_fw_files FW_FILES_DEFAULT = {
 	"qwlan.bin", "bdwlan.bin", "otp.bin", "utf.bin",
 	"utfbd.bin", "epping.bin", "evicted.bin"
 };
+
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+/* ASUS_BSP+++ for wifi antenna switch */
+#define default_wifi_antenna_switch		"1"
+#define GPIO_LOOKUP_STATE		"wifi_ant_gpio"
+
+int wlan_asus_ant_gpio = 0;
+/* ASUS_BSP--- for wifi antenna switch */
+#endif
+
 
 struct cnss_driver_event {
 	struct list_head list;
@@ -533,8 +551,8 @@ static char *cnss_driver_event_to_str(enum cnss_driver_event_type type)
 		return "WLFW_TWC_CFG_IND";
 	case CNSS_DRIVER_EVENT_QDSS_TRACE_REQ_MEM:
 		return "QDSS_TRACE_REQ_MEM";
-	case CNSS_DRIVER_EVENT_QDSS_TRACE_SAVE:
-		return "QDSS_TRACE_SAVE";
+	case CNSS_DRIVER_EVENT_FW_MEM_FILE_SAVE:
+		return "FW_MEM_FILE_SAVE";
 	case CNSS_DRIVER_EVENT_QDSS_TRACE_FREE:
 		return "QDSS_TRACE_FREE";
 	case CNSS_DRIVER_EVENT_MAX:
@@ -1504,89 +1522,89 @@ static int cnss_qdss_trace_req_mem_hdlr(struct cnss_plat_data *plat_priv)
 	return cnss_wlfw_qdss_trace_mem_info_send_sync(plat_priv);
 }
 
-static void *cnss_qdss_trace_pa_to_va(struct cnss_plat_data *plat_priv,
-				      u64 pa, u32 size, int *seg_id)
+static void *cnss_get_fw_mem_pa_to_va(struct cnss_fw_mem *fw_mem,
+				      u32 mem_seg_len, u64 pa, u32 size)
 {
 	int i = 0;
-	struct cnss_fw_mem *qdss_mem = plat_priv->qdss_mem;
 	u64 offset = 0;
 	void *va = NULL;
 	u64 local_pa;
 	u32 local_size;
 
-	for (i = 0; i < plat_priv->qdss_mem_seg_len; i++) {
-		local_pa = (u64)qdss_mem[i].pa;
-		local_size = (u32)qdss_mem[i].size;
+	for (i = 0; i < mem_seg_len; i++) {
+		local_pa = (u64)fw_mem[i].pa;
+		local_size = (u32)fw_mem[i].size;
 		if (pa == local_pa && size <= local_size) {
-			va = qdss_mem[i].va;
+			va = fw_mem[i].va;
 			break;
 		}
 		if (pa > local_pa &&
 		    pa < local_pa + local_size &&
 		    pa + size <= local_pa + local_size) {
 			offset = pa - local_pa;
-			va = qdss_mem[i].va + offset;
+			va = fw_mem[i].va + offset;
 			break;
 		}
 	}
-
-	*seg_id = i;
 	return va;
 }
 
-static int cnss_qdss_trace_save_hdlr(struct cnss_plat_data *plat_priv,
-				     void *data)
+static int cnss_fw_mem_file_save_hdlr(struct cnss_plat_data *plat_priv,
+				      void *data)
 {
-	struct cnss_qmi_event_qdss_trace_save_data *event_data = data;
-	struct cnss_fw_mem *qdss_mem = plat_priv->qdss_mem;
-	int ret = 0;
-	int i;
+	struct cnss_qmi_event_fw_mem_file_save_data *event_data = data;
+	struct cnss_fw_mem *fw_mem_seg;
+	int ret = 0L;
 	void *va = NULL;
-	u64 pa;
-	u32 size;
-	int seg_id = 0;
+	u32 i, fw_mem_seg_len;
 
-	if (!plat_priv->qdss_mem_seg_len) {
-		cnss_pr_err("Memory for QDSS trace is not available\n");
-		return -ENOMEM;
+	switch (event_data->mem_type) {
+	case QMI_WLFW_MEM_TYPE_DDR_V01:
+		if (!plat_priv->fw_mem_seg_len)
+			goto invalid_mem_save;
+
+		fw_mem_seg = plat_priv->fw_mem;
+		fw_mem_seg_len = plat_priv->fw_mem_seg_len;
+		break;
+	case QMI_WLFW_MEM_QDSS_V01:
+		if (!plat_priv->qdss_mem_seg_len)
+			goto invalid_mem_save;
+
+		fw_mem_seg = plat_priv->qdss_mem;
+		fw_mem_seg_len = plat_priv->qdss_mem_seg_len;
+		break;
+	default:
+		goto invalid_mem_save;
 	}
 
-	if (event_data->mem_seg_len == 0) {
-		for (i = 0; i < plat_priv->qdss_mem_seg_len; i++) {
-			ret = cnss_genl_send_msg(qdss_mem[i].va,
-						 CNSS_GENL_MSG_TYPE_QDSS,
-						 event_data->file_name,
-						 qdss_mem[i].size);
-			if (ret < 0) {
-				cnss_pr_err("Fail to save QDSS data: %d\n",
-					    ret);
-				break;
-			}
+	for (i = 0; i < event_data->mem_seg_len; i++) {
+		va = cnss_get_fw_mem_pa_to_va(fw_mem_seg, fw_mem_seg_len,
+					      event_data->mem_seg[i].addr,
+					      event_data->mem_seg[i].size);
+		if (!va) {
+			cnss_pr_err("Fail to find matching va of pa %pa for mem type: %d\n",
+				    &event_data->mem_seg[i].addr,
+				    event_data->mem_type);
+			ret = -EINVAL;
+			break;
 		}
-	} else {
-		for (i = 0; i < event_data->mem_seg_len; i++) {
-			pa = event_data->mem_seg[i].addr;
-			size = event_data->mem_seg[i].size;
-			va = cnss_qdss_trace_pa_to_va(plat_priv, pa,
-						      size, &seg_id);
-			if (!va) {
-				cnss_pr_err("Fail to find matching va for pa %pa\n",
-					    &pa);
-				ret = -EINVAL;
-				break;
-			}
-			ret = cnss_genl_send_msg(va, CNSS_GENL_MSG_TYPE_QDSS,
-						 event_data->file_name, size);
-			if (ret < 0) {
-				cnss_pr_err("Fail to save QDSS data: %d\n",
-					    ret);
-				break;
-			}
+		ret = cnss_genl_send_msg(va, CNSS_GENL_MSG_TYPE_QDSS,
+					 event_data->file_name,
+					 event_data->mem_seg[i].size);
+		if (ret < 0) {
+			cnss_pr_err("Fail to save fw mem data: %d\n",
+				    ret);
+			break;
 		}
 	}
-
 	kfree(data);
 	return ret;
+
+invalid_mem_save:
+	cnss_pr_err("FW Mem type %d not allocated. Invalid save request\n",
+		    event_data->mem_type);
+	kfree(data);
+	return -EINVAL;
 }
 
 static int cnss_qdss_trace_free_hdlr(struct cnss_plat_data *plat_priv)
@@ -1689,9 +1707,9 @@ static void cnss_driver_event_work(struct work_struct *work)
 		case CNSS_DRIVER_EVENT_QDSS_TRACE_REQ_MEM:
 			ret = cnss_qdss_trace_req_mem_hdlr(plat_priv);
 			break;
-		case CNSS_DRIVER_EVENT_QDSS_TRACE_SAVE:
-			ret = cnss_qdss_trace_save_hdlr(plat_priv,
-							event->data);
+		case CNSS_DRIVER_EVENT_FW_MEM_FILE_SAVE:
+			ret = cnss_fw_mem_file_save_hdlr(plat_priv,
+							 event->data);
 			break;
 		case CNSS_DRIVER_EVENT_QDSS_TRACE_FREE:
 			ret = cnss_qdss_trace_free_hdlr(plat_priv);
@@ -2747,12 +2765,51 @@ cnss_use_nv_mac(struct cnss_plat_data *plat_priv)
 				     "use-nv-mac");
 }
 
+/* ASUS_BSP--- for for wifi antenna switch*/
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+static ssize_t do_wifi_antenna_switch_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	int antenna_gpio = 0;
+	struct pinctrl *key_pinctrl;
+
+	kstrtoint(buf,10,&antenna_gpio);
+
+	key_pinctrl = devm_pinctrl_get(dev);
+	if (IS_ERR_OR_NULL(key_pinctrl)) {
+	    pr_err("[cnss] get_pinctrl failed");
+	}
+
+	cnss_pr_info("[cnss]: wifi_antenna_switch_start = %d, GPIO = %d.\n", antenna_gpio, gpio_get_value(wlan_asus_ant_gpio));
+
+	gpio_set_value(wlan_asus_ant_gpio, antenna_gpio);
+
+	cnss_pr_info("[cnss]: wifi_antenna_switch_end GPIO = %d.\n", gpio_get_value(wlan_asus_ant_gpio));
+
+	return count;
+
+}
+
+static DEVICE_ATTR(do_wifi_antenna_switch, 0644, NULL, do_wifi_antenna_switch_store);
+#endif
+/* ASUS_BSP--- for for wifi antenna switch*/
+
 static int cnss_probe(struct platform_device *plat_dev)
 {
 	int ret = 0;
 	struct cnss_plat_data *plat_priv;
 	const struct of_device_id *of_id;
 	const struct platform_device_id *device_id;
+	/* ASUS_BSP+++ "add for the antenna switch power (LDO13A)" */
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+	struct device *dev;
+//	struct regulator *temp_reg;
+//	int rc = 0;
+
+	struct pinctrl *key_pinctrl;
+	struct pinctrl_state *set_state;
+#endif
+	/* ASUS_BSP--- "add for the antenna switch power (LDO13A)" */
 
 	if (cnss_get_plat_priv(plat_dev)) {
 		cnss_pr_err("Driver is already initialized!\n");
@@ -2845,6 +2902,56 @@ static int cnss_probe(struct platform_device *plat_dev)
 	ret = cnss_genl_init();
 	if (ret < 0)
 		cnss_pr_err("CNSS genl init failed %d\n", ret);
+
+	/* ASUS_BSP+++ "add for the antenna switch power (LDO13A)" */
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+dev = &plat_priv->plat_dev->dev;
+	key_pinctrl = devm_pinctrl_get(dev);
+	if (IS_ERR_OR_NULL(key_pinctrl)) {
+		cnss_pr_err("[cnss] set_pinctrl failed");
+	}
+
+	set_state = pinctrl_lookup_state(key_pinctrl, GPIO_LOOKUP_STATE);
+	ret = pinctrl_select_state(key_pinctrl, set_state);
+	if(ret < 0)
+		cnss_pr_err("[cnss] pinctrl_select_state");
+
+	ret = device_create_file(&plat_dev->dev, &dev_attr_do_wifi_antenna_switch);
+	if (ret)
+		pr_err("[cnss]: sysfs node create failed error:%d\n", ret);
+
+#if defined ASUS_ZS673KS_PROJECT
+	wlan_asus_ant_gpio = of_get_named_gpio(dev->of_node,"wlan-asus_ant_141",0);
+#else
+	wlan_asus_ant_gpio = of_get_named_gpio(dev->of_node,"wlan-asus_ant_148",0);
+#endif
+	if (wlan_asus_ant_gpio < 0) {
+		pr_err("[cnss] no wlan-asus_ant_gpio \n");
+	}
+	printk("[cnss] asus_ant_gpio = %d\n", wlan_asus_ant_gpio);
+
+	if (gpio_is_valid (wlan_asus_ant_gpio)) {
+#if defined ASUS_ZS673KS_PROJECT
+		ret = gpio_request(wlan_asus_ant_gpio, "wlan-asus_ant_141");
+#else
+		ret = gpio_request(wlan_asus_ant_gpio, "wlan-asus_ant_148");
+#endif
+		if (ret){
+			printk("[cnss] gpio_request.err %d\n", ret);
+		}
+		ret = gpio_direction_output(wlan_asus_ant_gpio, 1);
+		if (ret){
+			printk("[cnss] gpio_direction_output.err %d\n", ret);
+		}
+		gpio_set_value(wlan_asus_ant_gpio, 1);
+		printk("[cnss] gpio_get_value_end %d\n", gpio_get_value(wlan_asus_ant_gpio));
+	}
+	else {
+		printk("[cnss] wlan_asus_ant_gpio is not valid");
+	}
+#endif
+	/* ASUS_BSP--- "add for the antenna switch power (LDO13A)" */
+
 
 	cnss_pr_info("Platform driver probed successfully.\n");
 

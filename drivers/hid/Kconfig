@@ -1167,6 +1167,13 @@ config HID_QVR
 	temperature, accelerometer, gyroscope, magnetometer data.
 
 	If unsure, say Y.
+
+config USB_EC_DRIVER
+	tristate "USB_EC_DRIVER gDongleType support"
+	depends on HID
+	---help---
+	Say 'Y' if EC driver and gDongleType ready
+
 endmenu
 
 endif # HID

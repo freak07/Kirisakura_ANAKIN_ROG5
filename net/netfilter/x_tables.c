@@ -1349,6 +1349,16 @@ struct xt_counters *xt_counters_alloc(unsigned int counters)
 }
 EXPORT_SYMBOL(xt_counters_alloc);
 
+#if defined(ASUS_ZS673KS_PROJECT) || defined(ASUS_PICASSO_PROJECT) || defined(ASUS_SAKE_PROJECT) || defined(ASUS_VODKA_PROJECT)
+struct xt_table_info
+*xt_table_get_private_protected(const struct xt_table *table)
+{
+	return rcu_dereference_protected(table->private,
+					 mutex_is_locked(&xt[table->af].mutex));
+}
+EXPORT_SYMBOL(xt_table_get_private_protected);
+#endif
+
 struct xt_table_info *
 xt_replace_table(struct xt_table *table,
 	      unsigned int num_counters,
@@ -1356,7 +1366,10 @@ xt_replace_table(struct xt_table *table,
 	      int *error)
 {
 	struct xt_table_info *private;
+#if defined(ASUS_ZS673KS_PROJECT) || defined(ASUS_PICASSO_PROJECT) || defined(ASUS_SAKE_PROJECT) || defined(ASUS_VODKA_PROJECT)
+#else
 	unsigned int cpu;
+#endif
 	int ret;
 
 	ret = xt_jumpstack_alloc(newinfo);
@@ -1366,19 +1379,30 @@ xt_replace_table(struct xt_table *table,
 	}
 
 	/* Do the substitution. */
+#if defined(ASUS_ZS673KS_PROJECT) || defined(ASUS_PICASSO_PROJECT) || defined(ASUS_SAKE_PROJECT) || defined(ASUS_VODKA_PROJECT)
+	private = xt_table_get_private_protected(table);
+#else
 	local_bh_disable();
 	private = table->private;
-
+#endif
 	/* Check inside lock: is the old number correct? */
 	if (num_counters != private->number) {
 		pr_debug("num_counters != table->private->number (%u/%u)\n",
 			 num_counters, private->number);
+#if defined(ASUS_ZS673KS_PROJECT) || defined(ASUS_PICASSO_PROJECT) || defined(ASUS_SAKE_PROJECT) || defined(ASUS_VODKA_PROJECT)
+#else
 		local_bh_enable();
+#endif
 		*error = -EAGAIN;
 		return NULL;
 	}
 
 	newinfo->initial_entries = private->initial_entries;
+
+#if defined(ASUS_ZS673KS_PROJECT) || defined(ASUS_PICASSO_PROJECT) || defined(ASUS_SAKE_PROJECT) || defined(ASUS_VODKA_PROJECT)
+	rcu_assign_pointer(table->private, newinfo);
+	synchronize_rcu();
+#else
 	/*
 	 * Ensure contents of newinfo are visible before assigning to
 	 * private.
@@ -1399,7 +1423,7 @@ xt_replace_table(struct xt_table *table,
 	for_each_possible_cpu(cpu) {
 		seqcount_t *s = &per_cpu(xt_recseq, cpu);
 		u32 seq = raw_read_seqcount(s);
-
+		
 		if (seq & 1) {
 			do {
 				cond_resched();
@@ -1407,6 +1431,7 @@ xt_replace_table(struct xt_table *table,
 			} while (seq == raw_read_seqcount(s));
 		}
 	}
+#endif
 
 #ifdef CONFIG_AUDIT
 	if (audit_enabled) {
@@ -1447,12 +1472,19 @@ struct xt_table *xt_register_table(struct net *net,
 	}
 
 	/* Simplifies replace_table code. */
+#if defined(ASUS_ZS673KS_PROJECT) || defined(ASUS_PICASSO_PROJECT) || defined(ASUS_SAKE_PROJECT) || defined(ASUS_VODKA_PROJECT)
+	rcu_assign_pointer(table->private, bootstrap);
+#else
 	table->private = bootstrap;
-
+#endif
 	if (!xt_replace_table(table, 0, newinfo, &ret))
 		goto unlock;
 
+#if defined(ASUS_ZS673KS_PROJECT) || defined(ASUS_PICASSO_PROJECT) || defined(ASUS_SAKE_PROJECT) || defined(ASUS_VODKA_PROJECT)
+	private = xt_table_get_private_protected(table);
+#else
 	private = table->private;
+#endif
 	pr_debug("table->private->number = %u\n", private->number);
 
 	/* save number of initial entries */
@@ -1475,7 +1507,12 @@ void *xt_unregister_table(struct xt_table *table)
 	struct xt_table_info *private;
 
 	mutex_lock(&xt[table->af].mutex);
+#if defined(ASUS_ZS673KS_PROJECT) || defined(ASUS_PICASSO_PROJECT) || defined(ASUS_SAKE_PROJECT) || defined(ASUS_VODKA_PROJECT)
+	private = xt_table_get_private_protected(table);
+	RCU_INIT_POINTER(table->private, NULL);
+#else
 	private = table->private;
+#endif
 	list_del(&table->list);
 	mutex_unlock(&xt[table->af].mutex);
 	kfree(table);

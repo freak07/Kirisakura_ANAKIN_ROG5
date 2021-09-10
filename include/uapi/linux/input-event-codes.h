@@ -274,6 +274,13 @@
 #define KEY_F23			193
 #define KEY_F24			194
 
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+#define GPBTN_M1			0xc4
+#define GPBTN_M2			0xc5
+#define GPBTN_M3			0xc6
+#define GPBTN_M4			0xc7
+#endif
+
 #define KEY_PLAYCD		200
 #define KEY_PAUSECD		201
 #define KEY_PROG3		202
@@ -336,6 +343,11 @@
 #define KEY_RFKILL		247	/* Key that controls all radios */
 
 #define KEY_MICMUTE		248	/* Mute / unmute the microphone */
+
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+#define ASUS_STATION_L1		251
+#define ASUS_STATION_R1		252
+#endif
 
 /* Code 255 is reserved for special needs of AT keyboard driver */
 

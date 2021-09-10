@@ -1,0 +1,51 @@
+###############################################################################################
+#
+# Reverse the order of the configs for the override to work properly
+# Correct order is : 
+#1.base_defconfig : kernel/msm-5.4/arch/arm64/configs/gki_defconfig 
+#2.GKI.config : /kernel/msm-5.4/arch/arm64/configs/vendor/lahaina_GKI.config (GKI.config)
+#3.QGKI.config : /kernel/msm-5.4/arch/arm64/configs/vendor/lahaina_QGKI.config  (QGKI.config)
+#4.Consolidate.config : /kernel/msm-5.4/arch/arm64/configs/vendor/lahaina_consolidate.config
+#5.debug.config : kernel/msm-5.4/arch/arm64/configs/vendor/lahaina_debug.config  (debug.config)
+#6.asus_defconfig : kernel/msm-5.4/arch/arm64/configs/vendor/ZS673KS_defconfig
+#
+###############################################################################################
+CONFIG_LOCALVERSION="-qgki-debug"
+CONFIG_MACH_ASUS_ZS673KS=y
+CONFIG_TOUCHSCREEN_ROG=m
+CONFIG_TOUCHSCREEN2_ROG=m
+# CONFIG_TOUCHSCREEN_ST is not set
+# CONFIG_TOUCHSCREEN_FTS is not set
+CONFIG_NET_SCH_NETEM=y
+CONFIG_SLA_STAIC_COLLECT=y
+CONFIG_SLA=m
+CONFIG_NETFILTER_XT_TARGET_LOG=y
+CONFIG_NETFILTER_XT_MATCH_MULTIPORT=y
+CONFIG_INPUT_SX932X=m
+CONFIG_INPUT_SX932X_2ND=m
+CONFIG_TSPDRV=y
+CONFIG_INPUT_HALLSENSOR=m
+CONFIG_INPUT_HALLSENSOR2=m
+# ASUS_BSP : Support PD_RT1715 +++
+CONFIG_RT_REGMAP=y
+CONFIG_TCPC_CLASS=y
+CONFIG_USB_POWER_DELIVERY=y
+CONFIG_TCPC_RT1711H=y
+# ASUS_BSP : Support PD_RT1715 ---
+# ASUS BSP Fingerprint +++
+CONFIG_GOODIX_FINGERPRINT=m
+# CONFIG_MSM_QBT_HANDLER is not set
+# ASUS BSP Fingerprint ---
+CONFIG_USB_ANNOUNCE_NEW_DEVICES=y
+CONFIG_USB_VD_TEST=y
+CONFIG_CGF_NOTIFY_EVENT=y
+CONFIG_USB_HUB_USB3803=y
+CONFIG_TUXERA_USERDEBUG=y
+#CONFIG_EXFAT_FS=y
+CONFIG_DEBUG_INFO=y
+CONFIG_CPU_FREQ_STAT=y
+CONFIG_USB_EC_DRIVER=y
+CONFIG_USB_CONFIGFS_F_MTP=y
+CONFIG_USB_CONFIGFS_F_PTP=y
+CONFIG_QTI_TZ_LOG=y
+CONFIG_QCOM_EUD=n

@@ -9,6 +9,7 @@
 #include <linux/device-mapper.h>
 #include <linux/module.h>
 #include <linux/mount.h>
+#include <linux/kernel.h>
 
 #define DM_MSG_PREFIX "verity-avb"
 
@@ -103,8 +104,14 @@ static int invalidate_vbmeta(dev_t vbmeta_devt)
 	/* We have a page. Let's make sure it looks right. */
 	if (memcmp("AVB0", page_address(page), 4) == 0) {
 		/* Stamp it. */
+		#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+		//memcpy(page_address(page), "AVE0", 4);
+		DMINFO("invalidate_vbmeta: found vbmeta partition");
+		ASUSEvtlog("[ROG5_DM] invalidate_vbmeta: found vbmeta partition\n");
+		#else
 		memcpy(page_address(page), "AVE0", 4);
 		DMINFO("invalidate_vbmeta: found vbmeta partition");
+		#endif
 	} else {
 		/* Could be this is on a AVB footer, check. Also, since the
 		 * AVB footer is in the last 64 bytes, adjust for the fact that
@@ -125,8 +132,14 @@ static int invalidate_vbmeta(dev_t vbmeta_devt)
 			goto invalid_header;
 		}
 		/* Stamp it. */
-		memcpy(page_address(page) + offset, "AVE0", 4);
+		#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+		//memcpy(page_address(page) + offset, "AVE0", 4);
 		DMINFO("invalidate_vbmeta: found vbmeta footer partition");
+		ASUSEvtlog("[ROG5_DM] (offset) invalidate_vbmeta: found vbmeta partition\n");
+		#else
+		DMINFO("invalidate_vbmeta: found vbmeta footer partition");
+		//ASUSEvtlog("[ROG5_DM] (offset) invalidate_vbmeta: found vbmeta partition\n");
+		#endif
 	}
 
 	/* Now rewrite the changed page - the block dev was being

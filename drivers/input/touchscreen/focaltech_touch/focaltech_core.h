@@ -102,6 +102,10 @@
 #define FTX_MAX_COMPATIBLE_TYPE             4
 #define FTX_MAX_COMMMAND_LENGTH             16
 
+#define ASUS_TOUCH_X_POS                   7 // high 4 bits
+#define ASUS_TOUCH_Y_POS                   7 // low 4 bits
+#define ASUS_TOUCH_AREA_POS                  8 // FP area, high 4 bits
+#define ASUS_TOUCH_RATE_POS                  8 //report rate, low 4 bits
 
 /*****************************************************************************
 * Private enumerations, structures and unions using typedef
@@ -118,6 +122,8 @@ struct fts_ts_platform_data {
 	u32 irq_gpio_flags;
 	u32 reset_gpio;
 	u32 reset_gpio_flags;
+	u32 vddio;
+	u32 vddio_flags;	
 	bool have_key;
 	u32 key_number;
 	u32 keys[FTS_MAX_KEYS];

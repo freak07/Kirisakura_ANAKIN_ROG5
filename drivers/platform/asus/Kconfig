@@ -1,0 +1,42 @@
+# Asus configuration options
+
+config MACH_ASUS
+	bool "Asus device"
+	help
+	  Support for Asus products
+
+config MACH_ASUS_LAHAINA
+	bool "Asus LAHAINA"
+	depends on ARCH_LAHAINA
+	select MACH_ASUS
+	help
+	  Support for LAHAINA Asus variants
+
+menu "Asus board selection"
+
+config MACH_ASUS_ZS673KS
+	bool "ZS673KS board"
+	select MACH_ASUS_KONA
+	help
+	  Support for Anakin (Rog5)
+
+config MACH_ASUS_PICASSO
+	bool "PICASSO board"
+	select MACH_ASUS
+	help
+	  Support for Picasso
+
+config MACH_ASUS_SAKE
+	bool "SAKE board"
+	select MACH_ASUS
+	help
+	  Support for Sake
+
+config MACH_ASUS_VODKA
+	bool "VODKA board"
+	select MACH_ASUS
+	help
+	  Support for Vodka
+
+endmenu
+

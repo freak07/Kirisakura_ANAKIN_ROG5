@@ -61,6 +61,9 @@ struct extcon_dev {
 	struct attribute_group attr_g_muex;
 	struct attribute **attrs_muex;
 	struct device_attribute *d_attrs_muex;
+	#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+	const char *fnode_name;	/* ASUS BSP +++ */
+	#endif
 };
 
 #endif /* __LINUX_EXTCON_INTERNAL_H__ */

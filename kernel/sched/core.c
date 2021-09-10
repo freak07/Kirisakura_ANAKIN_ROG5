@@ -4942,6 +4942,20 @@ static bool check_same_owner(struct task_struct *p)
 	const struct cred *cred = current_cred(), *pcred;
 	bool match;
 
+    //printk("TGPA- check_same_owner %s, %s", p->comm, current->comm);
+    // glory of king
+    if(!strcmp(p->comm, "UnityMain") && !strncmp("Thread-", current->comm, 7))
+        return true;
+    //pubg
+    if(!strncmp(p->comm, "Thread-", 7) && !strncmp("Thread-", current->comm, 7))
+        return true;
+    //peace elite
+    if(!strncmp(p->comm, "RenderThread", strlen("RenderThread")) && !strncmp("Thread-", current->comm, 7))
+        return true;
+
+    if(!strncmp("perf@2.2-serv", current->comm, strlen("perf@2.2-serv")))
+        return true;    
+
 	rcu_read_lock();
 	pcred = __task_cred(p);
 	match = (uid_eq(cred->euid, pcred->euid) ||
@@ -7049,7 +7063,9 @@ void __init sched_init(void)
 
 	init_uclamp();
 
+#ifdef CONFIG_CGROUP_SCHED
 	walt_init_sched_boost(&root_task_group);
+#endif
 
 	scheduler_running = 1;
 }

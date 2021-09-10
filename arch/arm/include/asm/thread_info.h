@@ -65,6 +65,9 @@ struct thread_info {
 #ifdef CONFIG_ARM_THUMBEE
 	unsigned long		thumbee_state;	/* ThumbEE Handler Base register */
 #endif
+	struct mutex *		pWaitingMutex;          //ASUS_BSP + [thomas]Add for slow log
+	struct completion *	pWaitingCompletion;     //ASUS_BSP + [thomas]Add for slow log
+	struct rt_mutex *	pWaitingRTMutex;        //ASUS_BSP + [thomas]Add for slow log
 };
 
 #define INIT_THREAD_INFO(tsk)						\

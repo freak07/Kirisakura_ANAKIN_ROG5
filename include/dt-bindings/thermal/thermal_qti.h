@@ -41,6 +41,7 @@
 #define QMI_MMW_PA2		27
 #define QMI_MMW_PA3		28
 #define QMI_SDR_MMW		29
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
 #define QMI_MSM_SKIN	30
 #define QMI_BEAMER_N_THERM	31
 #define QMI_BEAMER_E_THERM	32
@@ -51,6 +52,7 @@
 #define QMI_QFE_WTR_PA2_FR1	37
 #define QMI_QFE_WTR_PA3_FR1	38
 #define QMI_QFE_WTR0_FR1	39
+#endif
 
 #define QMI_MODEM_INST_ID	0x0
 #define QMI_ADSP_INST_ID	0x1

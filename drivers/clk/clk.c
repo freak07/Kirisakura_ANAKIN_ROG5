@@ -5,6 +5,9 @@
  *
  * Standard functionality for the common clock API.  See Documentation/driver-api/clk.rst
  */
+//[PM_debug +++] 
+#define pr_fmt(fmt) "CLK: " fmt
+//[PM_debug ---] 
 
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
@@ -23,6 +26,11 @@
 #include <linux/clkdev.h>
 
 #include "clk.h"
+
+//[PM_debug +++] 
+//#define CLK_COUNT 17 //precs codebase
+#define CLK_COUNT 7  //cs codebase
+//[PM_debug ---] 
 
 static DEFINE_SPINLOCK(enable_lock);
 static DEFINE_MUTEX(prepare_lock);
@@ -2958,6 +2966,10 @@ EXPORT_SYMBOL_GPL(clk_is_match);
 
 static struct dentry *rootdir;
 static int inited = 0;
+//[PM_debug +++]
+//clock debug
+static u32 debug_suspend = 1;
+//[PM_debug ---]
 static DEFINE_MUTEX(clk_debug_lock);
 static HLIST_HEAD(clk_debug_list);
 
@@ -3404,6 +3416,15 @@ static int clock_debug_print_clock(struct clk_core *c, struct seq_file *s)
 
 	return 1;
 }
+//[PM_debug +++]
+//clock debug
+static int clock_debug_get_clock_count(struct clk_core *c, struct seq_file *s)
+{
+	if (!c || !c->prepare_count)
+		return 0;
+	return 1;
+}
+//[PM_debug ---]
 
 /*
  * clock_debug_print_enabled_clocks() - Print names of enabled clocks
@@ -3416,8 +3437,15 @@ static void clock_debug_print_enabled_clocks(struct seq_file *s)
 	clock_debug_output(s, 0, "Enabled clocks:\n");
 
 	hlist_for_each_entry(core, &clk_debug_list, debug_node)
-		cnt += clock_debug_print_clock(core, s);
-
+    //[PM_debug +++]
+    //clock debug
+		//cnt += clock_debug_print_clock(core, s);
+        cnt += clock_debug_get_clock_count(core, s);
+    if (cnt > CLK_COUNT) {
+		hlist_for_each_entry(core, &clk_debug_list, debug_node)
+			clock_debug_print_clock(core, s);
+	}
+    //[PM_debug ---]
 	if (cnt)
 		clock_debug_output(s, 0, "Enabled clock count: %d\n", cnt);
 	else
