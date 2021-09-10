@@ -86,7 +86,9 @@ enum gsi_ep_op {
 	u8 ep_intr_num;
 	struct sg_table sgt_trb_xfer_ring;
 	struct sg_table sgt_data_buff;
-	struct device *dev;	
+	bool use_tcm_mem;
+	struct device *dev;
+	struct llcc_tcm_data *tcm_mem;	
 };
 #else
 struct usb_gsi_request {
@@ -177,6 +179,14 @@ static inline int dwc3_msm_release_ss_lane(struct device *dev, bool usb_dp_concu
 { return -ENODEV; }
 static bool __maybe_unused usb_get_remote_wakeup_status(struct usb_gadget *gadget)
 { return false; }
+#endif
+
+#if IS_ENABLED(CONFIG_USB_F_GSI)
+void rmnet_gsi_update_in_buffer_mem_type(struct usb_function *f, bool use_tcm);
+#else
+static inline __maybe_unused void rmnet_gsi_update_in_buffer_mem_type(
+		struct usb_function *f, bool use_tcm)
+{ }
 #endif
 
 #endif /* __LINUX_USB_DWC3_MSM_H */
