@@ -30,8 +30,8 @@ struct mutex update_lock;
 
 u8 g_mode = 0;
 int g_led_on = 0;
-int apply_state = 0;
-int mode2_state = 0;
+int apply2_state = 0;
+int mode3_state = 0;
 u8 key_state = 0;
 
 static u32 g_red_max;
@@ -901,7 +901,7 @@ static ssize_t blue1_pwm_show(struct device *dev, struct device_attribute *attr,
 
 static ssize_t apply_show(struct device *dev, struct device_attribute *attr,char *buf)
 {
-	return snprintf(buf, PAGE_SIZE,"%d\n", apply_state);
+	return snprintf(buf, PAGE_SIZE,"%d\n", apply2_state);
 }
 
 static ssize_t apply_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
@@ -913,12 +913,12 @@ static ssize_t apply_store(struct device *dev, struct device_attribute *attr, co
 
 	ret = kstrtou32(buf, 10, &val);
 	if (ret) {
-		apply_state = -1;
+		apply2_state = -1;
 		return count;
 	}
 
 	//printk("[ROG5_INBOX] apply_store: %d\n", val);
-	apply_state = 0;
+	apply2_state = 0;
 	
 	if (val) {
 		data[0] = 0x80;
@@ -928,7 +928,7 @@ static ssize_t apply_store(struct device *dev, struct device_attribute *attr, co
 		err = asus_usb_hid_write_aprom(data, 3);
 		if (err < 0) {
 			printk("[ROG5_INBOX] asus_usb_hid_write:err %d\n", err);
-			apply_state = -1;
+			apply2_state = -1;
 			return count;
 		}
 
@@ -1910,7 +1910,7 @@ static ssize_t unique_id_show(struct device *dev, struct device_attribute *attr,
 
 static ssize_t mode2_show(struct device *dev, struct device_attribute *attr,char *buf)
 {
-	return snprintf(buf, PAGE_SIZE,"%d\n", mode2_state);
+	return snprintf(buf, PAGE_SIZE,"%d\n", mode3_state);
 }
 
 static ssize_t mode2_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
@@ -1927,7 +1927,7 @@ static ssize_t mode2_store(struct device *dev, struct device_attribute *attr, co
 	const char *buf_tmp;
 	unsigned char data[3] = {0};
 
-	mode2_state = 0;
+	mode3_state = 0;
 
 	sscanf(buf, "%d", &mode2);
 
@@ -1940,7 +1940,7 @@ static ssize_t mode2_store(struct device *dev, struct device_attribute *attr, co
 	if(ntokens > 6) 
 	{
 		printk("[ROG5_INBOX] mode2_store: wrong input, too many ntokens\n");
-		mode2_state=-1;
+		mode3_state=-1;
 		return count;
 	}
 
@@ -1966,7 +1966,7 @@ static ssize_t mode2_store(struct device *dev, struct device_attribute *attr, co
 
 	if(rgb_num != ntokens*3){
 		printk("[ROG5_INBOX] mode2_store: wrong input, rgb_num != ntokens*3\n");
-		mode2_state=-1;
+		mode3_state=-1;
 		return count;
 	}
 
@@ -2026,7 +2026,7 @@ static ssize_t mode2_store(struct device *dev, struct device_attribute *attr, co
 		case 0x11: //breath at the different time
 			if(ntokens != 2){
 				printk("[ROG5_INBOX] mode2_store: wrong input.\n");
-				mode2_state = -1;
+				mode3_state = -1;
 				return count;
 			}
 			//sscanf(buf, "%x, %x %x %x,%x %x %x", 
@@ -2040,7 +2040,7 @@ static ssize_t mode2_store(struct device *dev, struct device_attribute *attr, co
 
 				err = asus_usb_hid_write_aprom(data, 3);
 				if (err < 0) {
-					mode2_state = -1;
+					mode3_state = -1;
 					printk("[ROG5_INBOX] asus_usb_hid_write:err %d\n", err);
 				}
 			}
@@ -2049,7 +2049,7 @@ static ssize_t mode2_store(struct device *dev, struct device_attribute *attr, co
 		case 0x8://6 colors rainbow
 			if(ntokens != 6){
 				printk("[ROG5_INBOX] mode2_store,wrong input, ntokens wrong.\n");
-				mode2_state=-1;
+				mode3_state=-1;
 				return count;
 			}
 			
@@ -2061,7 +2061,7 @@ static ssize_t mode2_store(struct device *dev, struct device_attribute *attr, co
 
 					err = asus_usb_hid_write_aprom(data, 3);
 					if (err < 0){
-						mode2_state=-1;
+						mode3_state=-1;
 						printk("[ROG5_INBOX] asus_usb_hid_write:err %d\n", err);
 					}
 
@@ -2087,7 +2087,7 @@ static ssize_t mode2_store(struct device *dev, struct device_attribute *attr, co
 			
 					err = asus_usb_hid_write_aprom(data, 3);
 					if (err < 0) {
-						mode2_state = -1;
+						mode3_state = -1;
 						printk("[ROG5_INBOX] asus_usb_hid_write:err %d\n", err);
 					}
 				}
@@ -2104,7 +2104,7 @@ static ssize_t mode2_store(struct device *dev, struct device_attribute *attr, co
 			
 	err = asus_usb_hid_write_aprom(data, 3);
 	if (err < 0) {
-		mode2_state = -1;
+		mode3_state = -1;
 		printk("[ROG5_INBOX] asus_usb_hid_write:err %d\n", err);
 	}
 
