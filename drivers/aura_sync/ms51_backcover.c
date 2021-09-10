@@ -24,8 +24,8 @@
 //#include <linux/msm_drm_notify.h>
 
 #define RGB_MAX 21   //for rainbow color setting
-int mode2_state=0;
-int apply_state=0;
+int mode4_state=0;
+int apply3_state=0;
 static struct ms51_platform_data *g_pdata;
 
 static u32 g_red;
@@ -453,7 +453,7 @@ static ssize_t mode2_store(struct device *dev, struct device_attribute *attr, co
 	int ntokens = 0;
 	const char *cp = buf;
 	const char *buf_tmp;
-	mode2_state=0;
+	mode4_state=0;
 
 	//printk("[AURA_BACKCOVER] mode2_store.\n");
 	sscanf(buf, "%d", &mode2);
@@ -467,7 +467,7 @@ static ssize_t mode2_store(struct device *dev, struct device_attribute *attr, co
 	if(ntokens > 6) 
 	{
 		printk("[AURA_BACKCOVER] mode2_store,wrong input,too many ntokens\n");
-		mode2_state=-1;
+		mode4_state=-1;
 		return count;
 	}
 
@@ -493,7 +493,7 @@ static ssize_t mode2_store(struct device *dev, struct device_attribute *attr, co
 
 	if(rgb_num != ntokens*3){
 		printk("[AURA_BACKCOVER] mode2_store,wrong input,rgb_num != ntokens*3\n");
-		mode2_state=-1;
+		mode4_state=-1;
 		return count;
 	}
 
@@ -548,7 +548,7 @@ static ssize_t mode2_store(struct device *dev, struct device_attribute *attr, co
 			if (err !=1){
 				printk("[AURA_BACKCOVER] ms51_write_bytes:err %d\n", err);
 				mutex_unlock(&g_pdata->ms51_mutex);
-				mode2_state=-1;
+				mode4_state=-1;
 				return count;
 			}
 			mutex_unlock(&g_pdata->ms51_mutex);
@@ -556,7 +556,7 @@ static ssize_t mode2_store(struct device *dev, struct device_attribute *attr, co
 		case 0x1: //static
 			if(ntokens != 2){
 				printk("[AURA_BACKCOVER] mode2_store,wrong input.\n");
-				mode2_state=-1;
+				mode4_state=-1;
 				return count;
 			}
 			//sscanf(buf, "%x, %x %x %x,%x %x %x", 
@@ -566,13 +566,13 @@ static ssize_t mode2_store(struct device *dev, struct device_attribute *attr, co
 			for(i=0;i<6;i++){
 				err = ms51_write_bytes(client, (0x8010+i),rgb[i]);
 				if (err !=1){
-					mode2_state=-1;
+					mode4_state=-1;
 					printk("[AURA_BACKCOVER] ms51_write_bytes:err %d\n", err);	
 				}
 			}
 			err = ms51_write_bytes(client, 0x8021, rainbow_mode);
 			if (err !=1){
-				mode2_state=-1;
+				mode4_state=-1;
 				printk("[AURA_BACKCOVER] ms51_write_bytes:err %d\n", err);
 			}
 			mutex_unlock(&g_pdata->ms51_mutex);
@@ -580,7 +580,7 @@ static ssize_t mode2_store(struct device *dev, struct device_attribute *attr, co
 		case 0x2: //breath at the same time
 			if(ntokens != 2){
 				printk("[AURA_BACKCOVER] mode2_store,wrong input.\n");
-				mode2_state=-1;
+				mode4_state=-1;
 				return count;
 			}
 			//sscanf(buf, "%x, %x %x %x,%x %x %x", 
@@ -590,13 +590,13 @@ static ssize_t mode2_store(struct device *dev, struct device_attribute *attr, co
 			for(i=0;i<6;i++){
 				err = ms51_write_bytes(client, (0x8010+i),rgb[i]);
 				if (err !=1){
-					mode2_state=-1;
+					mode4_state=-1;
 					printk("[AURA_BACKCOVER] ms51_write_bytes:err %d\n", err);	
 				}
 			}
 			err = ms51_write_bytes(client, 0x8021, rainbow_mode);
 			if (err !=1){
-				mode2_state=-1;
+				mode4_state=-1;
 				printk("[AURA_BACKCOVER] ms51_write_bytes:err %d\n", err);
 			}
 			mutex_unlock(&g_pdata->ms51_mutex);
@@ -606,7 +606,7 @@ static ssize_t mode2_store(struct device *dev, struct device_attribute *attr, co
 		case 0x8://6 colors rainbow
 			if(ntokens != 6){
 				printk("[AURA_BACKCOVER] mode2_store,wrong input, ntokens wrong.\n");
-				mode2_state=-1;
+				mode4_state=-1;
 				return count;
 			}
 			//printk("[AURA_BACKCOVER] mode2_store,buf=%s\n",buf);
@@ -625,7 +625,7 @@ static ssize_t mode2_store(struct device *dev, struct device_attribute *attr, co
 					//printk("[AURA_BACKCOVER] mode2_store,reg[0]=0x%02x reg[1]=0x%02x reg[2]=0x%02x.\n", reg[0],reg[1],reg[2]);
 					err = ms51_write_bytes(client, reg[0]*256+reg[1], reg[2]);
 					if (err !=1){
-						mode2_state=-1;
+						mode4_state=-1;
 						printk("[AURA_BACKCOVER] ms51_write_bytes:err %d\n", err);
 					}
 
@@ -633,7 +633,7 @@ static ssize_t mode2_store(struct device *dev, struct device_attribute *attr, co
 			}
 			err = ms51_write_bytes(client, 0x8021, rainbow_mode);
 			if (err !=1){
-				mode2_state=-1;
+				mode4_state=-1;
 				printk("[AURA_BACKCOVER] ms51_write_bytes:err %d\n", err);
 			}
 			mutex_unlock(&g_pdata->ms51_mutex);
@@ -642,7 +642,7 @@ static ssize_t mode2_store(struct device *dev, struct device_attribute *attr, co
 		case 0xF: //breath one led
 			if(ntokens != 2){
 				printk("[AURA_BACKCOVER] mode2_store,wrong input.\n");
-				mode2_state=-1;
+				mode4_state=-1;
 				return count;
 			}
 			//sscanf(buf, "%x, %x %x %x,%x %x %x", 
@@ -652,13 +652,13 @@ static ssize_t mode2_store(struct device *dev, struct device_attribute *attr, co
 			for(i=0;i<6;i++){
 				err = ms51_write_bytes(client, (0x8010+i),rgb[i]);
 				if (err !=1){
-					mode2_state=-1;
+					mode4_state=-1;
 					printk("[AURA_BACKCOVER] ms51_write_bytes:err %d\n", err);	
 				}
 			}
 			err = ms51_write_bytes(client, 0x8021, rainbow_mode);
 			if (err !=1){
-				mode2_state=-1;
+				mode4_state=-1;
 				printk("[AURA_BACKCOVER] ms51_write_bytes:err %d\n", err);
 			}
 			mutex_unlock(&g_pdata->ms51_mutex);
@@ -666,7 +666,7 @@ static ssize_t mode2_store(struct device *dev, struct device_attribute *attr, co
 		case 0x11: //breath at the different time
 			if(ntokens != 2){
 				printk("[AURA_BACKCOVER] mode2_store,wrong input.\n");
-				mode2_state=-1;
+				mode4_state=-1;
 				return count;
 			}
 			//sscanf(buf, "%x, %x %x %x,%x %x %x", 
@@ -676,13 +676,13 @@ static ssize_t mode2_store(struct device *dev, struct device_attribute *attr, co
 			for(i=0;i<6;i++){
 				err = ms51_write_bytes(client, (0x8010+i),rgb[i]);
 				if (err !=1){
-					mode2_state=-1;
+					mode4_state=-1;
 					printk("[AURA_BACKCOVER] ms51_write_bytes:err %d\n", err);	
 				}
 			}
 			err = ms51_write_bytes(client, 0x8021, rainbow_mode);
 			if (err !=1){
-				mode2_state=-1;
+				mode4_state=-1;
 				printk("[AURA_BACKCOVER] ms51_write_bytes:err %d\n", err);
 			}
 			mutex_unlock(&g_pdata->ms51_mutex);
@@ -706,14 +706,14 @@ static ssize_t mode2_store(struct device *dev, struct device_attribute *attr, co
 					//printk("[AURA_BACKCOVER] mode2_store,reg[0]=0x%02x reg[1]=0x%02x reg[2]=0x%02x.\n", reg[0],reg[1],reg[2]);
 					err = ms51_write_bytes(client, reg[0]*256+reg[1], reg[2]);
 					if (err !=1){
-						mode2_state=-1;
+						mode4_state=-1;
 						printk("[AURA_BACKCOVER] ms51_write_bytes:err %d\n", err);
 					}
 				}
 			}
 			err = ms51_write_bytes(client, 0x8021, rainbow_mode);
 			if (err !=1){
-				mode2_state=-1;
+				mode4_state=-1;
 				printk("[AURA_BACKCOVER] ms51_write_bytes:err %d\n", err);
 			}
 			mutex_unlock(&g_pdata->ms51_mutex);
@@ -736,14 +736,14 @@ static ssize_t mode2_store(struct device *dev, struct device_attribute *attr, co
 					//printk("[AURA_BACKCOVER] mode2_store 0x13 0x15,reg[0]=0x%02x reg[1]=0x%02x reg[2]=0x%02x.\n", reg[0],reg[1],reg[2]);
 					err = ms51_write_bytes(client, reg[0]*256+reg[1], reg[2]);
 					if (err !=1){
-						mode2_state=-1;
+						mode4_state=-1;
 						printk("[AURA_BACKCOVER] ms51_write_bytes:err %d\n", err);
 					}
 				}
 			}
 			err = ms51_write_bytes(client, 0x8021, rainbow_mode);
 			if (err !=1){
-				mode2_state=-1;
+				mode4_state=-1;
 				printk("[AURA_BACKCOVER] ms51_write_bytes:err %d\n", err);
 			}
 			mutex_unlock(&g_pdata->ms51_mutex);
@@ -756,7 +756,7 @@ static ssize_t mode2_store(struct device *dev, struct device_attribute *attr, co
 
 static ssize_t mode2_show(struct device *dev, struct device_attribute *attr,char *buf)
 {
-	return snprintf(buf, PAGE_SIZE,"%d\n", mode2_state);
+	return snprintf(buf, PAGE_SIZE,"%d\n", mode4_state);
 }
 
 static ssize_t apply_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
@@ -765,10 +765,10 @@ static ssize_t apply_store(struct device *dev, struct device_attribute *attr, co
 	u32 val;
 	int err = 0;
 	ssize_t ret;
-	apply_state=0;
+	apply3_state=0;
 	ret = kstrtou32(buf, 10, &val);
 	if (ret){
-		apply_state=-1;
+		apply3_state=-1;
 		return count;
 	}
 	mutex_lock(&g_pdata->ms51_mutex);
@@ -776,7 +776,7 @@ static ssize_t apply_store(struct device *dev, struct device_attribute *attr, co
 		printk("[AURA_BACKCOVER] Send apply. RGB:%d %d %d, mode:%d, speed:%d, led_on:%d, led2_on:%d\n", g_red, g_green, g_blue, g_mode, g_speed, g_led_on, g_led2_on);
 		err = ms51_write_bytes(client, 0x802F, 0x1);
 		if (err !=1){
-			apply_state=-1;
+			apply3_state=-1;
 			printk("[AURA_BACKCOVER] ms51_write_bytes:err %d\n", err);
 		}
 	} else
@@ -788,7 +788,7 @@ static ssize_t apply_store(struct device *dev, struct device_attribute *attr, co
 
 static ssize_t apply_show(struct device *dev, struct device_attribute *attr,char *buf)
 {
-	return snprintf(buf, PAGE_SIZE,"%d\n", apply_state);
+	return snprintf(buf, PAGE_SIZE,"%d\n", apply3_state);
 }
 
 static ssize_t mode_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
