@@ -429,6 +429,13 @@ static int es928x_asp_configure_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static bool impedance_overwrite = false;
+module_param(impedance_overwrite, bool, 0644);
+static int load_value_left = 3;
+module_param(load_value_left, int, 0644);
+static int load_value_right = 3;
+module_param(load_value_right, int, 0644);
+
 static int es928x_hph_impedance_get(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_value *ucontrol)
 {
@@ -468,6 +475,11 @@ static int es928x_hph_impedance_get(struct snd_kcontrol *kcontrol,
 				break;
 		}
 
+	if (impedance_overwrite == true)
+		{
+		left_load = load_value_left;
+		}
+
 		switch (zdet_val[2])
 		{
 			case 117 ... 127:
@@ -488,6 +500,11 @@ static int es928x_hph_impedance_get(struct snd_kcontrol *kcontrol,
 			default:
 				right_load = 0;
 				break;
+		}
+
+	if (impedance_overwrite == true)
+		{
+		right_load = load_value_right;
 		}
 
 		dev_info(es928x->dev, "Impedance Measured with codes 0x%x, 0x%x. load_types[%d]=(%d) l(%d) r(%d)\n",
@@ -1021,6 +1038,7 @@ static void es928x_btn_work_fn(struct work_struct *work)
 
 }
 */
+
 static void es928x_zdet_work_fn(struct work_struct *work)
 {
 	struct es928x_jdet_priv *es928x_jdet;
@@ -1082,6 +1100,11 @@ static void es928x_zdet_work_fn(struct work_struct *work)
 			break;
 	}
 
+	if (impedance_overwrite == true)
+		{
+		left_load = load_value_left;
+		}
+
 	switch (zdet_val[2])
 	{
 		case 117 ... 127:
@@ -1103,6 +1126,12 @@ static void es928x_zdet_work_fn(struct work_struct *work)
 			right_load = 0;
 			break;
 	}
+
+	if (impedance_overwrite == true)
+		{
+		right_load = load_value_right;
+		}
+
 	dev_info(es928x->dev, "Impedance Measured with codes 0x%x, 0x%x. Loads: %s, %s (fw: %s)\n",
 		zdet_val[1], zdet_val[2],
 		load_types[left_load], load_types[right_load],
