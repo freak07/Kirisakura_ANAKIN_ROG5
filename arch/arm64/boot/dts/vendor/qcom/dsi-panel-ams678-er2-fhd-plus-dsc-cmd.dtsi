@@ -42,6 +42,11 @@
 		qcom,mdss-dsi-bl-inverted-dbv;
 		qcom,dynamic-mode-switch-enabled;
 		qcom,dynamic-mode-switch-type = "dynamic-resolution-switch-immediate";
+		qcom,ulps-enabled;
+		qcom,mdss-dsi-lp11-init;
+
+		qcom,panel-roi-alignment = <1080 20 1080 20 1080 20>;
+		qcom,partial-update-enabled = "single_roi";
 
 		qcom,mdss-dsi-display-timings {
 			timing@0{
