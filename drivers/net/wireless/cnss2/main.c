@@ -2790,7 +2790,7 @@ static ssize_t do_wifi_antenna_switch_store(struct device *dev,
 
 }
 
-static DEVICE_ATTR(do_wifi_antenna_switch, 0644, NULL, do_wifi_antenna_switch_store);
+static DEVICE_ATTR(do_wifi_antenna_switch, 0220, NULL, do_wifi_antenna_switch_store);
 #endif
 /* ASUS_BSP--- for for wifi antenna switch*/
 
