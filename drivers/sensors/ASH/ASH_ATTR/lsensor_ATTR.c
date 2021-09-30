@@ -31,7 +31,7 @@ static struct device *g_lsensor_dev;
 /*******************************/
 /* Debug and Log System */
 /*****************************/
-#define MODULE_NAME			"ASH_ATTR"
+#define MODULE_NAME			"ASH"
 #define SENSOR_TYPE_NAME		"light"
 
 
@@ -41,7 +41,7 @@ static struct device *g_lsensor_dev;
 #else
 	#define dbg(fmt, args...)
 #endif
-#define log(fmt, args...) printk(KERN_INFO "[%s][%s][%s]"fmt,MODULE_NAME,SENSOR_TYPE_NAME,__func__,##args)
+#define log(fmt, args...) printk(KERN_INFO "[%s]"fmt,MODULE_NAME,##args)
 #define err(fmt, args...) printk(KERN_ERR "[%s][%s]"fmt,MODULE_NAME,SENSOR_TYPE_NAME,##args)
 
 static ssize_t  ATT_light_show_vendor(struct device *dev, 

@@ -158,7 +158,7 @@ static int cs35l45_do_fast_switch(struct cs35l45_private *cs35l45)
 	dev_dbg(cs35l45->dev,
 		"Wrote %u reg for CSPL_UPDATE_PARAMS_CONFIG\n", data_ctl_len);
 
-#ifdef DEBUG
+#if 0
 	ret = wm_adsp_read_ctl(&cs35l45->dsp, "CSPL_UPDATE_PARAMS_CONFIG",
 			       WMFW_ADSP2_YM, CS35L45_ALGID, data_ctl_buf,
 			       data_ctl_len * sizeof(__be32));
@@ -2196,7 +2196,7 @@ static irqreturn_t cs35l45_irq(int irq, void *data)
 
 	irq_detect = false;
 	for (i = 0; i < ARRAY_SIZE(cs35l45_irq_mons); i++) {
-		dev_err(cs35l45->dev, "%s: reading cs35l45_irq_mons[%d]\n", __func__, i); /* ASUS_BSP Paul +++ */
+		//dev_err(cs35l45->dev, "%s: reading cs35l45_irq_mons[%d]\n", __func__, i); /* ASUS_BSP Paul +++ */
 		regmap_read(cs35l45->regmap, cs35l45_irq_mons[i].reg, &val);
 		if (!(val & cs35l45_irq_mons[i].bitmask))
 			continue;

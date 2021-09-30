@@ -843,7 +843,7 @@ void save_last_shutdown_log(char *filename)
 	
 
 	
-	file_handle = ksys_open(messages, O_CREAT | O_RDWR | O_SYNC, 0);
+	file_handle = ksys_open(messages, O_CREAT | O_RDWR | O_SYNC, S_IRUGO);
 	if (!IS_ERR((const void *)(ulong)file_handle)) {
 		ksys_write(file_handle, (unsigned char *)last_shutdown_log, PRINTK_BUFFER_SLOT_SIZE);
 		ksys_close(file_handle);
@@ -1522,13 +1522,14 @@ static ssize_t asusdebug_write(struct file *file, const char __user *buf, size_t
 #if 0
 			if ((*printk_buffer_slot2_addr) == (ulong)PRINTK_BUFFER_MAGIC)
 				save_rtb_log();
-#endif
+
 			if ((*printk_buffer_slot2_addr) == (ulong)PRINTK_BUFFER_MAGIC) {
 				printk("[ASDF] after saving asdf log, then reboot\n");
 				ksys_sync();
 				ASUSEvtlog("[ASDF] after saving asdf log, then reboot\n");
 				//kernel_restart(NULL);
 			}
+#endif
 
 			(*printk_buffer_slot2_addr) = (ulong)PRINTK_BUFFER_MAGIC;
 		}
@@ -1627,13 +1628,13 @@ static struct file_operations turnon_asusdebug_proc_ops = {
 /* ASUS_BSP Paul +++ */
 static ssize_t last_logcat_proc_write(struct file *filp, const char __user *buff, size_t len, loff_t *off)
 {
-	char messages[1024];
+	char messages[4096];
 	char *last_logcat_buffer;
 
 	memset(messages, 0, sizeof(messages));
 
-	if (len > 1024)
-		len = 1024;
+	if (len > 4096)
+		len = 4096;
 	if (copy_from_user(messages, buff, len))
 		return -EFAULT;
 

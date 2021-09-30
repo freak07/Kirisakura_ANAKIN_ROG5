@@ -134,7 +134,7 @@ static int asus_kernel_top_statistics_continuous_3(struct _asus_kernel_top *ktop
 							(!process_monitor_continuous_3_array[j].set_warn)) {
 						process_monitor_continuous_3_array[j].set_warn = 1;
 						if (pm_monitor_enabled && !suspend_happened)
-							pr_info("[K][KTOP] CPU_Sniffer: PID=[%d], name=[%s], over-cpu-usage-threshold = %d%%.\n",
+							pr_info("[KTOP] CPU_Sniffer: PID=[%d], name=[%s], over-cpu-usage-threshold = %d%%.\n",
 								process_monitor_continuous_3_array[j].pid, process_monitor_continuous_3_array[j].ppid_name,
 								asus_KERNEL_TOP_CPU_USAGE_THRESHOLD);
 					}
@@ -222,14 +222,14 @@ static int asus_kernel_top_statistics_5_in_10(struct _asus_kernel_top *ktop)
 		for (j = 0; j < SIZE_OF_PROCESS_MONITOR_5_IN_10_ARRAY; j++) {
 			if (process_monitor_5_in_10_array[j].set_warn == 1) {
 				if (pm_monitor_enabled && !suspend_happened)
-					pr_info("[K][KTOP] CPU_Sniffer: PID=[%d], name=[%s], over-cpu-usage-threshold = %d%%.\n",
+					pr_info("[KTOP] CPU_Sniffer: PID=[%d], name=[%s], over-cpu-usage-threshold = %d%%.\n",
 						process_monitor_5_in_10_array[j].pid, process_monitor_5_in_10_array[j].ppid_name,
 						asus_KERNEL_TOP_CPU_USAGE_THRESHOLD);
 				rtn = 1;
 			}
 		}
 		if (pm_monitor_enabled && !suspend_happened)
-			pr_debug("[K][KTOP] Reach the number of statistics monitor period.\n");
+			pr_debug("[KTOP] Reach the number of statistics monitor period.\n");
 		statistic_monitor_period = 1;
 		clear_process_monitor_array(&process_monitor_5_in_10_array[0], SIZE_OF_PROCESS_MONITOR_5_IN_10_ARRAY);
 	}
@@ -444,11 +444,11 @@ static void asus_kernel_top_show(struct _asus_kernel_top *ktop, int type)
 	int top_n_pid = 0, i;
 
 	/* Print most time consuming processes */
-	pr_info("[K]%sCPU Usage\tPID\tName\t\tDelta(%llu ns)\n", type == KERNEL_TOP_ACCU ? "[KTOP]" : " ", ktop->cpustat_time);
+	pr_info("%sCPU Usage\tPID\tName\t\tDelta(%llu ns)\n", type == KERNEL_TOP_ACCU ? "[KTOP]" : " ", ktop->cpustat_time);
 	for (i = 0; i < NUM_BUSY_THREAD_CHECK; i++) {
 		if (ktop->cpustat_time > 0) {
 			top_n_pid = ktop->top_loading_pid[i];
-			pr_info("[K]%s%6lu.%d%%\t%d\t%s\t\t%llu\n", type == KERNEL_TOP_ACCU ? "[KTOP]" : " ",
+			pr_info("%s%6lu.%d%%\t%d\t%s\t\t%llu\n", type == KERNEL_TOP_ACCU ? "[KTOP]" : " ",
 				ktop->curr_proc_delta[top_n_pid] * 100 / ktop->cpustat_time,
 				(ktop->curr_proc_delta[top_n_pid] * 1000 / ktop->cpustat_time) % 10,
 				top_n_pid,
@@ -470,21 +470,21 @@ static void asus_kernel_top_accumulation_monitor_work_func(struct work_struct *w
 
 	if (asus_kernel_top_monitor_wq == NULL){
 		if (pm_monitor_enabled)
-			printk( "[K][KTOP] asus Kernel Top statistic is NULL.\n");
+			printk( "[KTOP] asus Kernel Top statistic is NULL.\n");
 		return;
 	}
 
 	getnstimeofday(&ts);
 	rtc_time_to_tm(ts.tv_sec - (sys_tz.tz_minuteswest * 60), &tm);
 	if (pm_monitor_enabled && !suspend_happened)
-		printk("[K][KTOP] asus Kernel Top Statistic start (%02d-%02d %02d:%02d:%02d) \n",
+		printk("[KTOP] asus Kernel Top Statistic start (%02d-%02d %02d:%02d:%02d) \n",
 			tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
 
 	queue_delayed_work(asus_kernel_top_monitor_wq, &ktop->dwork, msecs_to_jiffies(msm_asus_util_top_delay_time));
 	asus_kernel_top_cal(ktop, KERNEL_TOP_ACCU);
 	if (pm_monitor_enabled && !suspend_happened) {
 		asus_kernel_top_show(ktop, KERNEL_TOP_ACCU);
-		printk("[K][KTOP] asus Kernel Top Statistic done\n");
+		printk("[KTOP] asus Kernel Top Statistic done\n");
 	} else
 		suspend_happened = false;
 }
@@ -497,14 +497,14 @@ void asus_monitor_init(void)
 		if (asus_kernel_top_monitor_wq == NULL) {
 			/* Create private workqueue... */
 			asus_kernel_top_monitor_wq = create_workqueue("asus_kernel_top_monitor_wq");
-			printk( "[K][KTOP] Create asus private workqueue(0x%p)...\n",
+			printk( "[KTOP] Create asus private workqueue(0x%p)...\n",
 							asus_kernel_top_monitor_wq);
 		}
 
 		if (!asus_kernel_top_monitor_wq)
 			return;
 
-		printk( "[K][KTOP] Success to create asus_kernel_top_monitor_wq (0x%p).\n",
+		printk( "[KTOP] Success to create asus_kernel_top_monitor_wq (0x%p).\n",
 						asus_kernel_top_monitor_wq);
 #if USE_STATISTICS_STRATEGY_CONTINUOUS_3
 		clear_current_pid_found_array();

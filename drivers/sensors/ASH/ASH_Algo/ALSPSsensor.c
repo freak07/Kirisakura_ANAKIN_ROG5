@@ -33,7 +33,7 @@
 /**************************/
 /* Debug and Log System */
 /**************************/
-#define MODULE_NAME			"ASH_ALGO"
+#define MODULE_NAME			"ASH"
 #define SENSOR_TYPE_NAME		"ALSPSsensor"
 #undef dbg
 #ifdef ASH_ALGO_DEBUG
@@ -41,7 +41,7 @@
 #else
 	#define dbg(fmt, args...)
 #endif
-#define log(fmt, args...) printk(KERN_INFO "[%s][%s][%s]"fmt,MODULE_NAME,SENSOR_TYPE_NAME,__func__,##args)
+#define log(fmt, args...) printk(KERN_INFO "[%s]"fmt,MODULE_NAME,##args)
 #define err(fmt, args...) do{	\
 		printk(KERN_ERR "[%s][%s]"fmt,MODULE_NAME,SENSOR_TYPE_NAME,##args);	\
 		sprintf(g_error_mesg, "[%s][%s]"fmt,MODULE_NAME,SENSOR_TYPE_NAME,##args);	\

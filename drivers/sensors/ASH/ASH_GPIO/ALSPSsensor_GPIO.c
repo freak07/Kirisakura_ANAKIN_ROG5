@@ -33,7 +33,7 @@ static ALSPSsensor_GPIO * mALSPSsensor_GPIO;
 /******************************/
 /* Debug and Log System */
 /*****************************/
-#define MODULE_NAME			"ASH_GPIO"
+#define MODULE_NAME			"ASH"
 #define SENSOR_TYPE_NAME		"ALSPS"
 
 #undef dbg
@@ -42,7 +42,7 @@ static ALSPSsensor_GPIO * mALSPSsensor_GPIO;
 #else
 	#define dbg(fmt, args...)
 #endif
-#define log(fmt, args...) printk(KERN_INFO "[%s][%s][%s]"fmt,MODULE_NAME,SENSOR_TYPE_NAME,__func__,##args)
+#define log(fmt, args...) printk(KERN_INFO "[%s]"fmt,MODULE_NAME,##args)
 #define err(fmt, args...) printk(KERN_ERR "[%s][%s]"fmt,MODULE_NAME,SENSOR_TYPE_NAME,##args)
 
 static irqreturn_t ALSPSsensor_irq_handler(int irq, void *dev_id);

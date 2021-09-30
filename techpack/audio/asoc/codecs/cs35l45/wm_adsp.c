@@ -1257,7 +1257,7 @@ static int wm_coeff_read_ctrl_raw(struct wm_coeff_ctl *ctl,
 			return ret;
 		}
 
-		adsp_dbg(dsp, "Read %zu bytes from %x\n", to_read, reg);
+		//adsp_dbg(dsp, "Read %zu bytes from %x\n", to_read, reg);
 
 		temp += to_read;
 		reg += to_read / addr_div;

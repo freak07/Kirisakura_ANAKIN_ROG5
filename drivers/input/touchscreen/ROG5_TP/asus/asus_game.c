@@ -921,6 +921,20 @@ static ssize_t edge_settings_store(
 	return count;
 }
 
+static ssize_t fts_xy_resize_store(
+    struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+{
+    struct fts_ts_data *ts_data = fts_data;
+
+    if (FTS_SYSFS_ECHO_ON(buf)) {
+        ts_data->resize = ENABLE;
+    } else if (FTS_SYSFS_ECHO_OFF(buf)) {
+        ts_data->resize = DISABLE;
+    }
+
+    FTS_DEBUG("touch area resize:%d", ts_data->resize);
+    return count;
+}
 
 static DEVICE_ATTR(keymapping_touch, S_IRUGO | S_IWUSR, keymapping_touch_show, keymapping_touch_store);
 static DEVICE_ATTR(fts_game_mode, S_IRUGO | S_IWUSR, fts_game_mode_show, fts_game_mode_store);
@@ -928,6 +942,7 @@ static DEVICE_ATTR(fts_rotation_mode, S_IRUGO | S_IWUSR, fts_rotation_mode_show,
 static DEVICE_ATTR(game_settings, S_IRUGO | S_IWUSR, game_settings_show, game_settings_store);
 static DEVICE_ATTR(rise_report_rate, S_IRUGO | S_IWUSR, rise_report_rate_show, rise_report_rate_store);
 static DEVICE_ATTR(edge_settings, S_IRUGO | S_IWUSR, edge_settings_show, edge_settings_store);
+static DEVICE_ATTR(fts_xy_resize, S_IRUGO | S_IWUSR, NULL, fts_xy_resize_store);
 /* add your attr in here*/
 static struct attribute *fts_attributes[] = {
     &dev_attr_keymapping_touch.attr,
@@ -936,6 +951,7 @@ static struct attribute *fts_attributes[] = {
     &dev_attr_game_settings.attr,
     &dev_attr_rise_report_rate.attr,
     &dev_attr_edge_settings.attr,
+    &dev_attr_fts_xy_resize.attr,
     NULL
 };
 

@@ -26,7 +26,7 @@
 /**************************/
 /* Debug and Log System */
 /************************/
-#define MODULE_NAME			"ASH_HW"
+#define MODULE_NAME			"ASH"
 #define SENSOR_TYPE_NAME		"ALSPS"
 
 #undef dbg
@@ -35,7 +35,7 @@
 #else
 	#define dbg(fmt, args...)
 #endif
-#define log(fmt, args...) printk(KERN_INFO "[%s][%s][%s]"fmt,MODULE_NAME,SENSOR_TYPE_NAME,__func__,##args)
+#define log(fmt, args...) printk(KERN_INFO "[%s]"fmt,MODULE_NAME,##args)
 #define err(fmt, args...) printk(KERN_ERR "[%s][%s]"fmt,MODULE_NAME,SENSOR_TYPE_NAME,##args)
 
 /*****************************************/
@@ -113,10 +113,43 @@ static int vcnl36866_ALSPS_hw_check_ID(void)
 	log("%s Success(ID_REG : 0x%02x%02x). \n", __FUNCTION__, data_buf[1], data_buf[0]);
 	return 0;
 }
+static void vcnl36866_print_conf(void){
+	int ret;
+	uint8_t data_buf1[2] = {0, 0};
+	uint8_t data_buf2[2] = {0, 0};
 
+	ret = i2c_read_reg_u16(g_i2c_client, CS_CONF1, data_buf1);
+	if(ret < 0){
+		err("read CS_CONF1 ERROR\n");
+		return;
+	}
+	ret = i2c_read_reg_u16(g_i2c_client, CS_CONF2, data_buf2);
+	if(ret < 0){
+		err("read CS_CONF1 ERROR\n");
+		return;
+	}
+	log("read CS_CONF1 (0x%02x%02x), CONF2 (0x%02x%02x)\n", data_buf1[1], 
+	data_buf1[0], data_buf2[1], data_buf2[0]);
+	
+	ret = i2c_read_reg_u16(g_i2c_client, PS_CONF1, data_buf1);
+	if(ret < 0){
+		err("read CS_CONF1 ERROR\n");
+		return;
+	}
+	ret = i2c_read_reg_u16(g_i2c_client, PS_CONF2, data_buf2);
+	if(ret < 0){
+		err("read CS_CONF1 ERROR\n");
+		return;
+	}
+	log("read PS_CONF1 (0x%02x%02x), CONF2 (0x%02x%02x)\n", data_buf1[1], 
+	data_buf1[0], data_buf2[1], data_buf2[0]);
+
+}
 static int vcnl36866_proximity_hw_set_config(void)
 {
 	int ret = 0;
+	vcnl36866_print_conf();
+	
 	ret = vcnl36866_light_hw_set_cs_standby_config(VCNL36866_CS_STANDBY);
 	if(ret < 0)
 		return ret;
@@ -171,12 +204,15 @@ static int vcnl36866_proximity_hw_set_config(void)
 	ret = vcnl36866_proximity_hw_set_ps_high_gain_mode(VCNL36866_PS_HG_ENABLE);
 	if(ret < 0)
 		return ret;
+	
+	vcnl36866_print_conf();
 	return 0;
 }
 
 static int vcnl36866_light_hw_set_config(void)
 {
 	int ret = 0;
+	vcnl36866_print_conf();
 	
 	ret = vcnl36866_light_hw_set_reserved(VCNL36866_CS_START2);
 	if(ret < 0)
@@ -213,6 +249,7 @@ static int vcnl36866_light_hw_set_config(void)
 	vcnl36866_light_hw_set_ALS_START(0xC);
 	
 #endif
+	vcnl36866_print_conf();
 	return 0;
 }
 
@@ -721,7 +758,7 @@ static int vcnl36866_light_hw_set_cs_standby_config(uint8_t cs_standby_conf_reg)
 		err("Proximity read CS_CONF1 ERROR\n");
 		return ret;
 	}
-	log("Proximity read CS_CONF1 (0x%02x%02x)\n", data_buf[1], data_buf[0]);
+	dbg("Proximity read CS_CONF1 (0x%02x%02x)\n", data_buf[1], data_buf[0]);
 	data_origin[0] = data_buf[0];
 	data_origin[1] = data_buf[1];
 
@@ -733,7 +770,7 @@ static int vcnl36866_light_hw_set_cs_standby_config(uint8_t cs_standby_conf_reg)
 		err("Proximity set CS standby (CS_CONF1) ERROR\n");
 		return ret;
 	}else{
-		log("Proximity set CS standby bit (CS_CONF1 : 0x%x -> 0x%x)\n",
+		dbg("Proximity set CS standby bit (CS_CONF1 : 0x%x -> 0x%x)\n",
 			data_origin[0], data_buf[0]);
 	}
 
@@ -765,7 +802,7 @@ static int vcnl36866_light_hw_set_cs_config(uint8_t cs_conf_reg)
 		err("Proximity set CS start (CS_CONF1) ERROR\n");
 		return ret;
 	}else{
-		log("Proximity set CS start bit (CS_CONF1 : 0x%x -> 0x%x)\n",
+		dbg("Proximity set CS start bit (CS_CONF1 : 0x%x -> 0x%x)\n",
 			data_origin[0], data_buf[0]);
 	}
 
@@ -859,7 +896,7 @@ static int vcnl36866_proximity_hw_set_led_duty_ratio(uint8_t led_duty_ratio_reg)
 		err("Proximity set LED Duty Ratio (PS_CONF1) ERROR\n");
 		return ret;
 	}else{
-		log("Proximity set LED Duty Ratio (PS_CONF1 : 0x%x -> 0x%x)\n", 
+		dbg("Proximity set LED Duty Ratio (PS_CONF1 : 0x%x -> 0x%x)\n", 
 			data_origin[0], data_buf[0]);
 	}
 
@@ -890,7 +927,7 @@ static int vcnl36866_proximity_hw_set_persistence(uint8_t persistence)
 		err("Proximity set Persistence (PS_CONF1) ERROR\n");
 		return ret;
 	}else{
-		log("Proximity set Persistence (PS_CONF1 : 0x%x -> 0x%x)\n", 
+		dbg("Proximity set Persistence (PS_CONF1 : 0x%x -> 0x%x)\n", 
 			data_origin[0], data_buf[0]);
 	}
 
@@ -921,7 +958,7 @@ static int vcnl36866_proximity_hw_set_integration(uint8_t integration)
 		err("Proximity set Integration (PS_CONF2) ERROR\n");
 		return ret;
 	}else{
-		log("Proximity set Integration (PS_CONF2 : 0x%x -> 0x%x)\n", 
+		dbg("Proximity set Integration (PS_CONF2 : 0x%x -> 0x%x)\n", 
 			data_origin[1], data_buf[1]);
 	}
 
@@ -952,7 +989,7 @@ static int vcnl36866_proximity_hw_set_ps_mps(uint8_t mps)
 		err("Proximity set PS Multi-Pulse setting (PS_CONF2) ERROR\n");
 		return ret;
 	}else{
-		log("Proximity set PS Multi-Pulse setting (PS_CONF2 : 0x%x -> 0x%x)\n", 
+		dbg("Proximity set PS Multi-Pulse setting (PS_CONF2 : 0x%x -> 0x%x)\n", 
 			data_origin[1], data_buf[1]);
 	}
 
@@ -983,7 +1020,7 @@ static int vcnl36866_proximity_hw_set_ps_high_gain_mode(uint8_t enable)
 		err("Proximity set PS high gain mode (PS_CONF2) ERROR\n");
 		return ret;
 	}else{
-		log("Proximity set PS high gain mode (PS_CONF2 : 0x%x -> 0x%x)\n", 
+		dbg("Proximity set PS high gain mode (PS_CONF2 : 0x%x -> 0x%x)\n", 
 			data_origin[1], data_buf[1]);
 	}
 
@@ -1012,7 +1049,7 @@ static int vcnl36866_proximity_hw_set_ps_disable(void)
 		err("Disable Proximity interrupt befrore IST create ERROR (PS_CONF1)\n");
 		return ret;
 	}else{
-		log("Disable Proximity interrupt befrore IST create (PS_CONF1: 0x%x -> 0x%x)\n", 
+		dbg("Disable Proximity interrupt befrore IST create (PS_CONF1: 0x%x -> 0x%x)\n", 
 			power_state_data_origin[0], power_state_data_buf[0]);
 	}
 	return 0;
@@ -1042,7 +1079,7 @@ static int vcnl36866_proximity_hw_set_ps_start(uint8_t ps_start)
 		err("Proximity set PS start (PS_CONF2) ERROR\n");
 		return ret;
 	}else{
-		log("Proximity set PS start (PS_CONF2 : 0x%x -> 0x%x)\n", 
+		dbg("Proximity set PS start (PS_CONF2 : 0x%x -> 0x%x)\n", 
 			data_origin[1], data_buf[1]);
 	}
 
@@ -1329,7 +1366,7 @@ static int vcnl36866_light_hw_set_reserved(uint8_t cs_start)
 		err("Light Sensor set Persistence (CS_CONF2) ERROR\n");
 		return ret;
 	}else{
-		log("Light Sensor set Persistence (CS_CONF2 : 0x%x -> 0x%x)\n",
+		dbg("Light Sensor set Persistence (CS_CONF2 : 0x%x -> 0x%x)\n",
 			data_origin[1], data_buf[1]);
 	}
 
@@ -1360,7 +1397,7 @@ static int vcnl36866_light_hw_set_persistence(uint8_t persistence)
 		err("Light Sensor set Persistence (CS_CONF2) ERROR\n");
 		return ret;
 	}else{
-		log("Light Sensor set Persistence (CS_CONF2 : 0x%x -> 0x%x)\n",
+		dbg("Light Sensor set Persistence (CS_CONF2 : 0x%x -> 0x%x)\n",
 			data_origin[1], data_buf[1]);
 	}
 
@@ -1389,7 +1426,7 @@ static int vcnl36866_light_hw_set_ALS_START(uint8_t value)
 		err("Light Sensor set ALS_START (CS_CONF1) ERROR\n");
 		return ret;
 	}else{
-		log("Light Sensor set ALS_START (CS_CONF1 : 0x%x -> 0x%x)\n",
+		dbg("Light Sensor set ALS_START (CS_CONF1 : 0x%x -> 0x%x)\n",
 			data_origin[0], data_buf[0]);
 	}
 	return 0;	
@@ -1448,7 +1485,7 @@ static int vcnl36866_light_hw_set_ALS_HD(uint8_t value)
 		err("Light Sensor set ALS_HD (CS_CONF2) ERROR\n");
 		return ret;
 	}else{
-		log("Light Sensor set ALS_HD (CS_CONF2 : 0x%x -> 0x%x)\n",
+		dbg("Light Sensor set ALS_HD (CS_CONF2 : 0x%x -> 0x%x)\n",
 			data_origin[1], data_buf[1]);
 	}
 
@@ -1479,7 +1516,7 @@ static int vcnl36866_light_hw_set_integration(uint8_t integration)
 		err("Light Sensor set Integration (CS_CONF1) ERROR\n");
 		return ret;
 	}else{
-		log("Light Sensor set Integration (CS_CONF1 : 0x%x -> 0x%x)\n",
+		dbg("Light Sensor set Integration (CS_CONF1 : 0x%x -> 0x%x)\n",
 			data_origin[0], data_buf[0]);
 	}
 

@@ -1867,7 +1867,7 @@ static void handle_notification(struct battery_chg_dev *bcdev, void *data,
     case OEM_ASUS_EVTLOG_IND:
         if (len == sizeof(*evtlog_msg)) {
             evtlog_msg = data;
-            pr_err("[adsp] evtlog= %s\n", evtlog_msg->buf);
+            printk(KERN_INFO "[adsp]%s\n", evtlog_msg->buf);
         }
         break;
     case OEM_PD_EVTLOG_IND:
@@ -1934,15 +1934,18 @@ static void handle_notification(struct battery_chg_dev *bcdev, void *data,
                 break;
                 case ASUS_CHARGER_TYPE_LEVEL1:
                     g_SWITCH_LEVEL = SWITCH_LEVEL2_QUICK_CHARGING;
-                    set_qc_stat(POWER_SUPPLY_STATUS_CHARGING);
+                    if (g_IsBootComplete)
+                        set_qc_stat(POWER_SUPPLY_STATUS_CHARGING);
                 break;
                 case ASUS_CHARGER_TYPE_LEVEL2:
                     g_SWITCH_LEVEL = SWITCH_LEVEL3_QUICK_CHARGING;
-                    set_qc_stat(POWER_SUPPLY_STATUS_CHARGING);
+                    if (g_IsBootComplete)
+                        set_qc_stat(POWER_SUPPLY_STATUS_CHARGING);
                 break;
                 case ASUS_CHARGER_TYPE_LEVEL3:
                     g_SWITCH_LEVEL = SWITCH_LEVEL4_QUICK_CHARGING;
-                    set_qc_stat(POWER_SUPPLY_STATUS_CHARGING);
+                    if (g_IsBootComplete)
+                        set_qc_stat(POWER_SUPPLY_STATUS_CHARGING);
                 break;
 				default:
 					g_SWITCH_LEVEL = SWITCH_LEVEL0_DEFAULT;
@@ -2895,7 +2898,7 @@ void set_qc_stat(int status)
 		CHG_DBG("%s: status: %d, switch: %d\n", __func__, status, g_SWITCH_LEVEL);
 		cancel_delayed_work(&asus_set_qc_state_work);
 		//if (g_Charger_mode)
-			schedule_delayed_work(&asus_set_qc_state_work, 0);
+			schedule_delayed_work(&asus_set_qc_state_work, msecs_to_jiffies(70));
 		//else
 		//schedule_delayed_work(&asus_set_qc_state_work, msecs_to_jiffies(3000));
 		break;

@@ -64,6 +64,7 @@ extern void get_cc_status_from_ADSP(void);
 extern int rt_chg_get_remote_cc(void);
 extern bool side_port_cc_status;
 extern bool g_Charger_mode;
+extern bool g_IsBootComplete;
 
 //Move to battery_charger.h
 #if 0
@@ -1124,7 +1125,10 @@ static int battery_psy_get_prop(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_STATUS:
 		pval->intval = pst->prop[prop_id];
-		set_qc_stat(pval->intval);
+		if (g_Charger_mode == 0 && g_IsBootComplete == 1)
+			set_qc_stat(pval->intval);
+		else if (g_Charger_mode == 1)
+			set_qc_stat(pval->intval);
 		break;
 	default:
 		pval->intval = pst->prop[prop_id];

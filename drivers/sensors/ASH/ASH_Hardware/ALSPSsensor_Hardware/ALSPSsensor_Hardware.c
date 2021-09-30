@@ -25,7 +25,7 @@
 /**************************/
 /* Debug and Log System */
 /************************/
-#define MODULE_NAME "ASH_HW"
+#define MODULE_NAME "ASH"
 #define SENSOR_TYPE_NAME "ALSPS"
 
 #undef dbg
@@ -34,7 +34,7 @@
 #else
 	#define dbg(fmt, args...)
 #endif
-#define log(fmt, args...) printk(KERN_INFO "[%s][%s][%s]"fmt,MODULE_NAME,SENSOR_TYPE_NAME,__func__,##args)
+#define log(fmt, args...) printk(KERN_INFO "[%s]"fmt,MODULE_NAME,##args)
 #define err(fmt, args...) printk(KERN_ERR "[%s][%s]"fmt,MODULE_NAME,SENSOR_TYPE_NAME,##args)
 
 /********************/

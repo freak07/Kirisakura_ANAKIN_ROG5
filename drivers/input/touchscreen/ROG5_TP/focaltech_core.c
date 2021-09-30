@@ -880,13 +880,19 @@ static int fts_read_parse_touchdata(struct fts_ts_data *data)
         }
 
         data->touch_point++;
-	
+        if (data->resize) {
+        events[i].x = ((buf[ASUS_TOUCH_X_1_POS + base] & 0x0F) << 12) +
+                      ((buf[ASUS_TOUCH_X_2_POS + base] & 0xFF) << 4);
+        events[i].y = ((buf[ASUS_TOUCH_Y_1_POS + base] & 0x0F) << 12) +
+                      ((buf[ASUS_TOUCH_Y_2_POS + base] & 0xFF) << 4);       
+        } else {	
         events[i].x = ((buf[ASUS_TOUCH_X_1_POS + base] & 0x0F) << 12) +
                       ((buf[ASUS_TOUCH_X_2_POS + base] & 0xFF) << 4) + 
                       (buf[ASUS_TOUCH_X_3_POS + base] >> 4);
         events[i].y = ((buf[ASUS_TOUCH_Y_1_POS + base] & 0x0F) << 12) +
                       ((buf[ASUS_TOUCH_Y_2_POS + base] & 0xFF) << 4) +
-		      (buf[ASUS_TOUCH_Y_3_POS + base] & 0x0F) ;    
+		      (buf[ASUS_TOUCH_Y_3_POS + base] & 0x0F) ;
+        }
         events[i].flag = buf[FTS_TOUCH_EVENT_POS + base] >> 6;
         events[i].id = buf[FTS_TOUCH_ID_POS + base] >> 4;
         events[i].p = buf[ASUS_TOUCH_AREA_POS + base] >> 4; // FP area

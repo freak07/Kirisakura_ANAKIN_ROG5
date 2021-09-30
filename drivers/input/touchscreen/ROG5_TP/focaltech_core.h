@@ -247,6 +247,7 @@ struct fts_ts_data {
     int realtime;
     ktime_t atr_received;
     int edge_palm_enable; // 0 : disable , 1 : enable, 2 : not in game mode
+    bool resize;
 //charger_mode    
     struct notifier_block charge_notify;
     bool charge_notify_charge;
