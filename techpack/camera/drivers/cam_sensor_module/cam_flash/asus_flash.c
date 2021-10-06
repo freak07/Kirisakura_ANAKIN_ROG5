@@ -117,7 +117,7 @@ static int asus_led_release(uint32_t id)
 	}
 	else
 	{
-		pr_info("regulator already disabled, do nothing\n");
+		pr_debug("regulator already disabled, do nothing\n");
 	}
 	mutex_unlock(&(fctrl->flash_mutex));
 	return rc;
@@ -352,7 +352,7 @@ static ssize_t flash_led_store(struct file *dev, const char *buf, size_t count, 
 
 	rc=sscanf(kbuf, "%d %d %d", &mode, &on, &val);
 
-	pr_info("node %d, command %d %d %d rc=%d\n",*index, mode, on, val, rc);
+	pr_debug("node %d, command %d %d %d rc=%d\n",*index, mode, on, val, rc);
 
 	g_error_value = 0;
 	g_ATD_status = 0;
@@ -439,7 +439,7 @@ static ssize_t flash_led_store(struct file *dev, const char *buf, size_t count, 
 			}
 		}
 	}
-	pr_info("node %d, command %d %d, rc %d, ATD status %d\n",*index, mode, on, rc, g_ATD_status);
+	pr_debug("node %d, command %d %d, rc %d, ATD status %d\n",*index, mode, on, rc, g_ATD_status);
 
 	return ret_len;
 }
