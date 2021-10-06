@@ -2495,7 +2495,7 @@ void suspend_console(void)
     printk("Suspending console(s) (use no_console_suspend to debug)\n");
     //[PM_debug ---]
 #else
-	pr_info("Suspending console(s) (use no_console_suspend to debug)\n");
+	pr_debug("Suspending console(s) (use no_console_suspend to debug)\n");
 #endif
 	console_lock();
 	console_suspended = 1;
