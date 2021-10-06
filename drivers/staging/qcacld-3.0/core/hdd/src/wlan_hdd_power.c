@@ -253,7 +253,7 @@ hdd_send_igmp_offload_params(struct hdd_adapter *adapter,
 
 	status = ucfg_pmo_enable_igmp_offload(vdev, igmp_req);
 	if (status != QDF_STATUS_SUCCESS)
-		hdd_info("Failed to enable igmp offload");
+		hdd_debug("Failed to enable igmp offload");
 
 	hdd_objmgr_put_vdev(vdev);
 	qdf_mem_free(igmp_req);
@@ -281,7 +281,7 @@ static void hdd_enable_igmp_offload(struct hdd_adapter *adapter)
 	}
 	status = hdd_send_igmp_offload_params(adapter, true);
 	if (status != QDF_STATUS_SUCCESS)
-		hdd_info("Failed to enable igmp offload");
+		hdd_debug("Failed to enable igmp offload");
 	hdd_objmgr_put_vdev(vdev);
 }
 
@@ -305,7 +305,7 @@ static void hdd_disable_igmp_offload(struct hdd_adapter *adapter)
 	}
 	status = hdd_send_igmp_offload_params(adapter, false);
 	if (status != QDF_STATUS_SUCCESS)
-		hdd_info("Failed to enable igmp offload");
+		hdd_debug("Failed to enable igmp offload");
 	hdd_objmgr_put_vdev(vdev);
 }
 #else

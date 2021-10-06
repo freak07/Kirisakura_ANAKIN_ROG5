@@ -2463,14 +2463,14 @@ static int wma_wake_event_packet(
 		 * dump event buffer which contains more info regarding
 		 * current page fault.
 		 */
-		wma_info("PAGE_FAULT occurs during suspend: packet_len %u",
+		wma_debug("PAGE_FAULT occurs during suspend: packet_len %u",
 			 packet_len);
 		qdf_trace_hex_dump(QDF_MODULE_ID_WMA, QDF_TRACE_LEVEL_INFO,
 				   packet, packet_len);
 		break;
 
 	default:
-		wma_err("Wake reason %s is not a packet event",
+		wma_debug("Wake reason %s is not a packet event",
 			 wma_wow_wake_reason_str(wake_info->wake_reason));
 		return -EINVAL;
 	}
@@ -2753,7 +2753,7 @@ int wma_wow_wakeup_host_event(void *handle, uint8_t *event, uint32_t len)
 		return -EINVAL;
 	}
 
-	wma_wake_event_log_reason(wma, wake_info);
+	//wma_wake_event_log_reason(wma, wake_info);
 
 	ucfg_pmo_psoc_wakeup_host_event_received(wma->psoc);
 

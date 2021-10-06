@@ -2869,7 +2869,7 @@ static void mALSPS_algo_suspend(void)
 		return;
 	}
 	
-	log("Driver SUSPEND +++\n");
+//	log("Driver SUSPEND +++\n");
 
 mutex_lock(&g_alsps_lock);
 
@@ -2888,7 +2888,7 @@ mutex_lock(&g_alsps_lock);
 	cancel_delayed_work(&proximity_polling_adc_work);
 	g_psensor_polling_cancel_flag = true;
 
-	log("Driver SUSPEND ---\n");
+//	log("Driver SUSPEND ---\n");
 
 mutex_unlock(&g_alsps_lock);
 
@@ -2903,7 +2903,7 @@ static void mALSPS_algo_resume(void)
 		return;
 	}
 
-	log("Driver RESUME +++\n");
+//	log("Driver RESUME +++\n");
 
 	g_alsps_power_status = ALSPS_RESUME;
 
@@ -2932,7 +2932,7 @@ static void mALSPS_algo_resume(void)
 		}
 	}
 	
-	log("Driver RESUME ---\n");
+//	log("Driver RESUME ---\n");
 	
 	return;
 }

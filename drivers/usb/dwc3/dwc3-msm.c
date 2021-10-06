@@ -3766,13 +3766,13 @@ static void dwc3_ext_event_notify(struct dwc3_msm *mdwc)
 		mdwc->check_eud_state, mdwc->eud_active, mdwc->hs_phy->flags);
 #if defined ASUS_ZS673KS_PROJECT
 	if (mdwc->vbus_active == true && mdwc->id_state == DWC3_ID_FLOAT) {
-		dev_info(mdwc->dev, "[USB] %s, device mode\n", __func__);
+		dev_debug(mdwc->dev, "[USB] %s, device mode\n", __func__);
 		if (!strcmp("a800000.ssusb", dev_name(mdwc->dev))) {
 			dev_info(mdwc->dev, "[USB] %s, usb2 redriver enable\n", __func__);
 			redriver_enable(1);
 		}
 	} else if (mdwc->vbus_active == false && mdwc->id_state == DWC3_ID_GROUND) {
-		dev_info(mdwc->dev, "[USB] %s, host mode\n", __func__);
+		dev_debug(mdwc->dev, "[USB] %s, host mode\n", __func__);
 		if (!strcmp("a800000.ssusb", dev_name(mdwc->dev))) {
 			if (current_hub_mode != 0) {
 				dev_info(mdwc->dev, "[USB] %s, usb2 not in hub mode, usb2 redriver enable\n", __func__);
@@ -3780,7 +3780,7 @@ static void dwc3_ext_event_notify(struct dwc3_msm *mdwc)
 			}
 		}
 	} else {
-		dev_info(mdwc->dev, "[USB] %s, none mode\n", __func__);
+		dev_debug(mdwc->dev, "[USB] %s, none mode\n", __func__);
 		if (!strcmp("a800000.ssusb", dev_name(mdwc->dev))) {
 			dev_info(mdwc->dev, "[USB] %s, usb2 redriver disable\n", __func__);
 			redriver_enable(0);
@@ -3796,8 +3796,9 @@ static void dwc3_ext_event_notify(struct dwc3_msm *mdwc)
 		mdwc->hs_phy->flags &= ~PHY_SUS_OVERRIDE;
 		return;
 	}
-
-	dev_info(mdwc->dev, "[USB] %s exit: mdwc->inputs:%x\n", __func__, mdwc->inputs);
+#ifdef CONFIG_ASUS_POWER_DEBUG
+	dev_debug(mdwc->dev, "[USB] %s exit: mdwc->inputs:%x\n", __func__, mdwc->inputs);
+#endif
 	dbg_log_string("exit: mdwc->inputs:%x\n", mdwc->inputs);
 	queue_delayed_work(mdwc->sm_usb_wq, &mdwc->sm_work, 0);
 }
@@ -3838,7 +3839,7 @@ static void dwc3_resume_work(struct work_struct *w)
 		ret = extcon_get_property(edev, extcon_id,
 				EXTCON_PROP_USB_SS, &val);
 
-		dev_info(mdwc->dev, "[USB] %s: ret=%d, val.intval=%d\n", __func__, ret, val.intval);
+		dev_dbg(mdwc->dev, "[USB] %s: ret=%d, val.intval=%d\n", __func__, ret, val.intval);
 		if (!ret && val.intval == 0) {
 			dev_info(mdwc->dev, "[USB] %s: maximum_speed: USB_SPEED_HIGH\n", __func__);
 			dwc->maximum_speed = USB_SPEED_HIGH;
