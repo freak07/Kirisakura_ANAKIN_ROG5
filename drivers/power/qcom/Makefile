@@ -1,1 +1,1 @@
-obj-y   += asus_debug.o
+obj-$(CONFIG_ASUS_POWER_DEBUG) += asus_debug.o
