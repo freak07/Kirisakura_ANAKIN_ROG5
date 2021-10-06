@@ -3859,7 +3859,9 @@ skip_update:
 	}
 
 	dbg_event(0xFF, "speed", dwc->maximum_speed);
-	dev_info(mdwc->dev, "[USB] %s: speed=%d (hw_supp_speed:%d override_speed:%d)\n", __func__, dwc->maximum_speed, dwc->max_hw_supp_speed, mdwc->override_usb_speed);
+#ifdef CONFIG_ASUS_POWER_DEBUG
+	dev_debug(mdwc->dev, "[USB] %s: speed=%d\n", __func__, dwc->maximum_speed);
+#endif
 
 	/*
 	 * Skip scheduling sm work if no work is pending. When boot-up
@@ -4865,8 +4867,9 @@ void battery_role_switch(bool on)
 
 	if (!mdwc)
 		pr_err("%s dwc3 prode not completed\n");
-
-	dev_info(mdwc->dev, "[USB] %s %d\n", __func__, on);
+#ifdef CONFIG_ASUS_POWER_DEBUG
+	dev_debug(mdwc->dev, "[USB] %s %d\n", __func__, on);
+#endif
 	if (on) {
 		mdwc->vbus_active = true;
 		mdwc->id_state = DWC3_ID_FLOAT;
@@ -6185,7 +6188,9 @@ static int dwc3_msm_gadget_vbus_draw(struct dwc3_msm *mdwc, unsigned int mA)
 	pval.intval = 1000 * mA;
 
 set_prop:
-	dev_info(mdwc->dev, "Avail curr from USB = %u\n", mA);
+#ifdef CONFIG_ASUS_POWER_DEBUG
+	dev_debug(mdwc->dev, "Avail curr from USB = %u\n", mA);
+#endif
 	ret = power_supply_set_property(mdwc->usb_psy,
 				POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT, &pval);
 	if (ret) {
@@ -6222,7 +6227,9 @@ static void dwc3_otg_sm_work(struct work_struct *w)
 	}
 
 	state = dwc3_drd_state_string(mdwc->drd_state);
+#ifdef CONFIG_ASUS_POWER_DEBUG
 	dev_info(mdwc->dev, "[USB] %s state\n", state);
+#endif
 	dbg_event(0xFF, state, 0);
 
 	/* Check OTG state */

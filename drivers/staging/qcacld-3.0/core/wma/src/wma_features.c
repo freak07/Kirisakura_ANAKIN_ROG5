@@ -2023,17 +2023,17 @@ static void wma_log_pkt_ipv4(uint8_t *data, uint32_t length)
 
 	pkt_len = *(uint16_t *)(data + IPV4_PKT_LEN_OFFSET);
 	ip_addr = (char *)(data + IPV4_SRC_ADDR_OFFSET);
-	wma_nofl_debug("src addr %d:%d:%d:%d", ip_addr[0], ip_addr[1],
-		      ip_addr[2], ip_addr[3]);
+	//wma_nofl_debug("src addr %d:%d:%d:%d", ip_addr[0], ip_addr[1],
+		      //ip_addr[2], ip_addr[3]);
 	ip_addr = (char *)(data + IPV4_DST_ADDR_OFFSET);
-	wma_nofl_debug("dst addr %d:%d:%d:%d", ip_addr[0], ip_addr[1],
-		      ip_addr[2], ip_addr[3]);
+	//wma_nofl_debug("dst addr %d:%d:%d:%d", ip_addr[0], ip_addr[1],
+		      //ip_addr[2], ip_addr[3]);
 	src_port = *(uint16_t *)(data + IPV4_SRC_PORT_OFFSET);
 	dst_port = *(uint16_t *)(data + IPV4_DST_PORT_OFFSET);
-	wma_info("Pkt_len: %u, src_port: %u, dst_port: %u",
-		qdf_cpu_to_be16(pkt_len),
-		qdf_cpu_to_be16(src_port),
-		qdf_cpu_to_be16(dst_port));
+	//wma_info("Pkt_len: %u, src_port: %u, dst_port: %u",
+		//qdf_cpu_to_be16(pkt_len),
+		//qdf_cpu_to_be16(src_port),
+		//qdf_cpu_to_be16(dst_port));
 }
 
 static void wma_log_pkt_ipv6(uint8_t *data, uint32_t length)
@@ -2046,25 +2046,25 @@ static void wma_log_pkt_ipv6(uint8_t *data, uint32_t length)
 
 	pkt_len = *(uint16_t *)(data + IPV6_PKT_LEN_OFFSET);
 	ip_addr = (char *)(data + IPV6_SRC_ADDR_OFFSET);
-	wma_nofl_debug("src addr "IPV6_ADDR_STR, ip_addr[0],
-		 ip_addr[1], ip_addr[2], ip_addr[3], ip_addr[4],
-		 ip_addr[5], ip_addr[6], ip_addr[7], ip_addr[8],
-		 ip_addr[9], ip_addr[10], ip_addr[11],
-		 ip_addr[12], ip_addr[13], ip_addr[14],
-		 ip_addr[15]);
+	//wma_nofl_debug("src addr "IPV6_ADDR_STR, ip_addr[0],
+		 //ip_addr[1], ip_addr[2], ip_addr[3], ip_addr[4],
+		 //ip_addr[5], ip_addr[6], ip_addr[7], ip_addr[8],
+		 //ip_addr[9], ip_addr[10], ip_addr[11],
+		 //ip_addr[12], ip_addr[13], ip_addr[14],
+		 //ip_addr[15]);
 	ip_addr = (char *)(data + IPV6_DST_ADDR_OFFSET);
-	wma_nofl_debug("dst addr "IPV6_ADDR_STR, ip_addr[0],
-		 ip_addr[1], ip_addr[2], ip_addr[3], ip_addr[4],
-		 ip_addr[5], ip_addr[6], ip_addr[7], ip_addr[8],
-		 ip_addr[9], ip_addr[10], ip_addr[11],
-		 ip_addr[12], ip_addr[13], ip_addr[14],
-		 ip_addr[15]);
+	//wma_nofl_debug("dst addr "IPV6_ADDR_STR, ip_addr[0],
+		 //ip_addr[1], ip_addr[2], ip_addr[3], ip_addr[4],
+		 //ip_addr[5], ip_addr[6], ip_addr[7], ip_addr[8],
+		 //ip_addr[9], ip_addr[10], ip_addr[11],
+		 //ip_addr[12], ip_addr[13], ip_addr[14],
+		 //ip_addr[15]);
 	src_port = *(uint16_t *)(data + IPV6_SRC_PORT_OFFSET);
 	dst_port = *(uint16_t *)(data + IPV6_DST_PORT_OFFSET);
-	wma_info("Pkt_len: %u, src_port: %u, dst_port: %u",
-		 qdf_cpu_to_be16(pkt_len),
-		 qdf_cpu_to_be16(src_port),
-		 qdf_cpu_to_be16(dst_port));
+	//wma_info("Pkt_len: %u, src_port: %u, dst_port: %u",
+		 //qdf_cpu_to_be16(pkt_len),
+		 //qdf_cpu_to_be16(src_port),
+		 //qdf_cpu_to_be16(dst_port));
 }
 
 static void wma_log_pkt_tcpv4(uint8_t *data, uint32_t length)
@@ -2134,25 +2134,25 @@ static void wma_wow_parse_data_pkt(t_wma_handle *wma,
 
 	src_mac = data + QDF_NBUF_SRC_MAC_OFFSET;
 	dest_mac = data + QDF_NBUF_DEST_MAC_OFFSET;
-	wma_conditional_log(is_wakeup_event_console_logs_enabled,
-			    "Src_mac: " QDF_MAC_ADDR_FMT ", Dst_mac: "
-			    QDF_MAC_ADDR_FMT, QDF_MAC_ADDR_REF(src_mac),
-			    QDF_MAC_ADDR_REF(dest_mac));
+	//wma_conditional_log(is_wakeup_event_console_logs_enabled,
+			    //"Src_mac: " QDF_MAC_ADDR_FMT ", Dst_mac: "
+			    //QDF_MAC_ADDR_FMT, QDF_MAC_ADDR_REF(src_mac),
+			    //QDF_MAC_ADDR_REF(dest_mac));
 
-	wma_wow_inc_wake_lock_stats_by_dst_addr(wma, vdev_id, dest_mac);
+	//wma_wow_inc_wake_lock_stats_by_dst_addr(wma, vdev_id, dest_mac);
 
 	proto_subtype = wma_wow_get_pkt_proto_subtype(data, length);
 	proto_subtype_name = wma_pkt_proto_subtype_to_string(proto_subtype);
 	if (proto_subtype_name)
-		wma_conditional_log(is_wakeup_event_console_logs_enabled,
-				    "WOW Wakeup: %s rcvd", proto_subtype_name);
+		//wma_conditional_log(is_wakeup_event_console_logs_enabled,
+				    //"WOW Wakeup: %s rcvd", proto_subtype_name);
 
 	switch (proto_subtype) {
 	case QDF_PROTO_EAPOL_M1:
 	case QDF_PROTO_EAPOL_M2:
 	case QDF_PROTO_EAPOL_M3:
 	case QDF_PROTO_EAPOL_M4:
-		wma_log_pkt_eapol(data, length);
+		//wma_log_pkt_eapol(data, length);
 		break;
 
 	case QDF_PROTO_DHCP_DISCOVER:
@@ -2163,14 +2163,14 @@ static void wma_wow_parse_data_pkt(t_wma_handle *wma,
 	case QDF_PROTO_DHCP_RELEASE:
 	case QDF_PROTO_DHCP_INFORM:
 	case QDF_PROTO_DHCP_DECLINE:
-		wma_log_pkt_dhcp(data, length);
+		//wma_log_pkt_dhcp(data, length);
 		break;
 
 	case QDF_PROTO_ICMP_REQ:
 	case QDF_PROTO_ICMP_RES:
-		wma_wow_inc_wake_lock_stats_by_protocol(wma, vdev_id,
-							proto_subtype);
-		wma_log_pkt_icmpv4(data, length);
+		//wma_wow_inc_wake_lock_stats_by_protocol(wma, vdev_id,
+							//proto_subtype);
+		//wma_log_pkt_icmpv4(data, length);
 		break;
 
 	case QDF_PROTO_ICMPV6_REQ:
@@ -2179,25 +2179,25 @@ static void wma_wow_parse_data_pkt(t_wma_handle *wma,
 	case QDF_PROTO_ICMPV6_RA:
 	case QDF_PROTO_ICMPV6_NS:
 	case QDF_PROTO_ICMPV6_NA:
-		wma_wow_inc_wake_lock_stats_by_protocol(wma, vdev_id,
-							proto_subtype);
-		wma_log_pkt_icmpv6(data, length);
+		//wma_wow_inc_wake_lock_stats_by_protocol(wma, vdev_id,
+							//proto_subtype);
+		//wma_log_pkt_icmpv6(data, length);
 		break;
 
 	case QDF_PROTO_IPV4_UDP:
-		wma_log_pkt_ipv4(data, length);
+		//wma_log_pkt_ipv4(data, length);
 		break;
 	case QDF_PROTO_IPV4_TCP:
-		wma_log_pkt_ipv4(data, length);
-		wma_log_pkt_tcpv4(data, length);
+		//wma_log_pkt_ipv4(data, length);
+		//wma_log_pkt_tcpv4(data, length);
 		break;
 
 	case QDF_PROTO_IPV6_UDP:
-		wma_log_pkt_ipv6(data, length);
+		//wma_log_pkt_ipv6(data, length);
 		break;
 	case QDF_PROTO_IPV6_TCP:
-		wma_log_pkt_ipv6(data, length);
-		wma_log_pkt_tcpv6(data, length);
+		//wma_log_pkt_ipv6(data, length);
+		//wma_log_pkt_tcpv6(data, length);
 		break;
 	default:
 		break;
