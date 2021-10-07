@@ -668,14 +668,14 @@ static int suspend(struct platform_device *pdev, pm_message_t state)
     }
     else
     {
-        DbgOutInfo(("tspdrv: suspend.\n"));
+        //DbgOutInfo(("tspdrv: suspend.\n"));
         return 0;
     }
 }
 
 static int resume(struct platform_device *pdev)
 {
-    DbgOutErr(("tspdrv: resume.\n"));
+    //DbgOutErr(("tspdrv: resume.\n"));
 
     return 0;   /* can resume */
 }

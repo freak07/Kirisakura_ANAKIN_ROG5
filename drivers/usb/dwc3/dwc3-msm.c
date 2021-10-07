@@ -3766,23 +3766,23 @@ static void dwc3_ext_event_notify(struct dwc3_msm *mdwc)
 		mdwc->check_eud_state, mdwc->eud_active, mdwc->hs_phy->flags);
 #if defined ASUS_ZS673KS_PROJECT
 	if (mdwc->vbus_active == true && mdwc->id_state == DWC3_ID_FLOAT) {
-		dev_debug(mdwc->dev, "[USB] %s, device mode\n", __func__);
+		//dev_debug(mdwc->dev, "[USB] %s, device mode\n", __func__);
 		if (!strcmp("a800000.ssusb", dev_name(mdwc->dev))) {
-			dev_info(mdwc->dev, "[USB] %s, usb2 redriver enable\n", __func__);
+			//dev_debug(mdwc->dev, "[USB] %s, usb2 redriver enable\n", __func__);
 			redriver_enable(1);
 		}
 	} else if (mdwc->vbus_active == false && mdwc->id_state == DWC3_ID_GROUND) {
-		dev_debug(mdwc->dev, "[USB] %s, host mode\n", __func__);
+		//dev_debug(mdwc->dev, "[USB] %s, host mode\n", __func__);
 		if (!strcmp("a800000.ssusb", dev_name(mdwc->dev))) {
 			if (current_hub_mode != 0) {
-				dev_info(mdwc->dev, "[USB] %s, usb2 not in hub mode, usb2 redriver enable\n", __func__);
+				//dev_debug(mdwc->dev, "[USB] %s, usb2 not in hub mode, usb2 redriver enable\n", __func__);
 				redriver_enable(1);
 			}
 		}
 	} else {
-		dev_debug(mdwc->dev, "[USB] %s, none mode\n", __func__);
+		//dev_debug(mdwc->dev, "[USB] %s, none mode\n", __func__);
 		if (!strcmp("a800000.ssusb", dev_name(mdwc->dev))) {
-			dev_info(mdwc->dev, "[USB] %s, usb2 redriver disable\n", __func__);
+			//dev_debug(mdwc->dev, "[USB] %s, usb2 redriver disable\n", __func__);
 			redriver_enable(0);
 		}
 	}
@@ -4763,7 +4763,7 @@ static int redriver_reset_n(int val)
 {
 	int ret = 0;
 
-	pr_info("usb2_redriver, %s %d\n", __func__, val);
+	pr_debug("usb2_redriver, %s %d\n", __func__, val);
 	ret = gpio_direction_output(redriver_gpio_ctrl->REDRIVER_RSTN, val);
 	if (ret) {
 		pr_err("usb2_redriver, failed to control REDRIVER_RSTN\n");
@@ -4788,7 +4788,7 @@ static void redriver_enable(int val)
 	int ret = 0;
 
 	if (g_ASUS_hwID >= HW_REV_PR) {
-		pr_info("usb2_redriver, redriver_enable %d\n", val);
+		pr_debug("usb2_redriver, redriver_enable %d\n", val);
 		if (val == 1){ //redriver enable
 			if (!IS_ERR_OR_NULL(vcc_redriver) && current_redriver_vcc == 0) {
 				ret = regulator_enable(vcc_redriver);

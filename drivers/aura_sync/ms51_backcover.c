@@ -1866,13 +1866,13 @@ int ms51_inbox_suspend(struct device *dev)
 {
 	int err = 0;
 	if(g_Charger_mode) {
-		printk("[AURA_BACKCOVER] In charger mode, stop ms51_suspend\n");
+		//printk("[AURA_BACKCOVER] In charger mode, stop ms51_suspend\n");
 		return 0;
 	}
-	printk("[AURA_BACKCOVER] ms51_inbox_suspend : current_mode : 0x%x\n", g_pdata->current_mode);
+	//printk("[AURA_BACKCOVER] ms51_inbox_suspend : current_mode : 0x%x\n", g_pdata->current_mode);
 
 	if(!g_pdata->current_mode){
-		printk("[AURA_BACKCOVER] Disable VDD.\n");
+		//printk("[AURA_BACKCOVER] Disable VDD.\n");
 		if ( gpio_is_valid(g_pdata->ms51_enable_pin) )
 			gpio_set_value(g_pdata->ms51_enable_pin, 0);
 	}
@@ -1886,13 +1886,13 @@ int ms51_inbox_resume(struct device *dev)
 {
 	int err = 0;
 	if(g_Charger_mode) {
-		printk("[AURA_BACKCOVER] In charger mode, stop ms51_resume\n");
+		//printk("[AURA_BACKCOVER] In charger mode, stop ms51_resume\n");
 		return 0;
 	}
-	printk("[AURA_BACKCOVER] ms51_inbox_resume : current_mode : 0x%x\n", g_pdata->current_mode);
+	//printk("[AURA_BACKCOVER] ms51_inbox_resume : current_mode : 0x%x\n", g_pdata->current_mode);
 
 	if(!g_pdata->current_mode){
-		printk("[AURA_BACKCOVER] Enable VDD.\n");
+		//printk("[AURA_BACKCOVER] Enable VDD.\n");
 		if ( gpio_is_valid(g_pdata->ms51_enable_pin) )
 			gpio_set_value(g_pdata->ms51_enable_pin, 1);
 	}

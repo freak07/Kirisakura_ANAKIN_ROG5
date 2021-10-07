@@ -480,11 +480,11 @@ static int snt_i2c_suspend(struct device *dev)
 {
 	int ret;
 	PRINT_FUNC();
-	PRINT_INFO("snt_i2c_suspend+++");
+	//PRINT_INFO("snt_i2c_suspend+++");
 	ret = snt_suspend(dev);
 	snt8100fsr_g->suspend_status = true;
-	PRINT_DEBUG("done");
-	PRINT_INFO("snt_i2c_suspend---");
+	//PRINT_DEBUG("done");
+	//PRINT_INFO("snt_i2c_suspend---");
 	return ret;
 }
 
@@ -492,11 +492,11 @@ static int snt_i2c_resume(struct device *dev)
 {
 	int ret;
 	PRINT_FUNC();
-	PRINT_INFO("snt_i2c_resume+++");
+	//PRINT_INFO("snt_i2c_resume+++");
 	ret = snt_resume(dev);
 	snt8100fsr_g->suspend_status = false;
-	PRINT_DEBUG("done");
-	PRINT_INFO("snt_i2c_resume---");
+	//PRINT_DEBUG("done");
+	//PRINT_INFO("snt_i2c_resume---");
 	return ret;
 }
 

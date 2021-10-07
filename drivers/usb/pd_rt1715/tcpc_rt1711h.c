@@ -1632,12 +1632,12 @@ static int rt1711_i2c_suspend(struct device *dev)
 		if (chip) {
 #ifdef CONFIG_USB_POWER_DELIVERY
 			if (chip->tcpc->pd_wait_hard_reset_complete) {
-				pr_info("%s WAITING HRESET(%d) - NO SUSPEND\n",
+				pr_debug("%s WAITING HRESET(%d) - NO SUSPEND\n",
 				    __func__,
 				    chip->tcpc->pd_wait_hard_reset_complete);
 				return -EAGAIN;
 			}
-			pr_info("%s WAIT HRESET DONE(%d) - SUSPEND\n",
+			pr_debug("%s WAIT HRESET DONE(%d) - SUSPEND\n",
 				__func__,
 				chip->tcpc->pd_wait_hard_reset_complete);
 #endif

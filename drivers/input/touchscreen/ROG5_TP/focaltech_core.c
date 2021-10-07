@@ -1753,7 +1753,7 @@ static int drm_notifier_callback(struct notifier_block *self,
 
 	break;
     case DRM_PANEL_BLANK_FPS_CHANGE:
-        FTS_INFO("DRM_PANEL_BLANK_FPS_CHANGE , refers rate %d",evdata->refresh_rate);
+        //FTS_INFO("DRM_PANEL_BLANK_FPS_CHANGE , refers rate %d",evdata->refresh_rate);
 	break;
     default:
 //        FTS_INFO("DRM BLANK(%d) do not need process", *blank);

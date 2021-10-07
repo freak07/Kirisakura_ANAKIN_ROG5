@@ -114,10 +114,10 @@ static int snt_i2c_wake_device_suspend(struct device *dev)
 {
 	int ret;
 	PRINT_FUNC();
-	PRINT_INFO("snt_i2c_wake_device_suspend+++");
+	//PRINT_INFO("snt_i2c_wake_device_suspend+++");
 	ret = snt_suspend(dev);
 	snt8100fsr_g->suspend_status = true;
-	PRINT_INFO("snt_i2c_wake_device_suspend---");
+	//PRINT_INFO("snt_i2c_wake_device_suspend---");
 	return ret;
 }
 
@@ -125,10 +125,10 @@ static int snt_i2c_wake_device_resume(struct device *dev)
 {
 	int ret;
 	PRINT_FUNC();
-	PRINT_INFO("snt_i2c_wake_device_resume+++");
+	//PRINT_INFO("snt_i2c_wake_device_resume+++");
 	ret = snt_resume(dev);
 	snt8100fsr_g->suspend_status = false;
-	PRINT_INFO("snt_i2c_wake_device_resume---");
+	//PRINT_INFO("snt_i2c_wake_device_resume---");
 	return ret;
 }
 

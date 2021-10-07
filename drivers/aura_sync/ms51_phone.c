@@ -1641,29 +1641,25 @@ static void ms51_resume_work(struct work_struct *work)
 
 	wake_lock(&g_pdata->aura_wake_lock);
 	if(g_pdata->hw_stage < 5) {
-		if(!VDD_count){
+		if(!VDD_count)
 			err = regulator_enable(g_pdata->regulator_vdd);
 			if (err)
 				printk("[AURA_MS51] Failed to enable regulator vdd\n");
 			VDD_count++;
 			// Wait 300ms for IC power on
 			msleep(300);
-		}else
-			printk("[AURA_MS51] ms51_resume_work : already enabled VDD_count %d\n", VDD_count);
-	}else{
+	}else
 		tmp = gpio_get_value(g_pdata->logo_5p0_en);
 		if(!tmp){
 			gpio_set_value(g_pdata->logo_5p0_en, 1);
 			// Wait 300ms for IC power on
 			msleep(300);
-		}else
-			printk("[AURA_MS51] VDD already enable. %d\n", tmp);
 	}
 
 	mutex_lock(&g_pdata->ms51_mutex);
 	err = ms51_read_words(g_pdata->client, 0xCB01, data);
 	if (err != 1){
-		printk("[AURA_MS51] ms51_resume_work read FW:err %d\n", err);
+		//printk("[AURA_MS51] ms51_resume_work read FW:err %d\n", err);
 		mutex_unlock(&g_pdata->ms51_mutex);
 		wake_unlock(&g_pdata->aura_wake_lock);
 		return;
@@ -1672,7 +1668,7 @@ static void ms51_resume_work(struct work_struct *work)
 	ver_major = data[0];
 	ver_minor = data[1];
 
-	printk("[AURA_MS51] ms51_resume_work : FW version 0x%02x%02x\n", ver_major,ver_minor);
+	//printk("[AURA_MS51] ms51_resume_work : FW version 0x%02x%02x\n", ver_major,ver_minor);
 	wake_unlock(&g_pdata->aura_wake_lock);
 }
 
@@ -2084,21 +2080,19 @@ int ms51_suspend(struct device *dev)
 	int err = 0;
 
 	if(g_Charger_mode) {
-		printk("[AURA_MS51] In charger mode, stop ms51_suspend\n");
+		//printk("[AURA_MS51] In charger mode, stop ms51_suspend\n");
 		return err;
 	}
 
-	printk("[AURA_MS51] ms51_suspend : current_mode : 0x%x, VDD_count %d\n", g_pdata->current_mode, VDD_count);
+	//printk("[AURA_MS51] ms51_suspend : current_mode : 0x%x, VDD_count %d\n", g_pdata->current_mode, VDD_count);
 	if(!g_pdata->current_mode){
 		//printk("[AURA_MS51] Disable VDD.\n");
-		if(g_pdata->hw_stage < 5) {
+		if(g_pdata->hw_stage < 5) 
 			if(VDD_count){
 				err = regulator_disable(g_pdata->regulator_vdd);
 				if (err)
-					printk("[AURA_MS51] Failed to disable regulator vdd\n");
+					//printk("[AURA_MS51] Failed to disable regulator vdd\n");
 				VDD_count--;
-			}else
-				printk("[AURA_MS51] ms51_suspend : already disabled VDD_count %d\n", VDD_count);
 		}else
 			gpio_set_value(g_pdata->logo_5p0_en, 0);
 
@@ -2120,11 +2114,11 @@ int ms51_resume(struct device *dev)
 	int err = 0;
 
 	if(g_Charger_mode) {
-		printk("[AURA_MS51] In charger mode, stop ms51_resume\n");
+		//printk("[AURA_MS51] In charger mode, stop ms51_resume\n");
 		return err;
 	}
 
-	printk("[AURA_MS51] ms51_resume : current_mode : 0x%x, VDD_count %d\n", g_pdata->current_mode, VDD_count);
+	//printk("[AURA_MS51] ms51_resume : current_mode : 0x%x, VDD_count %d\n", g_pdata->current_mode, VDD_count);
 	if(!g_pdata->current_mode){
 		//printk("[AURA_MS51] Enable VDD.\n");
 		queue_work(g_pdata->resume_workqueue, &g_pdata->resume_work);

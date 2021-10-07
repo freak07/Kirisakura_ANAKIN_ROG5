@@ -1864,7 +1864,7 @@ static void es928x_component_driver_remove(struct snd_soc_component *component)
 static int es928x_component_driver_suspend(struct snd_soc_component *component)
 {
 	struct es928x_priv *es928x = snd_soc_component_get_drvdata(component);
-	dev_info(es928x->dev, "%s\n", __func__);
+	dev_dbg(es928x->dev, "%s\n", __func__);
 
 	return 0;
 }
@@ -1872,7 +1872,7 @@ static int es928x_component_driver_suspend(struct snd_soc_component *component)
 static int es928x_component_driver_resume(struct snd_soc_component *component)
 {
 	struct es928x_priv *es928x = snd_soc_component_get_drvdata(component);
-	dev_err(es928x->dev, "%s\n", __func__);
+	dev_dbg(es928x->dev, "%s\n", __func__);
 	//regmap_update_bits(es928x->regmap, ES928X_REG_IO_GPIO_13_14_CFG,
 	//		ES928X_GPIO13_CFG_MASK, 0x07);
 
