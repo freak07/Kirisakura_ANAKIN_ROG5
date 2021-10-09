@@ -84,7 +84,7 @@
 #define SWR_OVERFLOW_RETRY_COUNT 30
 
 /* pm runtime auto suspend timer in msecs */
-static int auto_suspend_timer = 500;
+static int auto_suspend_timer = 200;
 module_param(auto_suspend_timer, int, 0664);
 MODULE_PARM_DESC(auto_suspend_timer, "timer for auto suspend");
 
