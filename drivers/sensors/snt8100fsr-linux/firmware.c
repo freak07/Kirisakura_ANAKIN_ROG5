@@ -641,6 +641,7 @@ cleanup:
 		if(snt8100fsr_g->Recovery_Flag){
 			queue_delayed_work(asus_wq, &rst_recovery_wk, msecs_to_jiffies(0));
 		}
+		snt8100fsr_g->fw_failed_count = 0;
 		mutex_unlock(&snt8100fsr_g->ap_lock);
 	}else{
 		PRINT_INFO("FAILED to load fw");
@@ -706,6 +707,7 @@ cleanup:
 	if(err <= E_SUCCESS) { //[dy] unique to upload_firmware
 		snt8100fsr_g->grip_fw_loading_status = true;
 		ASUS_Handle_Reset(w->snt8100fsr);
+		snt8100fsr_g->fw_failed_count = 0;
 	}else{
 		snt8100fsr_g->grip_fw_loading_status = false;
 		ASUSEvtlog("[Grip] Sensor: Retry Load fw fail!!!");

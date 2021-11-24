@@ -1139,7 +1139,7 @@ static int battery_psy_get_prop(struct power_supply *psy,
 	{
 		switch (prop) {
 		case POWER_SUPPLY_PROP_CAPACITY:
-			pval->intval = 81;
+			pval->intval = 85;
 			break;
 		case POWER_SUPPLY_PROP_TEMP:
 			pval->intval = 250;
@@ -1918,6 +1918,7 @@ static int battery_chg_probe(struct platform_device *pdev)
 	struct pmic_glink_client_data client_data = { };
 	int rc, i;
 
+	pr_info("%s +++\n", __func__);
 	bcdev = devm_kzalloc(&pdev->dev, sizeof(*bcdev), GFP_KERNEL);
 	if (!bcdev)
 		return -ENOMEM;
@@ -1983,6 +1984,7 @@ static int battery_chg_probe(struct platform_device *pdev)
 	bcdev->restrict_fcc_ua = DEFAULT_RESTRICT_FCC_UA;
 	platform_set_drvdata(pdev, bcdev);
 	bcdev->fake_soc = -EINVAL;
+	pr_info("battery_chg_init_psy finish\n");
 	rc = battery_chg_init_psy(bcdev);
 	if (rc < 0)
 		goto error;
@@ -1998,7 +2000,7 @@ static int battery_chg_probe(struct platform_device *pdev)
 	battery_chg_add_debugfs(bcdev);
 	battery_chg_notify_enable(bcdev);
 	device_init_wakeup(bcdev->dev, true);
-
+	pr_info("%s ---\n", __func__);
 	//[+++]ASUS_BSP : Add for OEM sub-function
 	g_bcdev = bcdev;
 #if defined ASUS_SAKE_PROJECT || defined ASUS_VODKA_PROJECT

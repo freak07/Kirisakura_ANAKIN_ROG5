@@ -44,6 +44,8 @@ struct ADSP_ChargerPD_Info {
 	int fg_real_soc;
 	int cell1_voltage;
 	int cell2_voltage;
+	int TFCC;
+	int TRM;
 };
 
 struct evtlog_context_resp_msg3 {
@@ -169,6 +171,16 @@ struct oem_get_fg_soc_req {
 
 struct oem_get_cell_voltage_req {
 	struct pmic_glink_hdr	hdr;
+};
+
+struct oem_get_TFCC_TRM_req {
+	struct pmic_glink_hdr	hdr;
+};
+
+struct oem_get_TFCC_TRM_resp {
+	struct pmic_glink_hdr	hdr;
+	u16    TFCC;
+	u16    TRM;
 };
 
 struct oem_get_batt_temp_resp {
@@ -314,6 +326,8 @@ extern int asus_extcon_set_state_sync(struct extcon_dev *edev, int cable_state);
 #define OEM_SET_ASUS_media			0x3104
 #define OEM_GET_Cell_Voltage_REQ	0x3005
 #define OEM_SET_Shutdown_mode       0x3106
+#define OEM_GET_TFCC_TRM_REQ		0x3007
+
 //Define Message Type
 #define MSG_TYPE_REQ_RESP	1
 #define MSG_TYPE_NOTIFICATION	2
@@ -503,6 +517,7 @@ void usbin_suspend_to_ADSP(int enable);
 void write_CHGLimit_value(int input);
 void get_oem_batt_temp_from_ADSP(void);
 void get_oem_cell_volt_from_ADSP(void);
+void get_oem_TFCC_TRM_from_ADSP(void);
 
 //[+++] Add thermal alert adc function
 bool usb_alert_side_flag = 0;
@@ -2032,6 +2047,7 @@ static void handle_message(struct battery_chg_dev *bcdev, void *data,
 	struct oem_get_batt_temp_resp *batt_temp_msg;
 	struct oem_get_fg_soc_resp *fg_soc_msg;
 	struct oem_get_cell_voltage_resp *cell_voltage_msg;
+	struct oem_get_TFCC_TRM_resp *TFCC_TRM_msg;
 	struct oem_set_ASUS_media_req *set_asus_media_msg;
 	struct oem_get_cc_status_msg *get_cc_status_msg;
 	struct oem_set_Shutdown_mode_req *set_shutdown_mode_msg;
@@ -2103,6 +2119,17 @@ static void handle_message(struct battery_chg_dev *bcdev, void *data,
 			ack_set = true;
 		} else {
 			pr_err("Incorrect response length %zu for asus_get_cell_voltage\n",
+				len);
+		}
+		break;
+	case OEM_GET_TFCC_TRM_REQ:
+		if (len == sizeof(*TFCC_TRM_msg)) {
+			TFCC_TRM_msg = data;
+			ChgPD_Info.TFCC = TFCC_TRM_msg->TFCC;
+			ChgPD_Info.TRM = TFCC_TRM_msg->TRM;
+			ack_set = true;
+		} else {
+			pr_err("Incorrect response length %zu for asus_get_TFCC_TRM\n",
 				len);
 		}
 		break;
@@ -2913,11 +2940,13 @@ static int print_battery_status(void)
 	union power_supply_propval prop = {};
 	int rc = 0;
 	char battInfo[256];
+	char battInfo2[256];
 	int bat_cap = 0, bat_fcc = 0, bat_vol = 0, bat_cur = 0, bat_temp = 0, chg_sts = 0, bat_health = 0, charge_counter = 0;
 	char UTSInfo[256]; //ASUS_BSP add to printk the WIFI hotspot & QXDM UTS event
 
 	get_oem_batt_temp_from_ADSP();
 	get_oem_cell_volt_from_ADSP();
+	get_oem_TFCC_TRM_from_ADSP();
 
 	rc = power_supply_get_property(qti_phy_bat, POWER_SUPPLY_PROP_CAPACITY, &prop);
 	if (rc < 0)
@@ -2967,7 +2996,7 @@ static int print_battery_status(void)
 	else
 		charge_counter = prop.intval;
 
-	snprintf(battInfo, sizeof(battInfo), "report Capacity ==>%d, FCC:%dmAh, RM:%dmAh, BMS:%d, V:%dmV, Vcell1:%dmV, Vcell2_V:%dmV, Cur:%dmA, ",
+	snprintf(battInfo, sizeof(battInfo), "report Capacity ==>%d, FCC:%dmAh, RM:%dmAh, BMS:%d, V:%dmV, Vcell1:%dmV, Vcell2:%dmV, Cur:%dmA, ",
 		bat_cap,
 		bat_fcc/1000,
 		charge_counter/1000,
@@ -2989,6 +3018,14 @@ static int print_battery_status(void)
 		health_type[bat_health]);
 
 	ASUSEvtlog("[BAT][Ser]%s", battInfo);
+
+	snprintf(battInfo2, sizeof(battInfo2), "report Capacity2 ==>%d, TFCC:%dmAh, TRM:%dmAh",
+		bat_cap,
+		ChgPD_Info.TFCC,
+		ChgPD_Info.TRM);
+
+	ASUSEvtlog("[BAT][Ser]%s", battInfo2);
+
 	//ASUS_BSP +++ add to printk the WIFI hotspot & QXDM UTS event
 	snprintf(UTSInfo, sizeof(UTSInfo), "WIFI_HS=%d, QXDM=%d", g_wifi_hs_en, g_qxdm_en);
 	ASUSEvtlog("[UTS][Status]%s", UTSInfo);
@@ -3098,6 +3135,22 @@ void get_oem_cell_volt_from_ADSP(void)
 	rc = battery_chg_write(g_bcdev, &req_msg, sizeof(req_msg));
 	if (rc < 0) {
 		pr_err("Failed to get battery cell voltage rc=%d\n", rc);
+		return;
+	}
+}
+
+void get_oem_TFCC_TRM_from_ADSP(void)
+{
+	struct oem_get_TFCC_TRM_req req_msg = {};
+	int rc;
+
+	req_msg.hdr.owner = PMIC_GLINK_MSG_OWNER_OEM;
+	req_msg.hdr.type = MSG_TYPE_REQ_RESP;
+	req_msg.hdr.opcode = OEM_GET_TFCC_TRM_REQ;
+
+	rc = battery_chg_write(g_bcdev, &req_msg, sizeof(req_msg));
+	if (rc < 0) {
+		pr_err("Failed to get battery TFCC TRM rc=%d\n", rc);
 		return;
 	}
 }

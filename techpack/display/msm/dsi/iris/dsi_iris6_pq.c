@@ -8,6 +8,10 @@
 #include "dsi_iris6_lut.h"
 #include "dsi_iris6_ioctl.h"
 #include "dsi_iris6_log.h"
+// ASUS BSP Display +++
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+#include "../dsi/dsi_anakin.h"
+#endif
 
 static bool iris_HDR10;
 static bool iris_HDR10_YCoCg;
@@ -692,6 +696,11 @@ int iris_dcDimming_backlight_set(u32 *values)
 
 	//rc = iris_update_backlight(bl_lvl);
 	len = iris_end_dpp(true);
+// ASUS BSP Display
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+	// to notify the dimmingEnable
+	anakin_iris_dc_set(dimmingEnable);
+#endif
 	return rc;
 }
 

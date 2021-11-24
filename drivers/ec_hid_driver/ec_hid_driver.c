@@ -26,6 +26,7 @@
 
 #include "ec_hid_driver.h"
 #include "ec_comm.h"
+#include "ec_wakelock.h"
 
 //For drm panel notify
 #include <drm/drm_panel.h>
@@ -96,6 +97,7 @@ struct regulator *regulator_vdd;
 
 bool regulator_enabled = false;
 struct mutex regulator_mutex;
+struct wake_lock ec_wake_lock;
 
 //extern bool g_station_sleep;
 //extern int lid_status;
@@ -517,14 +519,13 @@ void update_POGO_ID_ADC_Threshold(enum asus_dongle_type type)
 	}
 }
 
-void enable_regulator_worker(struct work_struct *work)
+int mux_power_control(bool enable)
 {
-	int ret;
-	
+	int ret = 0;
 	mutex_lock(&regulator_mutex);
-	printk("[EC_HID] regulator_mutex lock!!!\n");
+	wake_lock_timeout(&ec_wake_lock, msecs_to_jiffies(2000));
 	if (gDongleType == Dongle_BackCover) {
-		if (!regulator_enabled) {
+		if (enable && !regulator_enabled) {
 			printk("[EC_HID] enable usb2_mux2_en regulator\n");
 		
 			ret = regulator_set_voltage(regulator_vdd, 3000000, 3300000);
@@ -540,10 +541,10 @@ void enable_regulator_worker(struct work_struct *work)
 				printk("[EC_HID] Failed to enable regulator vdda33\n");
 			
 			regulator_enabled = true;
-		}
-	} else {
-		if (regulator_enabled) {
+			mdelay(2);
+		} else if (!enable && regulator_enabled) {
 			printk("[EC_HID] disable usb2_mux2_en regulator\n");
+			mdelay(3);
 			ret = regulator_disable(regulator_vdd);
 			if (ret)
 				printk("[EC_HID] Failed to disable regulator vdda33\n");
@@ -552,7 +553,16 @@ void enable_regulator_worker(struct work_struct *work)
 		}
 	}
 	mutex_unlock(&regulator_mutex);
-printk("[EC_HID] regulator_mutex unlock!!!\n");
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(mux_power_control);
+
+
+void enable_regulator_worker(struct work_struct *work)
+{
+	int ret;
+
 	if (gDongleType == Dongle_INBOX5) {
 		ret = gpio_direction_output(g_hid_data->usb2_mux2_en, 0);
 		if (ret)
@@ -1281,6 +1291,8 @@ static int ec_hid_probe(struct platform_device *pdev)
 
 	if(type == Dongle_default_status)
 		retval = dongle_type_detect(&type);
+
+	wake_lock_init(&ec_wake_lock, &pdev->dev, "ec_wake_lock");
 /*
 	asus_pogo_vadc_chan = iio_channel_get(g_hid_data->dev,"asus_pogo_vadc");
 	if (IS_ERR_OR_NULL(asus_pogo_vadc_chan)) {
@@ -1303,67 +1315,27 @@ kmalloc_failed:
 
 static int ec_hid_remove(struct platform_device *pdev)
 {
-	int ret;
+	int ret = 0;
 
 	printk("[EC_HID] ec_hid_remove.\n");
 
-	if (gDongleType == Dongle_BackCover) {
-		if (regulator_enabled) {
-			printk("[EC_HID] ec_hid_remove: disable usb2_mux2_en regulator\n");
-			ret = regulator_disable(regulator_vdd);
-			if (ret)
-				printk("[EC_HID] Failed to disable regulator vdda33\n");
-				
-			regulator_enabled = false;
-		}
-	}
+	wake_lock_destroy(&ec_wake_lock);
 
-	return 0;
+	return ret;
 }
 
 int ec_hid_suspend(struct device *dev)
 {
-	int ret;
-	
-	if (gDongleType == Dongle_BackCover) {
-		if (regulator_enabled) {
-			printk("[EC_HID] ec_hid_suspend: disable usb2_mux2_en regulator\n");
-			ret = regulator_disable(regulator_vdd);
-			if (ret)
-				printk("[EC_HID] Failed to disable regulator vdda33\n");
-				
-			regulator_enabled = false;
-		}
-	}
-
-	return 0;
+	int ret = 0;
+	//printk("ec_hid_suspend\n");
+	return ret;
 }
 
 int ec_hid_resume(struct device *dev)
 {
-
-	int ret;
-	
-	if (gDongleType == Dongle_BackCover) {
-		if (!regulator_enabled) {
-			printk("[EC_HID] ec_hid_resume: enable usb2_mux2_en regulator\n");
-			regulator_enabled = true;
-			
-			ret = regulator_set_voltage(regulator_vdd, 3000000, 3300000);
-			if (ret < 0)
-				printk("[EC_HID] Failed to set regulator voltage\n");
-
-			ret = regulator_set_load(regulator_vdd, 150000);
-			if (ret < 0)
-				printk("[EC_HID] Failed to set regulator current\n");
-			
-			ret = regulator_enable(regulator_vdd);
-			if (ret)
-				printk("[EC_HID] Failed to enable regulator vdda33\n");
-		}
-	}
-
-	return 0;
+	int ret = 0;
+	//printk("ec_hid_resume\n");
+	return ret;
 }
 
 static const struct dev_pm_ops ec_hid_pm_ops = {

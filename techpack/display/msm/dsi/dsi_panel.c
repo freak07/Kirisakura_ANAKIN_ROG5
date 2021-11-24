@@ -434,7 +434,6 @@ error_disable_vregs:
 exit:
 	/*ASUS BSP Display +++ */
 #if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
-	panel->mode_change_bl_blocked = false;
 	enable_irq(panel->reset_config.err_fg_irq);
 #endif
 	DSI_LOG("panel on ---\n");
@@ -660,11 +659,12 @@ static int dsi_panel_update_backlight(struct dsi_panel *panel,
 		bl_lvl = bl_min ;
 		}
 	dsi_anakin_record_backlight(bl_lvl);
-	dsi_anakin_set_dimming_smooth(panel, bl_lvl);
 
-	if (panel->mode_change_bl_blocked && !anakin_get_charger_mode()){
-		DSI_LOG("mode change bl update blocked\n");
-		panel->mode_change_bl_blocked = false;
+	// bl denied due to DC mode changed
+	// risk: is_dc_change always is true 
+	if (!panel->allow_fod_hbm_process && atomic_read(&panel->is_dc_change) &&
+		!atomic_read(&panel->allow_bl_change) && (bl_lvl > 0)) {
+		DSI_LOG("dc no bl\n");
 		return rc;
 	}
 
@@ -672,6 +672,7 @@ static int dsi_panel_update_backlight(struct dsi_panel *panel,
 	if (panel->allow_panel_fod_hbm == 1)
 		return rc;
 
+	dsi_anakin_set_dimming_smooth(panel, bl_lvl);
 	bl_lvl = dsi_anakin_backlightupdate(bl_lvl);
 
 	DSI_LOG("[to] set bl=%d\n", bl_lvl);
@@ -4452,7 +4453,6 @@ int dsi_panel_set_lp1(struct dsi_panel *panel)
 
 #if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
 	panel->aod_state = true;
-	panel->mode_change_bl_blocked = false;
 	// for AOD state restore backlight after received notify
 	if(display_commit_cnt < COMMIT_FRAMES_COUNT) {
 		panel->aod_delay = true;

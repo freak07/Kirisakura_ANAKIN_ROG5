@@ -660,13 +660,15 @@ static int fts_input_report_b(struct fts_ts_data *data)
 	      fp_press = 0;
 	      data->fp_filter = false;
 	      if (fts_data->wait_reset){
-		fts_data->wait_reset = false;
-		FTS_INFO("reset tp");
-		fts_irq_disable();
-		fts_reset_proc(150);
-		report_rate_recovery(data);
-		fts_ex_fun_recovery(data);
-		fts_irq_enable();
+            fts_data->wait_reset = false;
+            FTS_INFO("reset tp");
+            fts_irq_disable();
+            fts_reset_proc(150);
+            report_rate_recovery(data);
+            fts_ex_fun_recovery(data);
+            fts_irq_enable();
+            if (data->extra_reconfig == 2) 
+                set_sub_noise_mode(true);
 	      }
 /*	      if (data->perftime == 1) {
 		time_delta = ktime_ms_delta(ktime_get(), start);
@@ -880,7 +882,7 @@ static int fts_read_parse_touchdata(struct fts_ts_data *data)
         }
 
         data->touch_point++;
-        if (data->resize) {
+        if (data->extra_reconfig == 1) {
         events[i].x = ((buf[ASUS_TOUCH_X_1_POS + base] & 0x0F) << 12) +
                       ((buf[ASUS_TOUCH_X_2_POS + base] & 0xFF) << 4);
         events[i].y = ((buf[ASUS_TOUCH_Y_1_POS + base] & 0x0F) << 12) +
@@ -2152,6 +2154,10 @@ static int fts_ts_suspend(struct device *dev)
 #if FTS_ESDCHECK_EN
     fts_esdcheck_suspend();
 #endif
+
+    if(ts_data->sub_noise)
+        set_sub_noise_mode(false);
+
     enter_gesture_mode = is_enter_gesture_mode(ts_data);
 //    FTS_INFO("Is enter gesture mode %d",enter_gesture_mode);
     if (enter_gesture_mode == 1) {
@@ -2240,6 +2246,8 @@ static int fts_ts_resume(struct device *dev)
     fp_press = 0;
     asus_game_recovery(ts_data);
     report_rate_recovery(ts_data);
+    if (ts_data->extra_reconfig == 2) 
+        set_sub_noise_mode(true);
 //    FTS_FUNC_EXIT();
     return 0;
 }

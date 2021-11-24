@@ -307,6 +307,47 @@ void set_report_rate () {
     }      
 }
 
+void set_sub_noise_mode(bool enable) {
+    int ret = 0 , i = 0;
+    u8 mode = 0;
+    
+    if (enable) {
+        mutex_lock(&fts_data->reg_lock);      
+        for (i = 0; i < 6; i++) {
+            ret = fts_write_reg(FTS_REG_SUBNOISE_MODE, 0x01);
+            msleep(20);
+            ret = fts_read_reg(FTS_REG_SUBNOISE_MODE, &mode);
+            if (mode!=0x01){
+                FTS_DEBUG("enter sub noise mode fail, mode 0x%X , retry %d",mode, i);
+                msleep(20);
+            } else {
+                fts_data->sub_noise = ENABLE;
+                FTS_DEBUG("enter sub noise mode %X",mode);
+                break;
+            }
+        }
+        mutex_unlock(&fts_data->reg_lock);
+        return;
+    } else {
+        mutex_lock(&fts_data->reg_lock);      
+        for (i = 0; i < 6; i++) {
+            ret = fts_write_reg(FTS_REG_SUBNOISE_MODE, 0x00);
+            msleep(20);
+            ret = fts_read_reg(FTS_REG_SUBNOISE_MODE, &mode);
+            if (mode!=0x00){
+                FTS_DEBUG("exit sub noise mode fail, mode 0x%X , retry %d",mode, i);
+                msleep(20);
+            } else {
+                fts_data->sub_noise = DISABLE;
+                FTS_DEBUG("exit sub noise mode %X",mode);
+                break;
+            }
+        }
+        mutex_unlock(&fts_data->reg_lock);
+        return;
+    }
+}
+
 //Airtrigger & keymapping
 static ssize_t atr_queue_empty(struct atr_queue *q){
 	if (q == NULL){
@@ -447,7 +488,8 @@ void ATR_touch(int id,int action, int x, int y, int random)
 	struct input_dev *input_dev = fts_data->input_dev;
 	int first_empty_slot = -1;
 	int i;
-
+    bool report_lock = false;
+    
 	static bool first_continue_flag = false;
 	x= x*16;
 	y = y*16;
@@ -482,6 +524,8 @@ void ATR_touch(int id,int action, int x, int y, int random)
 				y += random_y;
 			}
 			if(!fts_data->finger_press) {
+                mutex_lock(&fts_data->report_mutex);
+                report_lock = true;
 				input_mt_slot(input_dev, first_empty_slot + 10);
 				input_mt_report_slot_state(input_dev, MT_TOOL_FINGER, true);
 				input_report_abs(input_dev, ABS_MT_PRESSURE, 0x3f + random_pressure);
@@ -503,9 +547,13 @@ void ATR_touch(int id,int action, int x, int y, int random)
 			} else {
 //				FTS_INFO("touch BTN down long pressed , ignore atr touch down");
 			}
+			
 			if(!fts_data->finger_press)
 			    input_sync(input_dev);
-
+            if (report_lock) {
+                mutex_unlock(&fts_data->report_mutex);
+                report_lock = false;
+            }
 			touch_figer_slot[first_empty_slot] = id + 1; // save finger id in slot 			
 			fts_data->atr_press = true;
 
@@ -921,18 +969,32 @@ static ssize_t edge_settings_store(
 	return count;
 }
 
-static ssize_t fts_xy_resize_store(
+static ssize_t fts_extra_config_store(
     struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
     struct fts_ts_data *ts_data = fts_data;
 
-    if (FTS_SYSFS_ECHO_ON(buf)) {
-        ts_data->resize = ENABLE;
-    } else if (FTS_SYSFS_ECHO_OFF(buf)) {
-        ts_data->resize = DISABLE;
-    }
+    ts_data->extra_reconfig = buf[0]-'0';
 
-    FTS_DEBUG("touch area resize:%d", ts_data->resize);
+    FTS_DEBUG("Extra touch extra config:%d", ts_data->extra_reconfig);
+
+    if (ts_data->extra_reconfig == 1) {
+        FTS_DEBUG("Reconfig touch size");
+    }
+    
+    if (ts_data->extra_reconfig == 2) {
+        if (!ts_data->sub_noise) {
+            FTS_DEBUG("Reconfig touch frequency");
+            set_sub_noise_mode(true);
+        }
+    }
+    
+    if (ts_data->extra_reconfig == 0) {
+        FTS_DEBUG("Exit Extra mode");
+        if (ts_data->sub_noise)
+            set_sub_noise_mode(false);
+
+    }
     return count;
 }
 
@@ -942,7 +1004,7 @@ static DEVICE_ATTR(fts_rotation_mode, S_IRUGO | S_IWUSR, fts_rotation_mode_show,
 static DEVICE_ATTR(game_settings, S_IRUGO | S_IWUSR, game_settings_show, game_settings_store);
 static DEVICE_ATTR(rise_report_rate, S_IRUGO | S_IWUSR, rise_report_rate_show, rise_report_rate_store);
 static DEVICE_ATTR(edge_settings, S_IRUGO | S_IWUSR, edge_settings_show, edge_settings_store);
-static DEVICE_ATTR(fts_xy_resize, S_IRUGO | S_IWUSR, NULL, fts_xy_resize_store);
+static DEVICE_ATTR(fts_extra_config, S_IRUGO | S_IWUSR, NULL, fts_extra_config_store);
 /* add your attr in here*/
 static struct attribute *fts_attributes[] = {
     &dev_attr_keymapping_touch.attr,
@@ -951,7 +1013,7 @@ static struct attribute *fts_attributes[] = {
     &dev_attr_game_settings.attr,
     &dev_attr_rise_report_rate.attr,
     &dev_attr_edge_settings.attr,
-    &dev_attr_fts_xy_resize.attr,
+    &dev_attr_fts_extra_config.attr,
     NULL
 };
 
@@ -1003,6 +1065,7 @@ int asus_game_create_sysfs(struct fts_ts_data *ts_data)
     ts_data->report_rate = REPORT_RATE_1;
     fts_data->edge_palm_enable = 2;
     fts_data->pre_report_rate = 1;
+    fts_data->sub_noise = DISABLE;
     
     atr_buf_queue = atr_buf_init(ATR_QUEUE_SIZE);
     

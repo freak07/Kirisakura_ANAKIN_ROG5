@@ -37,6 +37,8 @@ static u32 g_led_on;
 static u32 g_led2_on;
 extern bool g_Charger_mode;
 
+extern int mux_power_control(bool enable);
+
 static int i2c_write_bytes(struct i2c_client *client, char *write_buf, int writelen)
 {
 	struct i2c_msg msg;
@@ -56,6 +58,9 @@ static int ms51_read_bytes(struct i2c_client *client, short addr, char *data)
 	int err = 0;
 	unsigned char buf[16] = {0};
 	struct i2c_msg msgs;
+
+	mux_power_control(1);
+
 	buf[0] = (addr >> 8) & 0xFF;
 	buf[1] = addr & 0xFF;
 
@@ -73,6 +78,8 @@ static int ms51_read_bytes(struct i2c_client *client, short addr, char *data)
 	msgs.buf = data;
 	err = i2c_transfer(client->adapter,&msgs, 1);
 
+	mux_power_control(0);
+
 	return err;
 }
 
@@ -81,6 +88,8 @@ static int ms51_read_words(struct i2c_client *client, short addr, char *data)
 	int err = 0;
 	unsigned char buf[16] = {0};
 	struct i2c_msg msgs;
+
+	mux_power_control(1);
 
 	buf[0] = (addr >> 8) & 0xFF;
 	buf[1] = addr & 0xFF;
@@ -100,6 +109,8 @@ static int ms51_read_words(struct i2c_client *client, short addr, char *data)
 	msgs.buf = data;
 	err = i2c_transfer(client->adapter,&msgs, 1);
 
+	mux_power_control(0);
+
 	return err;
 }
 
@@ -107,6 +118,8 @@ static int ms51_write_bytes(struct i2c_client *client, short addr, char value)
 {
 	int err = 0;
 	unsigned char buf[16] = {0};
+
+	mux_power_control(1);
 
 	buf[0] = (addr >> 8) & 0xFF;
 	buf[1] = addr & 0xFF;
@@ -116,6 +129,8 @@ static int ms51_write_bytes(struct i2c_client *client, short addr, char value)
 	err = i2c_write_bytes(client, buf, 3);
 	if (err !=1)
 		printk("[AURA_BACKCOVER] i2c_write_bytes addr:0x%x, err:%d\n", addr,err);
+
+	mux_power_control(0);
 
 	return err;
 }
@@ -1848,6 +1863,8 @@ static int ms51_remove(struct i2c_client *client)
 		printk("[AURA_BACKCOVER] In charger mode, stop ms51_remove\n");
 		return 0;
 	}
+
+	mux_power_control(0);
 
 // unregister
 	printk("[AURA_BACKCOVER] sysfs_remove_group\n");

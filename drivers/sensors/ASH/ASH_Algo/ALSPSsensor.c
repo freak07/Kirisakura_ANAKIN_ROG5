@@ -498,6 +498,7 @@ static int proximity_turn_onoff(bool bOn)
 			/*diable the timer*/
 			if(g_ps_data->autok == true){
 				hrtimer_cancel(&g_alsps_timer);
+				log("proximity_hw_turn_onoff: cancel autok timer");
 			}
 
 			proximity_check_period();
@@ -2444,20 +2445,31 @@ static void proximity_autok(struct work_struct *work)
 	int adc_value;
 	int crosstalk_diff, crosstalk_limit;
 
+	mutex_lock(&g_alsps_lock);
+	if(g_ps_data->HAL_switch_on ==false){
+		log("proximity has closed, cancel proximity autok polling");
+		hrtimer_cancel(&g_alsps_timer);
+		mutex_unlock(&g_alsps_lock);
+		return;
+	}
+
 	/* proximity sensor go to suspend, cancel autok timer */
 	if(g_alsps_power_status == ALSPS_SUSPEND){
 		hrtimer_cancel(&g_alsps_timer);
 		log("proximity has suspended, cancel proximity autoK polling!!");
+		mutex_unlock(&g_alsps_lock);
 		return;
 	}
 
 	if(g_ALSPS_hw_client->mpsensor_hw->proximity_hw_set_autoK == NULL) {
 		err("proximity_hw_set_autoK NOT SUPPORT. \n");
+		mutex_unlock(&g_alsps_lock);
 		return;
 	}
 
 	adc_value = g_ALSPS_hw_client->mpsensor_hw->proximity_hw_get_adc();
 	if(adc_value < 0){
+		mutex_unlock(&g_alsps_lock);
 		return;
 	} else {
 		dbg("auto calibration polling : %d\n", adc_value);
@@ -2500,6 +2512,7 @@ static void proximity_autok(struct work_struct *work)
 			g_ps_data->crosstalk_diff = crosstalk_diff;
 		}
 	}
+	mutex_unlock(&g_alsps_lock);
 }
 
 static enum hrtimer_restart proximity_timer_function(struct hrtimer *timer)

@@ -44,6 +44,18 @@ static inline bool display_panel_valid(void)
 	return true;
 }
 
+// clear dc parameters
+static inline void display_panel_clear_dc(void)
+{
+	if (!display_panel_valid())
+		return;
+
+	atomic_set(&g_display->panel->is_dc_change, 0);
+	atomic_set(&g_display->panel->is_bl_ready, 0);
+	atomic_set(&g_display->panel->allow_bl_change, 0);
+	atomic_set(&g_display->panel->is_i6_change, 0);
+}
+
 // write panel command
 static void set_tcon_cmd(char *cmd, short len)
 {
@@ -381,11 +393,13 @@ void dsi_anakin_set_dimming_smooth(struct dsi_panel *panel, u32 backlight)
 {
 	int rc = 0;
 
-	// don't allow in fod hbm
-	if (panel->allow_panel_fod_hbm == 1)
+	// set to 1 if set bl from FOD or DC process in kernel
+	if (atomic_read(&panel->allow_bl_change) || panel->allow_fod_hbm_process) {
+		panel->panel_bl_count = 1;
 		return;
+	}
 
-	if (panel->aod_state ||panel->allow_fod_hbm_process || backlight == 0) {
+	if (panel->aod_state || backlight == 0) {
 		panel->panel_bl_count = 0;
 		return;
 	}
@@ -707,7 +721,8 @@ static ssize_t dimming_speed_write(struct file *filp, const char *buff, size_t l
 		if (strncmp(messages, "1", 1) == 0) {
 			rc = dsi_anakin_set_dimming(g_display->panel, true);
 		} else if (strncmp(messages, "20", 20) == 0) {
-			rc = dsi_anakin_set_dimming(g_display->panel, false);
+			// restore by dsi_anakin_set_dimming_smooth
+			//rc = dsi_anakin_set_dimming(g_display->panel, false);
 		} else {
 			DSI_LOG("doesn't match any dimming speed .\n");
 		}
@@ -730,6 +745,7 @@ static ssize_t lcd_brightness_write(struct file *filp, const char *buff, size_t 
 {
 	char messages[256];
 	u32 DC_mode = 0;
+	static u32 old_mode = 0;
 
 	memset(messages, 0, sizeof(messages));
 
@@ -743,16 +759,29 @@ static ssize_t lcd_brightness_write(struct file *filp, const char *buff, size_t 
 		return -EFAULT;
 
 
+	mutex_lock(&g_display->panel->panel_lock);
+	if (!g_display->panel->panel_initialized)
+		goto exit;
 	sscanf(messages, "%u", &DC_mode);
 
 	//DSI_LOG("dc lcd brightess write (%d) +++ \n",DC_mode);
-	if(g_display->panel->dc_mode == 0 && DC_mode==1) {
-		g_display->panel->dc_bl_delay = true;
+	if (old_mode == DC_mode) {
+		//DSI_LOG("dc same (%d)\n", DC_mode);
+		goto exit;
 	}
+
+	old_mode = DC_mode;
 	g_display->panel->dc_mode = DC_mode;
-	if(DC_mode == 0) {
-		dc_fixed_bl = false;
+
+	display_panel_clear_dc();
+
+	// only this criteria need to validate igc
+	if (g_display->panel->panel_last_backlight <= 224) {
+		DSI_LOG("dc=%d\n", DC_mode);
+		atomic_set(&g_display->panel->is_dc_change, 1);
 	}
+exit:
+	mutex_unlock(&g_display->panel->panel_lock);
 	return len;
 }
 
@@ -858,27 +887,6 @@ void dsi_anakin_frame_commit_cnt(struct drm_crtc *crtc)
 			aod_delay_frames = 0;
 		}
 	}
-
-	if(g_display->panel->dc_mode && g_display->panel->dc_bl_delay && !g_display->panel->aod_state) {
-		dc_delay_frames++;
-		if (dc_delay_frames == 4) {
-			DSI_LOG("fixed bl for dc mode \n");
-			dc_delay_frames = 0;
-			dc_fixed_bl = true;
-			g_display->panel->dc_bl_delay = false;
-			if (g_display->panel->panel_last_backlight < 224) {
-				dsi_panel_set_backlight(g_display->panel, 224);
-			}
-			else {
-				dsi_anakin_restore_backlight();
-			}
-		}
-	}
-
-	//if(display_commit_cnt == 2 && !g_display->panel->aod_state) {
-	//	DSI_LOG("restore Dimming Smooth");
-	//	dsi_anakin_set_dimming_smooth(g_display->panel);
-	//}
 }
 
 // to initial asus display parameters
@@ -896,7 +904,6 @@ void dsi_anakin_display_init(struct dsi_display *display)
 	g_display->panel->panel_aod_last_bl = 0;
 	g_display->panel->panel_bl_count = 0;
 	g_display->panel->aod_state = false;
-	g_display->panel->mode_change_bl_blocked = false;
 	g_display->panel->dc_bl_delay = false;
 	g_display->panel->fod_in_doze = false;
 	g_display->panel->err_fg_irq_is_on = false;
@@ -905,6 +912,7 @@ void dsi_anakin_display_init(struct dsi_display *display)
 	g_display->panel->is_first_gamma_set = false;
 	g_display->panel->aod_delay = false;
 	atomic_set(&g_display->panel->is_spot_ready, 0);
+	g_display->panel->csc_mode = 0;
 
 	proc_create(PANEL_REGISTER_RW, 0640, NULL, &panel_reg_rw_ops);
 	proc_create(PANEL_VENDOR_ID, 0640, NULL, &panel_vendor_id_ops);
@@ -940,7 +948,6 @@ void dsi_anakin_set_panel_is_on(bool on)
 		g_display->panel->panel_aod_last_bl = 0;
 		g_display->panel->panel_bl_count = 0;
 		g_display->panel->fod_in_doze = false;
-		g_display->panel->mode_change_bl_blocked = false;
 		g_display->panel->err_fg_irq_is_on = false;
 		has_fod_masker = false;
 		old_has_fod_masker = false;
@@ -952,6 +959,8 @@ void dsi_anakin_set_panel_is_on(bool on)
 		g_display->panel->is_gamma_change = false;
 		g_display->panel->aod_delay = false;
 		atomic_set(&g_display->panel->is_spot_ready, 0);
+		display_panel_clear_dc();
+		g_display->panel->csc_mode = 0;
 	}
 }
 
@@ -1174,10 +1183,17 @@ bool anakin_get_charger_mode(void)
 // add for set min backlight to 2
 u32 dsi_anakin_backlightupdate(u32 bl_lvl)
 {
-	if (g_display->panel->dc_mode && dc_fixed_bl && bl_lvl <= 224 && bl_lvl != 0 && !g_display->panel->aod_state){
-		DSI_LOG("dc_mode on fixed bl = 224");
+	// for dc dimming
+	if (bl_lvl <= 224 && bl_lvl != 0 && 
+		(g_display->panel->dc_mode || g_display->panel->csc_mode)) {
+		// restore bl from FOD if dc change still processing
+		if (g_display->panel->allow_fod_hbm_process &&
+				atomic_read(&g_display->panel->is_dc_change))
+			return bl_lvl;
+		//DSI_LOG("dc bl 224");
 		return 224;
 	}
+
 	if (bl_lvl == 1) {
 		return 2;
 	}
@@ -1437,7 +1453,7 @@ void anakin_get_gamma_setting(struct dsi_display *display) {
 		anakin_gamma_write_cmd(display, shift_B9_offset, sizeof(shift_B9_offset));
 		ret = anakin_gamma_read_cmd(display, gamma_B9_cmd, rlen[i], position_B9);
 		if (ret <= 0)
-			return;
+			goto exit;
 		shift_B9_offset[1] = shift_B9_offset[1] + 10;
 		position_B9 = position_B9 + 10;
 	}
@@ -1450,7 +1466,7 @@ void anakin_get_gamma_setting(struct dsi_display *display) {
 		anakin_gamma_write_cmd(display, shift_B7_offset, sizeof(shift_B7_offset));
 		anakin_gamma_read_cmd(display, gamma_B7_cmd, rlen[i], position_B7);
 		if (ret <= 0)
-			return;
+			goto exit;
 		shift_B7_offset[1] = shift_B7_offset[1] + 10;
 		position_B7 = position_B7 + 10;
 	}
@@ -1463,6 +1479,8 @@ void anakin_get_gamma_setting(struct dsi_display *display) {
 	anakin_gamma_calculate();
 
 	display->panel->is_gamma_get = true;
+
+exit:
 	dsi_panel_release_panel_lock(display->panel);
 	mutex_unlock(&display->display_lock);
 	DSI_LOG("get Gamma register ---\n");
@@ -1507,4 +1525,118 @@ exit:
 	mutex_unlock(&panel->panel_lock);
 	return;
 }
+
+// to validate skip igc or not
+// to allow set bl if is_bl_ready count to 2
+static bool dsi_anakin_validate_c2_last(u32 c2_last)
+{
+	if (g_display->panel->dc_mode) {
+		// case#off2on : 4095 -> (<4095)
+		// must same c2_last value set twice from framework (514 command)
+		// the first c2_last should be different from last c2_last.
+		if (c2_last != g_display->panel->c2_last) {
+			atomic_set(&g_display->panel->is_bl_ready, 1);
+			return (c2_last < 4095);
+		}
+
+		// expect that is_bl_ready equal to 2 after atomic_add
+		atomic_add(1, &g_display->panel->is_bl_ready);
+		return false;
+
+	} else {
+		// case#on2off : (<4095) -> 4095
+		// skip igc data if lower than 4095
+		atomic_set(&g_display->panel->is_bl_ready, 2);
+		return (c2_last < 4095);
+	}
+}
+
+// called from sde_hw_reg_dma_v1_color_proc.c
+bool anakin_need_skip_data(u32 c2_last)
+{
+	bool rc = false;
+
+	// don't validate if no dc change
+	if (!atomic_read(&g_display->panel->is_dc_change))
+		return rc;
+
+	rc = dsi_anakin_validate_c2_last(c2_last);
+	DSI_LOG("igc=%s\n", rc?"skip":"apply");
+	return rc;
+}
+
+void anakin_store_c2_last(u32 c2_last)
+{
+	g_display->panel->c2_last = c2_last;
+}
+
+static void dsi_anakin_dc_bl_set(void)
+{
+	atomic_set(&g_display->panel->allow_bl_change, 1);
+	dsi_anakin_restore_backlight();
+	display_panel_clear_dc();
+}
+
+// called every frame commit
+void anakin_set_dc_bl_process(struct drm_encoder *encoder, struct drm_crtc *crtc)
+{
+	int rc = 0;
+	static int csc_cnt = 0;
+	if (!display_panel_valid())
+		return;
+
+	if (strcmp(crtc->name, "crtc-0"))
+		return;
+
+	// first priority for i6 csc change
+	if (atomic_read(&g_display->panel->is_i6_change) == 1) {
+		if (g_display->panel->csc_mode) {
+			if (csc_cnt == 3)
+				goto start;
+		} else {
+			goto start;
+		}
+		csc_cnt++;
+	}
+
+	// don't validate if no dc change
+	if (!atomic_read(&g_display->panel->is_dc_change))
+		return;
+
+	// only set bl after is_bl_ready count to 2
+	if (!(atomic_read(&g_display->panel->is_bl_ready) == 2))
+		return;
+
+start:
+	mutex_lock(&g_display->panel->panel_lock);
+	if (!g_display->panel->panel_initialized)
+		goto exit;
+
+	sde_encoder_wait_for_event(encoder, MSM_ENC_VBLANK);
+	dsi_anakin_dc_bl_set();
+
+exit:
+	csc_cnt = 0;
+
+	mutex_unlock(&g_display->panel->panel_lock);
+	// fps switch pending
+	if (atomic_read(&g_display->panel->is_fps_pending)) {
+		rc = dsi_panel_switch(g_display->panel);
+		if (rc)
+			DSI_ERR("[%s] failed to switch DSI panel mode, rc=%d\n",
+				   g_display->name, rc);
+		atomic_set(&g_display->panel->is_fps_pending, 0);
+	}
+}
+
+void anakin_iris_dc_set(u32 value)
+{
+	// dc dimming on: 1, off: 0
+	if (g_display->panel->csc_mode != value) {
+		g_display->panel->csc_mode = value;
+		DSI_LOG("i6=%d\n", value);
+		atomic_set(&g_display->panel->is_i6_change, 1);
+	}
+}
+
 #endif

@@ -47,6 +47,10 @@ bool anakin_get_err_fg_irq_state(void);
 void anakin_change_gamma_setting(struct dsi_display *display);
 void anakin_get_gamma_setting(struct dsi_display *display);
 bool anakin_need_change_gamma(void);
+bool anakin_need_skip_data(u32 c2_last);
+void anakin_store_c2_last(u32 c2_last);
+void anakin_set_dc_bl_process(struct drm_encoder *encoder, struct drm_crtc *crtc);
+void anakin_iris_dc_set(u32 value);
 
 #else
 static inline u32 dsi_anakin_support_cmd_read_flags(u32 flags){ return 0; }
@@ -71,6 +75,10 @@ static inline bool anakin_get_err_fg_irq_state(void){return false;}
 static inline void anakin_change_gamma_setting(struct dsi_display *display) {}
 static inline void anakin_get_gamma_setting(struct dsi_display *display) {}
 static inline bool anakin_need_change_gamma(void) { return false; }
+static inline bool anakin_need_skip_data(u32 c2_last) { return false; }
+static inline void anakin_store_c2_last(u32 c2_last) {}
+static inline void anakin_set_dc_bl_process(struct drm_encoder *encoder, struct drm_crtc *crtc) {}
+static inline void anakin_iris_dc_set(u32 value) {}
 
 #endif
 #endif /* _DSI_ANAKIN_H_ */

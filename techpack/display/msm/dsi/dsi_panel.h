@@ -276,7 +276,6 @@ struct dsi_panel {
 	bool aod_state;
 	int dc_mode;
 	bool dc_bl_delay;
-	bool mode_change_bl_blocked;
 	bool fod_in_doze;
 	bool err_fg_irq_is_on;
 	bool esd_fail;
@@ -287,6 +286,13 @@ struct dsi_panel {
 	bool aod_delay;
 	atomic_t is_spot_ready; // to replace fod_spot_ui_ready
 	ktime_t ktime0; // to record the start time of FOD HBM ON
+	u32 c2_last; // store c2_last value
+	atomic_t is_dc_change;
+	atomic_t is_bl_ready;
+	atomic_t allow_bl_change;
+	atomic_t is_fps_pending;
+	atomic_t is_i6_change;
+	u32 csc_mode; // pw i6 mode
 #endif
 /* ASUS Anakin BSP Display --- */
 };

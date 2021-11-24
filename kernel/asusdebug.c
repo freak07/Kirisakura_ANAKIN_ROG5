@@ -832,7 +832,7 @@ void save_last_shutdown_log(char *filename)
 
 	initKernelEnv();
 
-	fd_logcat = ksys_open("/asdf/last_logcat_16K", O_CREAT | O_RDWR | O_SYNC, S_IWUGO | S_IRUGO);
+	fd_logcat = ksys_open("/asdf/last_logcat", O_CREAT | O_RDWR | O_SYNC, S_IWUGO | S_IRUGO);
 	if (!IS_ERR((const void *)(ulong)fd_logcat)) {
 		printk("[ASDF] qqqfailed to save last logcat to last_logcat [%d]\n",fd_logcat);
 		ksys_write(fd_logcat, (unsigned char *)last_logcat_buffer, LOGCAT_BUFFER_SIZE);
@@ -864,29 +864,15 @@ void save_last_shutdown_log(char *filename)
 	/* ASUS_BSP Paul +++ */
 
 	printk_buffer_index = *(printk_buffer_slot2_addr + 1);
-	if ((printk_buffer_index < PRINTK_BUFFER_SLOT_SIZE) && (LAST_KMSG_SIZE < SZ_128K)) {
-		fd_kmsg = ksys_open("/asdf/last_kmsg_16K", O_CREAT | O_RDWR | O_SYNC, S_IRUGO);
+
+		fd_kmsg = ksys_open("/asdf/last_kmsg", O_CREAT | O_RDWR | O_SYNC, S_IWUGO | S_IRUGO);
 		if (!IS_ERR((const void *)(ulong)fd_kmsg)) {
-			char *buf = kzalloc(LAST_KMSG_SIZE, GFP_ATOMIC);
-			if (!buf) {
-				printk("[ASDF] failed to allocate buffer for last_kmsg\n");
-			} else {
-				if (printk_buffer_index > LAST_KMSG_SIZE) {
-					memcpy(buf, last_shutdown_log + printk_buffer_index - LAST_KMSG_SIZE, LAST_KMSG_SIZE);
-				} else {
-					ulong part1 = LAST_KMSG_SIZE - printk_buffer_index;
-					ulong part2 = printk_buffer_index;
-					memcpy(buf, last_shutdown_log + PRINTK_BUFFER_SLOT_SIZE - part1, part1);
-					memcpy(buf + part1, last_shutdown_log, part2);
-				}
-				ksys_write(fd_kmsg, buf, LAST_KMSG_SIZE);
-				kfree(buf);
-			}
+			ksys_write(fd_kmsg, (unsigned char *)last_shutdown_log, PRINTK_BUFFER_SLOT_SIZE);
 			ksys_close(fd_kmsg);
 		} else {
 			printk("[ASDF] failed to save last shutdown log to last_kmsg\n");
 		}
-	}
+	
 
 	/* ASUS_BSP Paul --- */
 	deinitKernelEnv();

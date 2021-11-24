@@ -1405,46 +1405,18 @@ static size_t print_syslog(unsigned int level, char *buf)
 #ifdef CONFIG_ASUS_POWER_DEBUG
 #include <linux/rtc.h>
 extern struct timezone sys_tz;
-static void myrtc_time_to_tm(unsigned long time, struct rtc_time *tm){
-
-	tm->tm_hour = time / 3600;
-	time -= tm->tm_hour * 3600;
-	tm->tm_hour %= 24;
-	tm->tm_min = time / 60;
-	tm->tm_sec = time - tm->tm_min * 60;
-}
 #endif
 
 static size_t print_time(u64 ts, char *buf)
 {
 	unsigned long rem_nsec = do_div(ts, 1000000000);
 #ifdef CONFIG_ASUS_POWER_DEBUG
-	struct timespec timespec;
-	struct rtc_time tm;
 	int this_cpu = smp_processor_id();
 	
 
 	if (boot_after_60sec == 0 && ts >= 60)
 		boot_after_60sec = 1;
 	
-	if (boot_after_60sec && !nSuspendInProgress) {
-	
-		getnstimeofday(&timespec);
-	
-		timespec.tv_sec -= sys_tz.tz_minuteswest * 60;
-	
-		myrtc_time_to_tm(timespec.tv_sec, &tm);
-	
-		if (!buf)
-			return snprintf(NULL, 0, "[%5lu.000000] ", (unsigned long)ts);
-		return sprintf(buf, "[%5lu.%06lu] (CPU:%d-pid:%d:%s) [%02d:%02d:%02d.%09lu] ",
-			(unsigned long)ts,
-			rem_nsec / 1000,
-			this_cpu,
-			current->pid,
-			current->comm,
-			tm.tm_hour, tm.tm_min, tm.tm_sec, timespec.tv_nsec);
-	} else {
 		if (current) {
 			return sprintf(buf, "[%5lu.%06lu] (CPU:%d-pid:%d:%s)",
 				(unsigned long)ts, rem_nsec / 1000,
@@ -1455,7 +1427,6 @@ static size_t print_time(u64 ts, char *buf)
 		return sprintf(buf, "[%5lu.%06lu] ",
 			   (unsigned long)ts, rem_nsec / 1000);
 	
-	}
 #else
 	return sprintf(buf, "[%5lu.%06lu]",
 		       (unsigned long)ts, rem_nsec / 1000);

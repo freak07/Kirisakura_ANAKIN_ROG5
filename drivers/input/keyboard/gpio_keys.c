@@ -371,6 +371,10 @@ static void gpio_keys_gpio_report_event(struct gpio_button_data *bdata)
 		return;
 	}
 
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+	printk("[Keys][gpio_keys.c] keycode=%d, state=%s\n", button->code, state?"press":"release");
+#endif
+
 	if (type == EV_ABS) {
 		if (state)
 			input_event(input, type, button->code, button->value);

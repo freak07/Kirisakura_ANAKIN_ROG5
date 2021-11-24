@@ -13,6 +13,11 @@
 #include "sde_hw_lm.h"
 #include "sde_dbg.h"
 
+// ASUS BSP Display +++
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+#include "../dsi/dsi_anakin.h"
+#endif
+
 /* Reserve space of 128 words for LUT dma payload set-up */
 #define REG_DMA_HEADERS_BUFFER_SZ (sizeof(u32) * 128)
 #define REG_DMA_VIG_SWI_DIFF 0x200
@@ -4095,6 +4100,15 @@ void reg_dmav2_setup_dspp_igcv4(struct sde_hw_dspp *ctx, void *cfg)
 	data[j++] = (4095 << 4);
 	data[j++] = (4095 << 4);
 #endif
+
+// ASUS BSP Display +++
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+	if (anakin_need_skip_data((u32)lut_cfg->c2_last)) {
+		DSI_LOG("skip c2=%d\n", lut_cfg->c2_last);
+		goto exit;
+	}
+#endif
+
 	REG_DMA_SETUP_OPS(dma_write_cfg, 0, (u32 *)data, len,
 			REG_BLK_LUT_WRITE, 0, 0, 0);
 	/* table select is only relevant to SSPP Gamut */
@@ -4126,6 +4140,11 @@ void reg_dmav2_setup_dspp_igcv4(struct sde_hw_dspp *ctx, void *cfg)
 	_perform_sbdma_kickoff(ctx, hw_cfg, dma_ops, blk, IGC);
 
 exit:
+// ASUS BSP Display +++
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+	anakin_store_c2_last((u32)lut_cfg->c2_last);
+	//DSI_LOG("c2=%d\n",lut_cfg->c2_last);
+#endif
 	kfree(data);
 }
 

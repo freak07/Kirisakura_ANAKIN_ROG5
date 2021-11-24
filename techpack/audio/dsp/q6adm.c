@@ -3988,7 +3988,7 @@ int adm_close(int port_id, int perf_mode, int copp_idx)
 		ret = apr_send_pkt(this_adm.apr, (uint32_t *)&close);
 		if (ret < 0) {
 			pr_err("%s: ADM close failed %d\n", __func__, ret);
-			if (this_adm.tx_port_id == port_id ) {
+			if (this_adm.tx_port_id == port_id) {
 				mutex_lock(&this_adm.cal_data[cal_index]->lock);
 				cal_block = cal_utils_get_only_cal_block(
 						this_adm.cal_data[cal_index]);
@@ -4078,7 +4078,7 @@ int adm_close(int port_id, int perf_mode, int copp_idx)
 		rtac_remove_adm_device(port_id, copp_id);
 	}
 
-	if (this_adm.tx_port_id == port_id ) {
+	if (this_adm.tx_port_id == port_id) {
 		mutex_lock(&this_adm.cal_data[cal_index]->lock);
 		cal_block = cal_utils_get_only_cal_block(
 				this_adm.cal_data[cal_index]);
@@ -4087,7 +4087,6 @@ int adm_close(int port_id, int perf_mode, int copp_idx)
 			pr_debug("%s: cma_alloc %d\n",
 				 __func__, cal_block->cma_mem);
 		}
-
 		if (app_type == 0) {
 			audproc_cal_info = cal_block->cal_info;
 			app_type = audproc_cal_info->app_type;
@@ -5701,7 +5700,7 @@ int __init adm_init(void)
 	this_adm.ffecns_port_id = -1;
 	this_adm.tx_port_id = -1;
 	this_adm.hyp_assigned = false;
-	this_adm.fnn_app_type = 69946;
+	this_adm.fnn_app_type = -1;
 	init_waitqueue_head(&this_adm.matrix_map_wait);
 	init_waitqueue_head(&this_adm.adm_wait);
 

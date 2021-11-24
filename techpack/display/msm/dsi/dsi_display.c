@@ -7630,10 +7630,7 @@ int dsi_display_set_mode(struct dsi_display *display,
 			goto error;
 		}
 	}
-	#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
-	DSI_LOG("return bl change flag\n");
-	display->panel->mode_change_bl_blocked = true;
-	#endif
+
 	/*For dynamic DSI setting, use specified clock rate */
 	if (display->cached_clk_rate > 0)
 		adj_mode.priv_info->clk_rate_hz = display->cached_clk_rate;
@@ -7641,18 +7638,12 @@ int dsi_display_set_mode(struct dsi_display *display,
 	rc = dsi_display_validate_mode_set(display, &adj_mode, flags);
 	if (rc) {
 		DSI_ERR("[%s] mode cannot be set\n", display->name);
-		#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
-		display->panel->mode_change_bl_blocked = false;
-		#endif
 		goto error;
 	}
 
 	rc = dsi_display_set_mode_sub(display, &adj_mode, flags);
 	if (rc) {
 		DSI_ERR("[%s] failed to set mode\n", display->name);
-		#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
-		display->panel->mode_change_bl_blocked = false;
-		#endif
 		goto error;
 	}
 
@@ -8592,6 +8583,16 @@ int dsi_display_enable(struct dsi_display *display)
 	}
 
 	if (mode->dsi_mode_flags & DSI_MODE_FLAG_DMS) {
+// ASUS BSP Display +++
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+		// pending panel switch cmd when dc turn off (fps change from 60 to 120/144hz)
+		// high risk: will panel cmd miss to set?
+		if (atomic_read(&display->panel->is_dc_change) &&
+				display->panel->cur_mode->timing.refresh_rate > 60) {
+			atomic_set(&display->panel->is_fps_pending, 1);
+			goto error;
+		}
+#endif
 		rc = dsi_panel_switch(display->panel);
 		if (rc)
 			DSI_ERR("[%s] failed to switch DSI panel mode, rc=%d\n",

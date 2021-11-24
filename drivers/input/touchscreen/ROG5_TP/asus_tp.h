@@ -44,6 +44,7 @@
 #define FTS_REG_PALM                        0xE5
 #define FTS_REG_ILLEGAL_GESTURE             0xE6
 #define FTS_REG_GMAE_MODE                   0xE7
+#define FTS_REG_SUBNOISE_MODE               0x98
 
 #define ASUS_TOUCH_X_1_POS                   3
 #define ASUS_TOUCH_X_2_POS                   4
@@ -89,6 +90,7 @@ void set_rotation_mode(void);
 void asus_game_recovery(struct fts_ts_data *ts_data);
 void report_rate_recovery(struct fts_ts_data *ts_data);
 void set_report_rate (void);
+void set_sub_noise_mode(bool enable);
 void reconfig_game_reg(bool reconfig);
 void report_atr(ktime_t timestamp);
 int is_atr_empty(void);
