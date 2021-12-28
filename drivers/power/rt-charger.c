@@ -1108,7 +1108,7 @@ static int rt_charger_probe(struct platform_device *pdev)
 
 	pr_info("%s: disable/enable typec function\n", __func__);
 	typec_disable_function(1);
-	msleep(100);
+	msleep(200);
 	typec_disable_function(0);
 
 	pr_info("%s: OK!\n", __func__);

@@ -394,7 +394,7 @@ void dsi_anakin_set_dimming_smooth(struct dsi_panel *panel, u32 backlight)
 	int rc = 0;
 
 	// set to 1 if set bl from FOD or DC process in kernel
-	if (atomic_read(&panel->allow_bl_change) || panel->allow_fod_hbm_process) {
+	if (atomic_read(&panel->allow_bl_change) || panel->allow_fod_hbm_process || atomic_read(&panel->is_spot_ready)) {
 		panel->panel_bl_count = 1;
 		return;
 	}

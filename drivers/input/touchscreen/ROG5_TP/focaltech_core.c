@@ -584,12 +584,11 @@ static int fts_input_report_b(struct fts_ts_data *data)
 		    }
 		    input_report_abs(data->input_dev, ABS_MT_TOUCH_MAJOR, events[i].p);
 		    input_report_abs(data->input_dev, ABS_MT_POSITION_X, events[i].x);
-		    input_report_abs(data->input_dev, ABS_MT_POSITION_Y, events[i].y);		      
-		    data->finger_press = true;
+		    input_report_abs(data->input_dev, ABS_MT_POSITION_Y, events[i].y);
 		
 		  // ATR
 		    if (is_atr_empty() == 1) {
-			report_atr(events[i].time);
+                report_atr(events[i].time);
 		    }
 		}
 	    }
@@ -667,9 +666,11 @@ static int fts_input_report_b(struct fts_ts_data *data)
             report_rate_recovery(data);
             fts_ex_fun_recovery(data);
             fts_irq_enable();
-            if (data->extra_reconfig == 2) 
+/*            if (data->extra_reconfig == 2) 
                 set_sub_noise_mode(true);
+*/
 	      }
+	      
 /*	      if (data->perftime == 1) {
 		time_delta = ktime_ms_delta(ktime_get(), start);
 		FTS_INFO("touch down to up delta time %llu ms ",time_delta);
@@ -880,7 +881,7 @@ static int fts_read_parse_touchdata(struct fts_ts_data *data)
             FTS_ERROR("ID(%d) beyond max_touch_number", pointid);
             return -EINVAL;
         }
-
+        data->finger_press = true;
         data->touch_point++;
         if (data->extra_reconfig == 1) {
         events[i].x = ((buf[ASUS_TOUCH_X_1_POS + base] & 0x0F) << 12) +
@@ -2246,8 +2247,9 @@ static int fts_ts_resume(struct device *dev)
     fp_press = 0;
     asus_game_recovery(ts_data);
     report_rate_recovery(ts_data);
-    if (ts_data->extra_reconfig == 2) 
+/*    if (ts_data->extra_reconfig == 2) 
         set_sub_noise_mode(true);
+*/        
 //    FTS_FUNC_EXIT();
     return 0;
 }

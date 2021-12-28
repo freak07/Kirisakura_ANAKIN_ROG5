@@ -980,7 +980,9 @@ static int ms51_update_write(struct i2c_client *client, char * cmd_data_buf)
 	int err = 0;
 
 	//printk("[AURA_BACKCOVER] ms51_update_write \n");
+	mux_power_control(1);
 	err = i2c_write_bytes(client, cmd_data_buf, 48);
+	mux_power_control(0);
 	if (err !=1)
 		printk("[AURA_BACKCOVER] i2c_write_bytes:err %d\n", err);
 
@@ -995,7 +997,9 @@ static int ms51_fw_erase(struct i2c_client *client)
 	buf[1] = 0x1;
 
 	printk("[AURA_BACKCOVER] ms51_fw_erase \n");
+	mux_power_control(1);
 	err = i2c_write_bytes(client, buf, 2);
+	mux_power_control(0);
 	if (err !=1)
 		printk("[AURA_BACKCOVER] i2c_write_bytes:err %d\n", err);
 	printk("[AURA_BACKCOVER] after erase\n");
@@ -1099,6 +1103,7 @@ static int ms51_UpdateFirmware(struct i2c_client *client, char *fw_buf,int fwsiz
 		if (err !=1)
 			printk("[AURA_BACKCOVER] ms51_update_write :err %d\n", err);
 		msleep(1000);
+		mux_power_control(1);
 
 		msg.flags = I2C_M_RD;		//read
 		msg.addr = client->addr;
@@ -1106,6 +1111,8 @@ static int ms51_UpdateFirmware(struct i2c_client *client, char *fw_buf,int fwsiz
 		msg.buf = data;
 
 		err = i2c_transfer(client->adapter,&msg, 1);
+
+		mux_power_control(0);
 
 		if((data[2]==0x1F) && (data[3]==0)){
 			retry=0;
@@ -1149,6 +1156,8 @@ static int ms51_UpdateFirmware(struct i2c_client *client, char *fw_buf,int fwsiz
 				break;
 			}
 
+			mux_power_control(1);
+
 			data[2]=0;
 			data[3]=0;
 			msg.flags = I2C_M_RD;		//read
@@ -1157,6 +1166,8 @@ static int ms51_UpdateFirmware(struct i2c_client *client, char *fw_buf,int fwsiz
 			msg.buf = data;
 
 			err = i2c_transfer(client->adapter,&msg, 1);
+
+			mux_power_control(0);
 
 			if((data[2]==((addr+31)&0xFF)) && (data[3]==(((addr+31)>>8)&0xFF))){
 				retry=0;
@@ -1243,6 +1254,7 @@ static ssize_t fw_mode_show(struct device *dev, struct device_attribute *attr,ch
 	}*/
 
 	mutex_lock(&g_pdata->ms51_mutex);
+	mux_power_control(1);
 	//send register address
 	msgs[0].flags = !I2C_M_RD;	//write
 	msgs[0].addr = client->addr;
@@ -1258,6 +1270,8 @@ static ssize_t fw_mode_show(struct device *dev, struct device_attribute *attr,ch
 	msgs[1].buf = data;
 
 	ret = i2c_transfer(client->adapter,&msgs[1], 1);
+
+	mux_power_control(0);
 
 	mutex_unlock(&g_pdata->ms51_mutex);
 	kfree(buf_cmd);
@@ -1432,6 +1446,7 @@ static ssize_t unique_id_show(struct device *dev, struct device_attribute *attr,
 	cmd[1] = 0x03;
 
 	mutex_lock(&g_pdata->ms51_mutex);
+	mux_power_control(1);
 	err = i2c_write_bytes(client, cmd, 2);
 	if (err !=1)
 		printk("[AURA_BACKCOVER] i2c_write_bytes 0xCB03 :err %d\n", err);
@@ -1444,6 +1459,7 @@ static ssize_t unique_id_show(struct device *dev, struct device_attribute *attr,
 	msgs.len = 12;
 	msgs.buf = data;
 	err = i2c_transfer(client->adapter,&msgs, 1);
+	mux_power_control(0);
 	mutex_unlock(&g_pdata->ms51_mutex);
 
 	printk("[AURA_BACKCOVER] MS51 UID = 0x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\n",
@@ -1568,6 +1584,7 @@ static ssize_t part_number_show(struct device *dev, struct device_attribute *att
 	cmd[1] = 0x04;
 
 	mutex_lock(&g_pdata->ms51_mutex);
+	mux_power_control(1);
 	err = i2c_write_bytes(client, cmd, 2);
 	if (err !=1)
 		printk("[AURA_BACKCOVER] i2c_write_bytes 0xCB04 :err %d\n", err);
@@ -1580,6 +1597,7 @@ static ssize_t part_number_show(struct device *dev, struct device_attribute *att
 	msgs.len = 15;
 	msgs.buf = data;
 	err = i2c_transfer(client->adapter,&msgs, 1);
+	mux_power_control(0);
 	mutex_unlock(&g_pdata->ms51_mutex);
 
 	printk("[AURA_BACKCOVER] MS51 90 part number = 0x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\n",
@@ -1602,6 +1620,7 @@ static ssize_t IDs_store(struct device *dev, struct device_attribute *attr, cons
 
 	if (val == 1) {
 		mutex_lock(&g_pdata->ms51_mutex);
+		mux_power_control(1);
 
 		cmd_buf[0] = 0xCF;
 		cmd_buf[1] = 0xF1;
@@ -1615,9 +1634,11 @@ static ssize_t IDs_store(struct device *dev, struct device_attribute *attr, cons
 		err = i2c_write_bytes(client, cmd_buf, 12);
 		if (err !=1)
 			printk("[AURA_BACKCOVER] IDs_store: i2c_write_bytes, err:%d\n", err);
+		mux_power_control(0);
 		mutex_unlock(&g_pdata->ms51_mutex);
 	} else if (val == 0) {
 		mutex_lock(&g_pdata->ms51_mutex);
+		mux_power_control(1);
 
 		memset(cmd_buf, 0xff, 12);		
 		cmd_buf[0] = 0xCF;
@@ -1627,6 +1648,7 @@ static ssize_t IDs_store(struct device *dev, struct device_attribute *attr, cons
 		err = i2c_write_bytes(client, cmd_buf, 12);
 		if (err !=1)
 			printk("[AURA_BACKCOVER] IDs_store: i2c_write_bytes, err:%d\n", err);
+		mux_power_control(0);
 		mutex_unlock(&g_pdata->ms51_mutex);
 	}
 	
@@ -1645,6 +1667,7 @@ static ssize_t IDs_show(struct device *dev, struct device_attribute *attr,char *
 	cmd[1] = 0x05;
 
 	mutex_lock(&g_pdata->ms51_mutex);
+	mux_power_control(1);
 	err = i2c_write_bytes(client, cmd, 2);
 	if (err !=1)
 		printk("[AURA_BACKCOVER] i2c_write_bytes 0xCB05 :err %d\n", err);
@@ -1657,6 +1680,7 @@ static ssize_t IDs_show(struct device *dev, struct device_attribute *attr,char *
 	msgs.len = 10;
 	msgs.buf = data;
 	err = i2c_transfer(client->adapter,&msgs, 1);
+	mux_power_control(0);
 	mutex_unlock(&g_pdata->ms51_mutex);
 
 	printk("[AURA_BACKCOVER] MS51 IDs = 0x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\n",

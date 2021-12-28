@@ -987,7 +987,7 @@ static void light_polling_lux(struct work_struct *work)
 	if(g_ALSPS_hw_client->mlsensor_hw->light_hw_get_adc == NULL) {
 		err("light_hw_get_adc NOT SUPPORT. \n");
 	}
-
+	dbg("[Polling] polling_time=%d, limit_count=%d", polling_time, limit_count);
 mutex_lock(&g_alsps_lock);
 
 	if(g_als_data->HAL_switch_on == true) {
@@ -1007,6 +1007,8 @@ mutex_lock(&g_alsps_lock);
 			lux = light_lux_check_psensor_noise(lux);
 			/* ASUS BSP Clay: shift lux to mitigate psensor noise when psensor on and lux < offset --- */
 			if(ALS_check_event_rest_time(lux)==1){
+				if(g_als_data->g_als_log_first_event == true)
+					g_als_data->g_als_log_first_event = false;
 				psensor_onoff_recovery(true);
 				if(g_als_last_lux != lux){
 					if(lux < 100 && (log_count >= (limit_count/2))){
@@ -1035,8 +1037,13 @@ mutex_lock(&g_alsps_lock);
 				polling_time = 400;
 				break;
 			case CS_IT_50MS:
-				limit_count = 5;
-				polling_time = 400;
+				if(g_als_data->g_als_log_first_event == true){
+					limit_count = 10;
+					polling_time = 11;
+				}else{
+					limit_count = 5;
+					polling_time = 400;
+				}
 				break;
 			case CS_IT_100MS:
 				limit_count = 10;
@@ -1045,6 +1052,7 @@ mutex_lock(&g_alsps_lock);
 			default:
 				break;
 		}
+		dbg("[Polling] polling_time=%d, limit_count=%d, END", polling_time, limit_count);
 		cancel_delayed_work(&light_polling_lux_work);
 		queue_delayed_work(ALSPS_delay_workqueue, &light_polling_lux_work, msecs_to_jiffies(polling_time));
 	}
@@ -2444,7 +2452,6 @@ static void proximity_autok(struct work_struct *work)
 {
 	int adc_value;
 	int crosstalk_diff, crosstalk_limit;
-
 	mutex_lock(&g_alsps_lock);
 	if(g_ps_data->HAL_switch_on ==false){
 		log("proximity has closed, cancel proximity autok polling");
