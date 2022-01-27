@@ -100,6 +100,13 @@ config PROC_CHILDREN
 	  Say Y if you are running any user-space software which takes benefit from
 	  this interface. For example, rkt is such a piece of software.
 
+config PROC_MAGISK_HIDE_MOUNT
+	bool "Prevent Magisk detection in /proc/pid/mounts"
+	default y
+	help
+	  Prevents detection of Magisk using traces left in the /proc/pid/mounts of
+	  an isolated process that activated Magisk Hide.
+
 config PROC_PID_ARCH_STATUS
 	def_bool n
 	depends on PROC_FS
