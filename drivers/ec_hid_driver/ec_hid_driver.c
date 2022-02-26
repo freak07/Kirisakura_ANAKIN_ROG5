@@ -1370,7 +1370,7 @@ static int __init dongle_hid_init(void)
 	
 	return ret;
 }
-module_init(dongle_hid_init);
+late_initcall(dongle_hid_init);
 
 static void __exit dongle_hid_exit(void)
 {
