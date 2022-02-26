@@ -49,7 +49,8 @@ extern int asus_set_invalid_audio_dongle(int src, int set);
 extern int get_net_status(void);
 extern int get_prodock_state (void);
 extern int aura_screen_on;
-extern bool g_hpd;
+bool g_hpd = false;
+EXPORT_SYMBOL(g_hpd);
 #ifdef CONFIG_USB_EC_DRIVER
 extern uint8_t gDongleType;
 #else

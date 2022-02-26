@@ -225,7 +225,7 @@ static int pci_dev_str_match_path(struct pci_dev *dev, const char *path,
 
 	*endptr = strchrnul(path, ';');
 
-	wpath = kmemdup_nul(path, *endptr - path, GFP_ATOMIC);
+	wpath = kmemdup_nul(path, *endptr - path, GFP_KERNEL);
 	if (!wpath)
 		return -ENOMEM;
 
@@ -1359,6 +1359,11 @@ int pci_save_state(struct pci_dev *dev)
 		return i;
 
 	pci_save_ltr_state(dev);
+
+#ifdef CONFIG_PCI_QTI
+	pci_save_aspm_l1ss_state(dev);
+#endif
+
 	pci_save_dpc_state(dev);
 	return pci_save_vc_state(dev);
 }
@@ -1463,6 +1468,10 @@ void pci_restore_state(struct pci_dev *dev)
 	 * LTR itself (in the PCIe capability).
 	 */
 	pci_restore_ltr_state(dev);
+
+#ifdef CONFIG_PCI_QTI
+	pci_restore_aspm_l1ss_state(dev);
+#endif
 
 	pci_restore_pcie_state(dev);
 	pci_restore_pasid_state(dev);
@@ -1673,7 +1682,11 @@ static int pci_enable_device_flags(struct pci_dev *dev, unsigned long flags)
 	 * so that things like MSI message writing will behave as expected
 	 * (e.g. if the device really is in D0 at enable time).
 	 */
-	pci_update_current_state(dev, dev->current_state);
+	if (dev->pm_cap) {
+		u16 pmcsr;
+		pci_read_config_word(dev, dev->pm_cap + PCI_PM_CTRL, &pmcsr);
+		dev->current_state = (pmcsr & PCI_PM_CTRL_STATE_MASK);
+	}
 
 	if (atomic_inc_return(&dev->enable_cnt) > 1)
 		return 0;		/* already enabled */
@@ -2250,14 +2263,7 @@ static int __pci_enable_wake(struct pci_dev *dev, pci_power_t state, bool enable
 	if (enable) {
 		int error;
 
-		/*
-		 * Enable PME signaling if the device can signal PME from
-		 * D3cold regardless of whether or not it can signal PME from
-		 * the current target state, because that will allow it to
-		 * signal PME when the hierarchy above it goes into D3cold and
-		 * the device itself ends up in D3cold as a result of that.
-		 */
-		if (pci_pme_capable(dev, state) || pci_pme_capable(dev, PCI_D3cold))
+		if (pci_pme_capable(dev, state))
 			pci_pme_active(dev, true);
 		else
 			ret = 1;
@@ -2361,20 +2367,16 @@ static pci_power_t pci_target_state(struct pci_dev *dev, bool wakeup)
 	if (dev->current_state == PCI_D3cold)
 		target_state = PCI_D3cold;
 
-	if (wakeup && dev->pme_support) {
-		pci_power_t state = target_state;
-
+	if (wakeup) {
 		/*
 		 * Find the deepest state from which the device can generate
 		 * PME#.
 		 */
-		while (state && !(dev->pme_support & (1 << state)))
-			state--;
-
-		if (state)
-			return state;
-		else if (dev->pme_support & 1)
-			return PCI_D0;
+		if (dev->pme_support) {
+			while (target_state
+			      && !(dev->pme_support & (1 << target_state)))
+				target_state--;
+		}
 	}
 
 	return target_state;
@@ -3123,6 +3125,13 @@ void pci_allocate_cap_save_buffers(struct pci_dev *dev)
 					    2 * sizeof(u16));
 	if (error)
 		pci_err(dev, "unable to allocate suspend buffer for LTR\n");
+
+#ifdef CONFIG_PCI_QTI
+	error = pci_add_ext_cap_save_buffer(dev, PCI_EXT_CAP_ID_L1SS,
+					    2 * sizeof(u32));
+	if (error)
+		pci_err(dev, "unable to allocate suspend buffer for ASPM-L1SS\n");
+#endif
 
 	pci_allocate_vc_save_buffers(dev);
 }
