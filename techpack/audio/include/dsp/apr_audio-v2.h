@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2012-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2021, The Linux Foundation. All rights reserved.
  */
 
 
@@ -1358,6 +1358,7 @@ struct adm_cmd_connect_afe_port_v5 {
 #define INT_FM_TX 0x3005
 #define RT_PROXY_PORT_001_RX	0x2000
 #define RT_PROXY_PORT_001_TX	0x2001
+#define RT_PROXY_PORT_002_RX	0x2002
 #define AFE_LOOPBACK_TX	0x6001
 #define HDMI_RX_MS			0x6002
 #define DISPLAY_PORT_RX	0x6020
@@ -1439,7 +1440,7 @@ struct adm_cmd_connect_afe_port_v5 {
 
 /* End of the range of port IDs for TDM devices. */
 #define AFE_PORT_ID_TDM_PORT_RANGE_END \
-	(AFE_PORT_ID_TDM_PORT_RANGE_START+0x60-1)
+	(AFE_PORT_ID_TDM_PORT_RANGE_START+0x100-1)
 
 /* Size of the range of port IDs for TDM ports. */
 #define AFE_PORT_ID_TDM_PORT_RANGE_SIZE \
@@ -1521,6 +1522,7 @@ struct adm_cmd_connect_afe_port_v5 {
 
 #define  AFE_PORT_ID_RT_PROXY_PORT_001_RX   0x2000
 #define  AFE_PORT_ID_RT_PROXY_PORT_001_TX   0x2001
+#define  AFE_PORT_ID_RT_PROXY_PORT_002_RX   0x2002
 #define AFE_PORT_ID_INTERNAL_BT_SCO_RX      0x3000
 #define AFE_PORT_ID_INTERNAL_BT_SCO_TX      0x3001
 #define AFE_PORT_ID_INTERNAL_BT_A2DP_RX     0x3002
@@ -1883,6 +1885,142 @@ struct adm_cmd_connect_afe_port_v5 {
 	(AFE_PORT_ID_SENARY_TDM_TX + 0x0C)
 #define AFE_PORT_ID_SENARY_TDM_TX_7 \
 	(AFE_PORT_ID_SENARY_TDM_TX + 0x0E)
+
+#define AFE_PORT_ID_SEPTENARY_TDM_RX \
+	(AFE_PORT_ID_TDM_PORT_RANGE_START + 0x60)
+#define AFE_PORT_ID_SEPTENARY_TDM_RX_1 \
+	(AFE_PORT_ID_SEPTENARY_TDM_RX + 0x02)
+#define AFE_PORT_ID_SEPTENARY_TDM_RX_2 \
+	(AFE_PORT_ID_SEPTENARY_TDM_RX + 0x04)
+#define AFE_PORT_ID_SEPTENARY_TDM_RX_3 \
+	(AFE_PORT_ID_SEPTENARY_TDM_RX + 0x06)
+#define AFE_PORT_ID_SEPTENARY_TDM_RX_4 \
+	(AFE_PORT_ID_SEPTENARY_TDM_RX + 0x08)
+#define AFE_PORT_ID_SEPTENARY_TDM_RX_5 \
+	(AFE_PORT_ID_SEPTENARY_TDM_RX + 0x0A)
+#define AFE_PORT_ID_SEPTENARY_TDM_RX_6 \
+	(AFE_PORT_ID_SEPTENARY_TDM_RX + 0x0C)
+#define AFE_PORT_ID_SEPTENARY_TDM_RX_7 \
+	(AFE_PORT_ID_SEPTENARY_TDM_RX + 0x0E)
+
+#define AFE_PORT_ID_SEPTENARY_TDM_TX \
+	(AFE_PORT_ID_TDM_PORT_RANGE_START + 0x61)
+#define AFE_PORT_ID_SEPTENARY_TDM_TX_1 \
+	(AFE_PORT_ID_SEPTENARY_TDM_TX + 0x02)
+#define AFE_PORT_ID_SEPTENARY_TDM_TX_2 \
+	(AFE_PORT_ID_SEPTENARY_TDM_TX + 0x04)
+#define AFE_PORT_ID_SEPTENARY_TDM_TX_3 \
+	(AFE_PORT_ID_SEPTENARY_TDM_TX + 0x06)
+#define AFE_PORT_ID_SEPTENARY_TDM_TX_4 \
+	(AFE_PORT_ID_SEPTENARY_TDM_TX + 0x08)
+#define AFE_PORT_ID_SEPTENARY_TDM_TX_5 \
+	(AFE_PORT_ID_SEPTENARY_TDM_TX + 0x0A)
+#define AFE_PORT_ID_SEPTENARY_TDM_TX_6 \
+	(AFE_PORT_ID_SEPTENARY_TDM_TX + 0x0C)
+#define AFE_PORT_ID_SEPTENARY_TDM_TX_7 \
+	(AFE_PORT_ID_SEPTENARY_TDM_TX + 0x0E)
+
+#define AFE_PORT_ID_HSIF0_TDM_RX \
+	(AFE_PORT_ID_TDM_PORT_RANGE_START + 0x70)
+#define AFE_PORT_ID_HSIF0_TDM_RX_1 \
+	(AFE_PORT_ID_HSIF0_TDM_RX + 0x02)
+#define AFE_PORT_ID_HSIF0_TDM_RX_2 \
+	(AFE_PORT_ID_HSIF0_TDM_RX + 0x04)
+#define AFE_PORT_ID_HSIF0_TDM_RX_3 \
+	(AFE_PORT_ID_HSIF0_TDM_RX + 0x06)
+#define AFE_PORT_ID_HSIF0_TDM_RX_4 \
+	(AFE_PORT_ID_HSIF0_TDM_RX + 0x08)
+#define AFE_PORT_ID_HSIF0_TDM_RX_5 \
+	(AFE_PORT_ID_HSIF0_TDM_RX + 0x0A)
+#define AFE_PORT_ID_HSIF0_TDM_RX_6 \
+	(AFE_PORT_ID_HSIF0_TDM_RX + 0x0C)
+#define AFE_PORT_ID_HSIF0_TDM_RX_7 \
+	(AFE_PORT_ID_HSIF0_TDM_RX + 0x0E)
+
+#define AFE_PORT_ID_HSIF0_TDM_TX \
+	(AFE_PORT_ID_TDM_PORT_RANGE_START + 0x71)
+#define AFE_PORT_ID_HSIF0_TDM_TX_1 \
+	(AFE_PORT_ID_HSIF0_TDM_TX + 0x02)
+#define AFE_PORT_ID_HSIF0_TDM_TX_2 \
+	(AFE_PORT_ID_HSIF0_TDM_TX + 0x04)
+#define AFE_PORT_ID_HSIF0_TDM_TX_3 \
+	(AFE_PORT_ID_HSIF0_TDM_TX + 0x06)
+#define AFE_PORT_ID_HSIF0_TDM_TX_4 \
+	(AFE_PORT_ID_HSIF0_TDM_TX + 0x08)
+#define AFE_PORT_ID_HSIF0_TDM_TX_5 \
+	(AFE_PORT_ID_HSIF0_TDM_TX + 0x0A)
+#define AFE_PORT_ID_HSIF0_TDM_TX_6 \
+	(AFE_PORT_ID_HSIF0_TDM_TX + 0x0C)
+#define AFE_PORT_ID_HSIF0_TDM_TX_7 \
+	(AFE_PORT_ID_HSIF0_TDM_TX + 0x0E)
+
+#define AFE_PORT_ID_HSIF1_TDM_RX \
+	(AFE_PORT_ID_TDM_PORT_RANGE_START + 0x80)
+#define AFE_PORT_ID_HSIF1_TDM_RX_1 \
+	(AFE_PORT_ID_HSIF1_TDM_RX + 0x02)
+#define AFE_PORT_ID_HSIF1_TDM_RX_2 \
+	(AFE_PORT_ID_HSIF1_TDM_RX + 0x04)
+#define AFE_PORT_ID_HSIF1_TDM_RX_3 \
+	(AFE_PORT_ID_HSIF1_TDM_RX + 0x06)
+#define AFE_PORT_ID_HSIF1_TDM_RX_4 \
+	(AFE_PORT_ID_HSIF1_TDM_RX + 0x08)
+#define AFE_PORT_ID_HSIF1_TDM_RX_5 \
+	(AFE_PORT_ID_HSIF1_TDM_RX + 0x0A)
+#define AFE_PORT_ID_HSIF1_TDM_RX_6 \
+	(AFE_PORT_ID_HSIF1_TDM_RX + 0x0C)
+#define AFE_PORT_ID_HSIF1_TDM_RX_7 \
+	(AFE_PORT_ID_HSIF1_TDM_RX + 0x0E)
+
+#define AFE_PORT_ID_HSIF1_TDM_TX \
+	(AFE_PORT_ID_TDM_PORT_RANGE_START + 0x81)
+#define AFE_PORT_ID_HSIF1_TDM_TX_1 \
+	(AFE_PORT_ID_HSIF1_TDM_TX + 0x02)
+#define AFE_PORT_ID_HSIF1_TDM_TX_2 \
+	(AFE_PORT_ID_HSIF1_TDM_TX + 0x04)
+#define AFE_PORT_ID_HSIF1_TDM_TX_3 \
+	(AFE_PORT_ID_HSIF1_TDM_TX + 0x06)
+#define AFE_PORT_ID_HSIF1_TDM_TX_4 \
+	(AFE_PORT_ID_HSIF1_TDM_TX + 0x08)
+#define AFE_PORT_ID_HSIF1_TDM_TX_5 \
+	(AFE_PORT_ID_HSIF1_TDM_TX + 0x0A)
+#define AFE_PORT_ID_HSIF1_TDM_TX_6 \
+	(AFE_PORT_ID_HSIF1_TDM_TX + 0x0C)
+#define AFE_PORT_ID_HSIF1_TDM_TX_7 \
+	(AFE_PORT_ID_HSIF1_TDM_TX + 0x0E)
+
+#define AFE_PORT_ID_HSIF2_TDM_RX \
+	(AFE_PORT_ID_TDM_PORT_RANGE_START + 0x90)
+#define AFE_PORT_ID_HSIF2_TDM_RX_1 \
+	(AFE_PORT_ID_HSIF2_TDM_RX + 0x02)
+#define AFE_PORT_ID_HSIF2_TDM_RX_2 \
+	(AFE_PORT_ID_HSIF2_TDM_RX + 0x04)
+#define AFE_PORT_ID_HSIF2_TDM_RX_3 \
+	(AFE_PORT_ID_HSIF2_TDM_RX + 0x06)
+#define AFE_PORT_ID_HSIF2_TDM_RX_4 \
+	(AFE_PORT_ID_HSIF2_TDM_RX + 0x08)
+#define AFE_PORT_ID_HSIF2_TDM_RX_5 \
+	(AFE_PORT_ID_HSIF2_TDM_RX + 0x0A)
+#define AFE_PORT_ID_HSIF2_TDM_RX_6 \
+	(AFE_PORT_ID_HSIF2_TDM_RX + 0x0C)
+#define AFE_PORT_ID_HSIF2_TDM_RX_7 \
+	(AFE_PORT_ID_HSIF2_TDM_RX + 0x0E)
+
+#define AFE_PORT_ID_HSIF2_TDM_TX \
+	(AFE_PORT_ID_TDM_PORT_RANGE_START + 0x91)
+#define AFE_PORT_ID_HSIF2_TDM_TX_1 \
+	(AFE_PORT_ID_HSIF2_TDM_TX + 0x02)
+#define AFE_PORT_ID_HSIF2_TDM_TX_2 \
+	(AFE_PORT_ID_HSIF2_TDM_TX + 0x04)
+#define AFE_PORT_ID_HSIF2_TDM_TX_3 \
+	(AFE_PORT_ID_HSIF2_TDM_TX + 0x06)
+#define AFE_PORT_ID_HSIF2_TDM_TX_4 \
+	(AFE_PORT_ID_HSIF2_TDM_TX + 0x08)
+#define AFE_PORT_ID_HSIF2_TDM_TX_5 \
+	(AFE_PORT_ID_HSIF2_TDM_TX + 0x0A)
+#define AFE_PORT_ID_HSIF2_TDM_TX_6 \
+	(AFE_PORT_ID_HSIF2_TDM_TX + 0x0C)
+#define AFE_PORT_ID_HSIF2_TDM_TX_7 \
+	(AFE_PORT_ID_HSIF2_TDM_TX + 0x0E)
 
 #define AFE_PORT_ID_INVALID             0xFFFF
 
@@ -4534,16 +4672,18 @@ struct afe_lc3_dec_cfg_t {
 	struct afe_lc3_cfg_t FromAir;
 	uint32_t decoder_output_channel;
 	uint32_t stream_map_size;
-	struct afe_stream_map_t streamMapIn[16];
+	struct afe_stream_map_t streamMapIn[2];
 } __packed;
 
 struct avs_cop_v2_param_id_stream_info_t {
 	uint32_t stream_map_size;
-	struct afe_lc3_stream_map_t streamMap[16];
+	struct afe_lc3_stream_map_t streamMap[2];
 } __packed;
 
 struct afe_lc3_dec_config_t {
+	struct afe_lc3_dec_cfg_t from_Air_cfg;
 	struct avs_cop_v2_param_id_stream_info_t streamMapToAir;
+	struct avs_cop_v2_param_id_stream_info_t streamMapFromAir;
 } __packed;
 
 struct afe_lc3_enc_config_t {
@@ -12179,6 +12319,22 @@ enum afe_lpass_clk_mode {
 #define Q6AFE_LPASS_CLK_ID_SEN_TDM_IBIT                           0x20B
 /** Clock ID for Senary TDM EBIT */
 #define Q6AFE_LPASS_CLK_ID_SEN_TDM_EBIT                           0x20C
+/** Clock ID for Septenary TDM IBIT */
+#define Q6AFE_LPASS_CLK_ID_SEP_TDM_IBIT                           0x20D
+/** Clock ID for Septenary TDM EBIT */
+#define Q6AFE_LPASS_CLK_ID_SEP_TDM_EBIT                           0x20E
+/** Clock ID for Hsif0 TDM IBIT */
+#define Q6AFE_LPASS_CLK_ID_HSIF0_TDM_IBIT                          0x20F
+/** Clock ID for Hsif0 TDM EBIT */
+#define Q6AFE_LPASS_CLK_ID_HSIF0_TDM_EBIT                          0x210
+/** Clock ID for Hsif1 TDM IBIT */
+#define Q6AFE_LPASS_CLK_ID_HSIF1_TDM_IBIT                          0x211
+/** Clock ID for Hsif1 TDM EBIT */
+#define Q6AFE_LPASS_CLK_ID_HSIF1_TDM_EBIT                          0x212
+/** Clock ID for Hsif2 TDM IBIT */
+#define Q6AFE_LPASS_CLK_ID_HSIF2_TDM_IBIT                           0x213
+/** Clock ID for Hsif2 TDM EBIT */
+#define Q6AFE_LPASS_CLK_ID_HSIF2_TDM_EBIT                           0x214
 
 /* Clock ID for MCLK1 */
 #define Q6AFE_LPASS_CLK_ID_MCLK_1                                 0x300
@@ -12347,16 +12503,15 @@ struct afe_clk_cfg {
 #define AFE_MODULE_CLOCK_SET		0x0001028F
 #define AFE_PARAM_ID_CLOCK_SET		0x00010290
 
-struct afe_set_clk_drift {
-	/*
-	 * Clock ID
-	 *	@values
-	 *	- 0x100 to 0x10E
-	 *	- 0x200 to 0x20C
-	 *	- 0x500 to 0x505
-	 */
-	uint32_t clk_id;
+#define CLK_SRC_NAME_MAX 32
 
+enum {
+	CLK_SRC_INTEGRAL,
+	CLK_SRC_FRACT,
+	CLK_SRC_MAX
+};
+
+struct afe_set_clk_drift {
 	/*
 	 * Clock drift  (in PPB) to be set.
 	 *	@values
@@ -12365,12 +12520,20 @@ struct afe_set_clk_drift {
 	int32_t clk_drift;
 
 	/*
-	 * Clock rest.
+	 * Clock reset.
 	 *	@values
 	 *	- 1 -- Reset PLL with the original frequency
 	 *	- 0 -- Adjust the clock with the clk drift value
 	 */
 	uint32_t clk_reset;
+	/*
+	 * Clock src name.
+	 *  @values
+	 *  - values to be set from machine driver
+	 *  - LPAPLL0 -- integral clk src
+	 *  - LPAPLL2 -- fractional clk src
+	 */
+	char clk_src_name[CLK_SRC_NAME_MAX];
 } __packed;
 
 /* This param id is used to adjust audio interface PLL*/
@@ -12626,7 +12789,22 @@ struct afe_group_device_group_cfg {
 	(AFE_PORT_ID_SENARY_TDM_RX + 0x100)
 #define AFE_GROUP_DEVICE_ID_SENARY_TDM_TX \
 	(AFE_PORT_ID_SENARY_TDM_TX + 0x100)
-
+#define AFE_GROUP_DEVICE_ID_SEPTENARY_TDM_RX \
+	(AFE_PORT_ID_SEPTENARY_TDM_RX + 0x100)
+#define AFE_GROUP_DEVICE_ID_SEPTENARY_TDM_TX \
+	(AFE_PORT_ID_SEPTENARY_TDM_TX + 0x100)
+#define AFE_GROUP_DEVICE_ID_HSIF0_TDM_RX \
+	(AFE_PORT_ID_HSIF0_TDM_RX + 0x100)
+#define AFE_GROUP_DEVICE_ID_HSIF0_TDM_TX \
+	(AFE_PORT_ID_HSIF0_TDM_TX + 0x100)
+#define AFE_GROUP_DEVICE_ID_HSIF1_TDM_RX \
+	(AFE_PORT_ID_HSIF1_TDM_RX + 0x100)
+#define AFE_GROUP_DEVICE_ID_HSIF1_TDM_TX \
+	(AFE_PORT_ID_HSIF1_TDM_TX + 0x100)
+#define AFE_GROUP_DEVICE_ID_HSIF2_TDM_RX \
+	(AFE_PORT_ID_HSIF2_TDM_RX + 0x100)
+#define AFE_GROUP_DEVICE_ID_HSIF2_TDM_TX \
+	(AFE_PORT_ID_HSIF2_TDM_TX + 0x100)
 /* ID of the parameter used by #AFE_MODULE_GROUP_DEVICE to configure the
  * group device. #AFE_SVC_CMD_SET_PARAM can use this parameter ID.
  *
@@ -12749,8 +12927,8 @@ struct afe_param_id_group_device_tdm_cfg {
 	 */
 
 	u32	num_channels;
-	/* Number of enabled slots for TDM frame.
-	 * @values 1 to 8
+	/* Number of active channels = num of active slots * num of active lanes.
+	 * @values 1 to 64
 	 */
 
 	u32	sample_rate;
@@ -13404,5 +13582,45 @@ struct afe_param_id_tdm_lane_cfg {
 	 * set in the mask.
 	 */
 };
+
+/** ID of the parameter used to set the AFE port data logging to enable or disable state.
+ * For non-group device use cases, #AFE_MODULE_AUDIO_DEV_INTERFACE uses this
+ * parameter to configure the flag used for data logging in afe_data_logging_t
+ * of the respective port to enabled or disabled state.
+ * The HLOS client can use this parameter to configure the data logging
+ * disable flag for it's respective port.
+ * The reason for this parameter addition is if a number of ports are
+ * configured and running, Upon enabling logging through 0x1586 tap point,
+ * we will get input/output logs for all the enabled ports.
+ * In order to disabled logging for a specific port for which data logging
+ * is not needed, the HLOS client can make use of AFE_PORT_DATA_LOGGING_DISABLE flag.
+ * This flag will set to AFE_PORT_DATA_LOGGING_ENABLE during port initialization and also
+ * during port stop. If port is restarted, the set param should be called again
+ * by the HLOS client if needed to disable data logging.
+ * @par
+ * If HLOS client doesn't set this paramter, by default the disable flag = AFE_PORT_DATA_LOGGING_ENABLE.
+ * If HLOS client sets the flag = AFE_PORT_DATA_LOGGING_DISABLE, the respective port will be disabled for data logging.
+ */
+#define AFE_PARAM_ID_PORT_DATA_LOGGING_DISABLE            0x000102E9
+
+ /** Enable flag for port data logging. */
+#define AFE_PORT_DATA_LOGGING_ENABLE    0
+
+/** Disable flag for port data logging. */
+#define AFE_PORT_DATA_LOGGING_DISABLE   1
+
+/*
+ * Payload of the AFE_PARAM_ID_PORT_DATA_LOGGING_DISABLE parameter used by
+ * AFE_MODULE_AUDIO_DEV_INTERFACE
+ */
+struct afe_param_id_port_data_log_disable_t
+{
+	uint32_t           disable_logging_flag;
+	/** Flag for enabling or disabling data logging.
+	 * @values
+	 * - AFE_PORT_DATA_LOGGING_ENABLE  - enable data logging.
+	 * - AFE_PORT_DATA_LOGGING_DISABLE - disable data logging.
+	 */
+} __packed;
 
 #endif /*_APR_AUDIO_V2_H_ */
