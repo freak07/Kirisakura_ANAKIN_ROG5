@@ -48,7 +48,8 @@
 
 /* ASUS BSP Display +++ */
 #if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
-extern bool asus_is_hdmi;
+bool asus_is_hdmi = false;
+EXPORT_SYMBOL(asus_is_hdmi);
 #endif
 
 /**

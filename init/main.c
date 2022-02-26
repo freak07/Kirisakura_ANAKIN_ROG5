@@ -181,6 +181,32 @@ __setup("androidboot.mode=", set_charger_mode);
 EXPORT_SYMBOL(g_Charger_mode);
 /* ASUS_BSP charger --- */
 
+/* ASUS BSP Display +++ */
+// for skip hdcp on unlock device
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+char g_verified_boot_state[20];
+char g_unlock[2];
+EXPORT_SYMBOL(g_verified_boot_state);
+EXPORT_SYMBOL(g_unlock);
+
+static int __init verified_boot_state_param(char *line)
+{
+	strlcpy(g_verified_boot_state, line, sizeof(g_verified_boot_state));
+	return 1;
+}
+
+__setup("androidboot.verifiedbootstate=", verified_boot_state_param);
+
+static int __init unlock_param(char *line)
+{
+	strlcpy(g_unlock, line, sizeof(g_unlock));
+	return 1;
+}
+
+__setup("UNLOCKED", unlock_param);
+#endif
+/* ASUS BSP Display --- */
+
 int g_ftm_mode = 0;
 EXPORT_SYMBOL(g_ftm_mode);
 
