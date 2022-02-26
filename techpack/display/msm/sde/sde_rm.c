@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2016-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
  */
 
 #define pr_fmt(fmt)	"[drm:%s] " fmt, __func__
@@ -125,13 +125,15 @@ struct sde_rm_requirements {
  * @enc_id:	Reservations are tracked by Encoder DRM object ID.
  *		CRTCs may be connected to multiple Encoders.
  *		An encoder or connector id identifies the display path.
- * @topology	DRM<->HW topology use case
+ * @topology:	DRM<->HW topology use case
+ * @pending:	True for pending rsvp-nxt, cleared when the rsvp is committed
  */
 struct sde_rm_rsvp {
 	struct list_head list;
 	uint32_t seq;
 	uint32_t enc_id;
 	enum sde_rm_topology_name topology;
+	bool pending;
 };
 
 /**
@@ -274,9 +276,9 @@ static void _sde_rm_print_rsvps(
 	SDE_DEBUG("%d\n", stage);
 
 	list_for_each_entry(rsvp, &rm->rsvps, list) {
-		SDE_DEBUG("%d rsvp[s%ue%u] topology %d\n", stage, rsvp->seq,
-				rsvp->enc_id, rsvp->topology);
-		SDE_EVT32(stage, rsvp->seq, rsvp->enc_id, rsvp->topology);
+		SDE_DEBUG("%d rsvp%s[s%ue%u] topology %d\n", stage, rsvp->pending ? "_nxt" : "",
+				rsvp->seq, rsvp->enc_id, rsvp->topology);
+		SDE_EVT32(stage, rsvp->seq, rsvp->enc_id, rsvp->topology, rsvp->pending);
 	}
 
 	for (type = 0; type < SDE_HW_BLK_MAX; type++) {
@@ -1002,6 +1004,12 @@ static bool _sde_rm_check_lm_and_get_connected_blks(
 		 lm_cfg->id, lm_cfg->dspp, lm_cfg->ds, lm_cfg->pingpong,
 		 lm_cfg->features, (int)reqs->hw_res.display_type);
 
+	if (!RM_RQ_CWB(reqs) && (lm_cfg->features & BIT(SDE_MIXER_IS_VIRTUAL))) {
+		SDE_DEBUG("lm %d is a virtual mixer and use case is not CWB",
+				lm_cfg->id);
+		return false;
+	}
+
 	/* Check if this layer mixer is a peer of the proposed primary LM */
 	if (primary_lm) {
 		const struct sde_lm_cfg *prim_lm_cfg =
@@ -1219,7 +1227,8 @@ static int _sde_rm_reserve_ctls(
 	while (_sde_rm_get_hw_locked(rm, &iter)) {
 		const struct sde_hw_ctl *ctl = to_sde_hw_ctl(iter.blk->hw);
 		unsigned long features = ctl->caps->features;
-		bool has_split_display, has_ppsplit, primary_pref;
+		bool has_split_display, has_ppsplit, primary_pref, secondary_pref;
+		bool is_conn_primary, is_conn_secondary;
 
 		if (RESERVED_BY_OTHER(iter.blk, rsvp))
 			continue;
@@ -1227,6 +1236,11 @@ static int _sde_rm_reserve_ctls(
 		has_split_display = BIT(SDE_CTL_SPLIT_DISPLAY) & features;
 		has_ppsplit = BIT(SDE_CTL_PINGPONG_SPLIT) & features;
 		primary_pref = BIT(SDE_CTL_PRIMARY_PREF) & features;
+		secondary_pref = BIT(SDE_CTL_SECONDARY_PREF) & features;
+		is_conn_primary = (reqs->hw_res.display_type ==
+					SDE_CONNECTOR_PRIMARY) ? true : false;
+		is_conn_secondary = (reqs->hw_res.display_type ==
+					SDE_CONNECTOR_SECONDARY) ? true : false;
 
 		SDE_DEBUG("ctl %d caps 0x%lX\n", iter.blk->id, features);
 
@@ -1234,18 +1248,21 @@ static int _sde_rm_reserve_ctls(
 		 * bypass rest feature checks on finding CTL preferred
 		 * for primary displays.
 		 */
-		if (!primary_pref && !_ctl_ids) {
+		if (!primary_pref && !secondary_pref && !_ctl_ids) {
 			if (top->needs_split_display != has_split_display)
 				continue;
 
 			if (top->top_name == SDE_RM_TOPOLOGY_PPSPLIT &&
 					!has_ppsplit)
 				continue;
-		} else if (!(reqs->hw_res.display_type ==
-				SDE_CONNECTOR_PRIMARY && primary_pref) && !_ctl_ids) {
+
+			if (is_conn_primary || is_conn_secondary)
+				continue;
+		} else if (!((is_conn_primary && primary_pref) ||
+				(is_conn_secondary && secondary_pref)) && !_ctl_ids) {
 			SDE_DEBUG(
-				"display pref not met. display_type: %d primary_pref: %d\n",
-				reqs->hw_res.display_type, primary_pref);
+				"display pref not met. display_type: %d features: 0x%lX\n",
+				reqs->hw_res.display_type, features);
 			continue;
 		}
 
@@ -1819,6 +1836,7 @@ static int _sde_rm_make_next_rsvp(struct sde_rm *rm, struct drm_encoder *enc,
 	rsvp->seq = ++rm->rsvp_next_seq;
 	rsvp->enc_id = enc->base.id;
 	rsvp->topology = reqs->topology->top_name;
+	rsvp->pending = true;
 	list_add_tail(&rsvp->list, &rm->rsvps);
 
 	ret = _sde_rm_make_lm_rsvp(rm, rsvp, reqs, splash_display);
@@ -2031,7 +2049,7 @@ static int _sde_rm_populate_requirements(
 	 * Set the requirement for LM which has CWB support if CWB is
 	 * found enabled.
 	 */
-	if (!RM_RQ_CWB(reqs) && sde_encoder_in_clone_mode(enc)) {
+	if (!RM_RQ_CWB(reqs) && sde_crtc_state_in_clone_mode(enc, crtc_state)) {
 		reqs->top_ctrl |= BIT(SDE_RM_TOPCTL_CWB);
 
 		/*
@@ -2045,7 +2063,7 @@ static int _sde_rm_populate_requirements(
 			&rm->topology_tbl[SDE_RM_TOPOLOGY_DUALPIPE_3DMERGE];
 
 		num_lm = sde_crtc_get_num_datapath(crtc_state->crtc,
-				conn_state->connector);
+				conn_state->connector, crtc_state);
 
 		if (num_lm == 1)
 			reqs->topology =
@@ -2070,9 +2088,8 @@ static int _sde_rm_populate_requirements(
 	return 0;
 }
 
-static struct sde_rm_rsvp *_sde_rm_get_rsvp(
-		struct sde_rm *rm,
-		struct drm_encoder *enc)
+static struct sde_rm_rsvp *_sde_rm_get_rsvp(struct sde_rm *rm,
+		 struct drm_encoder *enc, bool nxt)
 {
 	struct sde_rm_rsvp *i;
 
@@ -2085,30 +2102,22 @@ static struct sde_rm_rsvp *_sde_rm_get_rsvp(
 		return NULL;
 
 	list_for_each_entry(i, &rm->rsvps, list)
-		if (i->enc_id == enc->base.id)
+		if (i->pending == nxt && i->enc_id == enc->base.id)
 			return i;
 
 	return NULL;
 }
 
-static struct sde_rm_rsvp *_sde_rm_get_rsvp_nxt(
-		struct sde_rm *rm,
+static struct sde_rm_rsvp *_sde_rm_get_rsvp_nxt(struct sde_rm *rm,
 		struct drm_encoder *enc)
 {
-	struct sde_rm_rsvp *i;
+	return _sde_rm_get_rsvp(rm, enc, true);
+}
 
-	if (list_empty(&rm->rsvps))
-		return NULL;
-
-	list_for_each_entry(i, &rm->rsvps, list)
-		if (i->enc_id == enc->base.id)
-			break;
-
-	list_for_each_entry_continue(i, &rm->rsvps, list)
-		if (i->enc_id == enc->base.id)
-			return i;
-
-	return NULL;
+static struct sde_rm_rsvp *_sde_rm_get_rsvp_cur(struct sde_rm *rm,
+		 struct drm_encoder *enc)
+{
+	return _sde_rm_get_rsvp(rm, enc, false);
 }
 
 static struct drm_connector *_sde_rm_get_connector(
@@ -2306,10 +2315,7 @@ void sde_rm_release(struct sde_rm *rm, struct drm_encoder *enc, bool nxt)
 
 	mutex_lock(&rm->rm_lock);
 
-	if (nxt)
-		rsvp = _sde_rm_get_rsvp_nxt(rm, enc);
-	else
-		rsvp = _sde_rm_get_rsvp(rm, enc);
+	rsvp = _sde_rm_get_rsvp(rm, enc, nxt);
 	if (!rsvp) {
 		SDE_DEBUG("failed to find rsvp for enc %d, nxt %d",
 				enc->base.id, nxt);
@@ -2347,14 +2353,13 @@ end:
 	mutex_unlock(&rm->rm_lock);
 }
 
-static int _sde_rm_commit_rsvp(
+static void _sde_rm_commit_rsvp(
 		struct sde_rm *rm,
 		struct sde_rm_rsvp *rsvp,
 		struct drm_connector_state *conn_state)
 {
 	struct sde_rm_hw_blk *blk;
 	enum sde_hw_blk_type type;
-	int ret = 0;
 
 	/* Swap next rsvp to be the active */
 	for (type = 0; type < SDE_HW_BLK_MAX; type++) {
@@ -2369,13 +2374,9 @@ static int _sde_rm_commit_rsvp(
 		}
 	}
 
-	if (!ret) {
-		SDE_DEBUG("rsrv enc %d topology %d\n", rsvp->enc_id,
-				rsvp->topology);
-		SDE_EVT32(rsvp->enc_id, rsvp->topology);
-	}
-
-	return ret;
+	rsvp->pending = false;
+	SDE_DEBUG("rsrv enc %d topology %d\n", rsvp->enc_id, rsvp->topology);
+	SDE_EVT32(rsvp->enc_id, rsvp->topology);
 }
 
 /* call this only after rm_mutex held */
@@ -2414,7 +2415,7 @@ int sde_rm_reserve(
 	struct msm_drm_private *priv;
 	struct sde_kms *sde_kms;
 	struct msm_compression_info *comp_info;
-	int ret;
+	int ret = 0;
 
 	if (!rm || !enc || !crtc_state || !conn_state) {
 		SDE_ERROR("invalid arguments\n");
@@ -2450,7 +2451,7 @@ int sde_rm_reserve(
 
 	_sde_rm_print_rsvps(rm, SDE_RM_STAGE_BEGIN);
 
-	rsvp_cur = _sde_rm_get_rsvp(rm, enc);
+	rsvp_cur = _sde_rm_get_rsvp_cur(rm, enc);
 	rsvp_nxt = _sde_rm_get_rsvp_nxt(rm, enc);
 
 	/*
@@ -2461,11 +2462,15 @@ int sde_rm_reserve(
 	 * Poll for rsvp_nxt clear, allow the check_only commit if rsvp_nxt
 	 * gets cleared and bailout if it does not get cleared before timeout.
 	 */
-	if (test_only && rsvp_cur && rsvp_nxt) {
+	if (test_only && rsvp_nxt) {
 		rsvp_nxt = _sde_rm_poll_get_rsvp_nxt_locked(rm, enc);
+		rsvp_cur = _sde_rm_get_rsvp_cur(rm, enc);
 		if (rsvp_nxt) {
 			SDE_ERROR("poll timeout cur %d nxt %d enc %d\n",
-				rsvp_cur->seq, rsvp_nxt->seq, enc->base.id);
+				(rsvp_cur) ? rsvp_cur->seq : -1,
+				rsvp_nxt->seq, enc->base.id);
+			SDE_EVT32(enc->base.id, (rsvp_cur) ? rsvp_cur->seq : -1,
+					rsvp_nxt->seq, SDE_EVTLOG_ERROR);
 			ret = -EINVAL;
 			goto end;
 		}
@@ -2539,7 +2544,7 @@ int sde_rm_reserve(
 
 commit_rsvp:
 	_sde_rm_release_rsvp(rm, rsvp_cur, conn_state->connector);
-	ret = _sde_rm_commit_rsvp(rm, rsvp_nxt, conn_state);
+	_sde_rm_commit_rsvp(rm, rsvp_nxt, conn_state);
 
 end:
 	kfree(comp_info);
@@ -2568,7 +2573,7 @@ int sde_rm_ext_blk_create_reserve(struct sde_rm *rm,
 
 	mutex_lock(&rm->rm_lock);
 
-	rsvp = _sde_rm_get_rsvp(rm, enc);
+	rsvp = _sde_rm_get_rsvp_cur(rm, enc);
 	if (!rsvp) {
 		rsvp = kzalloc(sizeof(*rsvp), GFP_KERNEL);
 		if (!rsvp) {
@@ -2619,7 +2624,7 @@ int sde_rm_ext_blk_destroy(struct sde_rm *rm,
 
 	mutex_lock(&rm->rm_lock);
 
-	rsvp = _sde_rm_get_rsvp(rm, enc);
+	rsvp = _sde_rm_get_rsvp_cur(rm, enc);
 	if (!rsvp) {
 		ret = -ENOENT;
 		SDE_ERROR("failed to find rsvp for enc %d\n", enc->base.id);

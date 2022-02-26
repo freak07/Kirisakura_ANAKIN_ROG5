@@ -540,6 +540,3 @@ void iris_i2c_bus_exit(void)
 	iris_i2c_remove(iris_i2c_handle);
 }
 
-module_init(iris_i2c_bus_init);
-module_exit(iris_i2c_bus_exit);
-

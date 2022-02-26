@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2015-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2021, The Linux Foundation. All rights reserved.
  */
 
 #include <linux/delay.h>
@@ -615,14 +615,22 @@ void dsi_ctrl_hw_cmn_cmd_engine_setup(struct dsi_ctrl_hw *ctrl,
 	reg |= cmd_mode_format_map[common_cfg->dst_format];
 	DSI_W32(ctrl, DSI_COMMAND_MODE_MDP_CTRL, reg);
 
-	reg = DSI_R32(ctrl, DSI_COMMAND_MODE_MDP_CTRL2);
-	reg |= BIT(16);
-	DSI_W32(ctrl, DSI_COMMAND_MODE_MDP_CTRL2, reg);
+	if (!cfg->mdp_idle_ctrl_en) {
+		reg = DSI_R32(ctrl, DSI_COMMAND_MODE_MDP_CTRL2);
+		reg |= BIT(16);
+		DSI_W32(ctrl, DSI_COMMAND_MODE_MDP_CTRL2, reg);
+	}
 
 	reg = cfg->wr_mem_start & 0xFF;
 	reg |= (cfg->wr_mem_continue & 0xFF) << 8;
 	reg |= (cfg->insert_dcs_command ? BIT(16) : 0);
 	DSI_W32(ctrl, DSI_COMMAND_MODE_MDP_DCS_CMD_CTRL, reg);
+
+	if (cfg->mdp_idle_ctrl_en) {
+		reg = cfg->mdp_idle_ctrl_len & 0x3FF;
+		reg |= BIT(12);
+		DSI_W32(ctrl, DSI_COMMAND_MODE_MDP_IDLE_CTRL, reg);
+	}
 
 	DSI_CTRL_HW_DBG(ctrl, "Cmd engine setup done\n");
 }
@@ -757,6 +765,8 @@ void dsi_ctrl_hw_cmn_kickoff_command(struct dsi_ctrl_hw *ctrl,
 
 	if (!(flags & DSI_CTRL_HW_CMD_WAIT_FOR_TRIGGER))
 		DSI_W32(ctrl, DSI_CMD_MODE_DMA_SW_TRIGGER, 0x1);
+
+	SDE_EVT32(ctrl->index, cmd->length, flags);
 }
 
 /**
@@ -850,7 +860,6 @@ void dsi_ctrl_hw_cmn_reset_cmd_fifo(struct dsi_ctrl_hw *ctrl)
 void dsi_ctrl_hw_cmn_trigger_command_dma(struct dsi_ctrl_hw *ctrl)
 {
 	DSI_W32(ctrl, DSI_CMD_MODE_DMA_SW_TRIGGER, 0x1);
-	DSI_CTRL_HW_DBG(ctrl, "CMD DMA triggered\n");
 }
 
 /**
@@ -960,6 +969,33 @@ u32 dsi_ctrl_hw_cmn_get_cmd_read_data(struct dsi_ctrl_hw *ctrl,
 	*hw_read_cnt = read_cnt;
 	DSI_CTRL_HW_DBG(ctrl, "Read %d bytes\n", rx_byte);
 	return rx_byte;
+}
+
+/**
+ * poll_slave_dma_status() - API to clear poll DMA status
+ * @ctrl:          Pointer to the controller host hardware.
+ *
+ * Return: DMA status.
+ */
+u32 dsi_ctrl_hw_cmn_poll_slave_dma_status(struct dsi_ctrl_hw *ctrl)
+{
+	int rc = 0;
+	u32 status;
+	u32 const delay_us = 10;
+	u32 const timeout_us = 5000;
+
+	rc = readl_poll_timeout_atomic(ctrl->base + DSI_INT_CTRL,
+				      status,
+				      ((status & DSI_CMD_MODE_DMA_DONE)
+					> 0),
+				      delay_us,
+				      timeout_us);
+	if (rc) {
+		DSI_CTRL_HW_DBG(ctrl, "DSI1 CMD_MODE_DMA_DONE failed\n");
+		status = 0;
+	}
+
+	return status;
 }
 
 /**

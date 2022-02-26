@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2021, The Linux Foundation. All rights reserved.
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
  *
@@ -188,6 +188,10 @@ struct sde_encoder_ops {
  * @valid_cpu_mask:		actual voted cpu core mask
  * @mode_info:                  stores the current mode and should be used
  *				only in commit phase
+ * @delay_kickoff		boolean to delay the kickoff, used in case
+ *				of esd attack to ensure esd workqueue detects
+ *				the previous frame transfer completion before
+ *				next update is triggered.
  */
 struct sde_encoder_virt {
 	struct drm_encoder base;
@@ -254,6 +258,7 @@ struct sde_encoder_virt {
 	bool elevated_ahb_vote;
 	struct cpumask valid_cpu_mask;
 	struct msm_mode_info mode_info;
+	bool delay_kickoff;
 };
 
 #define to_sde_encoder_virt(x) container_of(x, struct sde_encoder_virt, base)
@@ -267,6 +272,12 @@ struct sde_encoder_virt {
 void sde_encoder_get_hw_resources(struct drm_encoder *encoder,
 		struct sde_encoder_hw_resources *hw_res,
 		struct drm_connector_state *conn_state);
+
+/**
+ * sde_encoder_trigger_rsc_state_change - rsc state change.
+ * @encoder:	encoder pointer
+ */
+void sde_encoder_trigger_rsc_state_change(struct drm_encoder *drm_enc);
 
 /**
  * sde_encoder_early_wakeup - early wake up display
@@ -479,12 +490,11 @@ int sde_encoder_display_failure_notification(struct drm_encoder *enc,
 bool sde_encoder_recovery_events_enabled(struct drm_encoder *encoder);
 
 /**
- * sde_encoder_recovery_events_handler - handler to enable/disable the
- * sw recovery for this connector
+ * sde_encoder_enable_recovery_event - handler to enable the sw recovery
+ * for this connector
  * @drm_enc:    Pointer to drm encoder structure
  */
-void sde_encoder_recovery_events_handler(struct drm_encoder *encoder,
-		bool val);
+void sde_encoder_enable_recovery_event(struct drm_encoder *encoder);
 /**
  * sde_encoder_in_clone_mode - checks if underlying phys encoder is in clone
  *	mode or independent display mode. ref@ WB in Concurrent writeback mode.
@@ -492,6 +502,14 @@ void sde_encoder_recovery_events_handler(struct drm_encoder *encoder,
  * @Return:     true if successful in updating the encoder structure
  */
 bool sde_encoder_in_clone_mode(struct drm_encoder *enc);
+
+/**
+ * sde_encoder_set_clone_mode - cwb in wb phys enc is enabled.
+ * drm_enc:	Pointer to drm encoder structure
+ * drm_crtc_state:	Pointer to drm_crtc_state
+ */
+void sde_encoder_set_clone_mode(struct drm_encoder *drm_enc,
+	 struct drm_crtc_state *crtc_state);
 
 /*
  * sde_encoder_is_cwb_disabling - check if cwb encoder disable is pending

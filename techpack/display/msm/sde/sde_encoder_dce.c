@@ -243,7 +243,7 @@ static void _dce_dsc_pipe_cfg(struct sde_hw_dsc *hw_dsc,
 	if (mode_3d && disable_merge_3d && hw_pp->ops.reset_3d_mode) {
 		SDE_DEBUG("disabling 3d mux \n");
 		hw_pp->ops.reset_3d_mode(hw_pp);
-	} else if (mode_3d && disable_merge_3d && hw_pp->ops.setup_3d_mode) {
+	} else if (mode_3d && !disable_merge_3d && hw_pp->ops.setup_3d_mode) {
 		SDE_DEBUG("enabling 3d mux \n");
 		hw_pp->ops.setup_3d_mode(hw_pp, mode_3d);
 	}
@@ -299,20 +299,21 @@ static void _dce_vdc_pipe_cfg(struct sde_hw_vdc *hw_vdc,
 }
 
 static inline bool _dce_check_half_panel_update(int num_lm,
-		unsigned long affected_displays)
+			struct sde_encoder_virt *sde_enc)
 {
 	/**
 	 * partial update logic is currently supported only upto dual
 	 * pipe configurations.
 	 */
-	return (hweight_long(affected_displays) != num_lm);
+	return (sde_enc->cur_conn_roi.w <=
+			(sde_enc->cur_master->cached_mode.hdisplay / 2));
 }
 
 static int _dce_dsc_setup_single(struct sde_encoder_virt *sde_enc,
 		struct msm_display_dsc_info *dsc,
 		unsigned long affected_displays, int index,
 		const struct sde_rect *roi, int dsc_common_mode,
-		bool merge_3d, bool disable_merge_3d, bool mode_3d,
+		bool merge_3d, bool disable_merge_3d, enum sde_3d_blend_mode mode_3d,
 		bool dsc_4hsmerge, bool half_panel_partial_update,
 		int ich_res)
 {
@@ -402,7 +403,7 @@ static int _dce_dsc_setup_helper(struct sde_encoder_virt *sde_enc,
 	const struct sde_rm_topology_def *def;
 	const struct sde_rect *roi;
 	enum sde_3d_blend_mode mode_3d;
-	bool half_panel_partial_update, dsc_merge, merge_3d, dsc_4hsmerge;
+	bool dsc_merge, merge_3d, dsc_4hsmerge;
 	bool disable_merge_3d = false;
 	int this_frame_slices;
 	int intf_ip_w, enc_ip_w;
@@ -427,13 +428,11 @@ static int _dce_dsc_setup_helper(struct sde_encoder_virt *sde_enc,
 	mode_3d = (num_lm > num_dsc) ? BLEND_3D_H_ROW_INT : BLEND_3D_NONE;
 	merge_3d = (mode_3d != BLEND_3D_NONE) ? true : false;
 
-	half_panel_partial_update = _dce_check_half_panel_update(num_lm,
-			affected_displays);
-	dsc->half_panel_pu = half_panel_partial_update;
-	dsc_merge = ((num_dsc > num_intf) && !half_panel_partial_update) ?
+	dsc->half_panel_pu = _dce_check_half_panel_update(num_lm, sde_enc);
+	dsc_merge = ((num_dsc > num_intf) && !dsc->half_panel_pu) ?
 			true : false;
-	disable_merge_3d = (merge_3d && half_panel_partial_update) ?
-			false : true;
+	disable_merge_3d = (merge_3d && dsc->half_panel_pu) ?
+			true : false;
 	dsc_4hsmerge = (dsc_merge && num_dsc == 4 && num_intf == 1) ?
 			true : false;
 
@@ -457,9 +456,9 @@ static int _dce_dsc_setup_helper(struct sde_encoder_virt *sde_enc,
 	intf_ip_w = this_frame_slices * dsc->config.slice_width;
 	enc_ip_w = intf_ip_w;
 
-	if (!half_panel_partial_update)
+	if (!dsc->half_panel_pu)
 		intf_ip_w /= num_intf;
-	if (!half_panel_partial_update && (num_dsc > 1))
+	if (!dsc->half_panel_pu && (num_dsc > 1))
 		dsc_common_mode |= DSC_MODE_SPLIT_PANEL;
 	if (dsc_merge) {
 		dsc_common_mode |= DSC_MODE_MULTIPLEX;
@@ -481,8 +480,7 @@ static int _dce_dsc_setup_helper(struct sde_encoder_virt *sde_enc,
 	 * __is_ich_reset_override_needed should be called only after
 	 * updating pic dimension, mdss_panel_dsc_update_pic_dim.
 	 */
-	ich_res = _dce_dsc_ich_reset_override_needed(
-			(half_panel_partial_update && !merge_3d), dsc);
+	ich_res = _dce_dsc_ich_reset_override_needed(dsc->half_panel_pu, dsc);
 
 	SDE_DEBUG_DCE(sde_enc, "pic_w: %d pic_h: %d mode:%d\n",
 				roi->w, roi->h, dsc_common_mode);
@@ -491,7 +489,7 @@ static int _dce_dsc_setup_helper(struct sde_encoder_virt *sde_enc,
 		rc = _dce_dsc_setup_single(sde_enc, dsc, affected_displays, i,
 				roi, dsc_common_mode, merge_3d,
 				disable_merge_3d, mode_3d, dsc_4hsmerge,
-				half_panel_partial_update, ich_res);
+				dsc->half_panel_pu, ich_res);
 		if (rc)
 			break;
 	}
@@ -612,7 +610,7 @@ static int _dce_vdc_setup(struct sde_encoder_virt *sde_enc,
 	_dce_vdc_update_pic_dim(vdc, roi->w, roi->h);
 	merge_3d = (mode_3d != BLEND_3D_NONE) ? true : false;
 	half_panel_partial_update = _dce_check_half_panel_update(num_lm,
-		params->affected_displays);
+		sde_enc);
 
 	if (half_panel_partial_update && merge_3d)
 		disable_merge_3d = true;

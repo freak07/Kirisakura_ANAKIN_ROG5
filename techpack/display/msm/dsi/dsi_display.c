@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2016-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
  */
 
 #include <linux/list.h>
@@ -625,9 +625,6 @@ static bool dsi_display_validate_reg_read(struct dsi_panel *panel)
 	for (i = 0; i < count; i++)
 		len += lenp[i];
 
-	for (i = 0; i < len; i++)
-		j += len;
-
 	for (j = 0; j < config->groups; ++j) {
 		for (i = 0; i < len; ++i) {
 			if (config->return_buf[i] !=
@@ -850,6 +847,8 @@ static int dsi_display_status_check_te(struct dsi_display *display,
 		}
 	}
 #endif
+	if (!rechecks)
+		return rc;
 
 	dsi_display_change_te_irq_status(display, true);
 
@@ -909,7 +908,8 @@ int dsi_display_check_status(struct drm_connector *connector, void *display,
 	if (te_check_override)
 		te_rechecks = MAX_TE_RECHECKS;
 
-	if (panel->panel_mode == DSI_OP_VIDEO_MODE)
+	if ((dsi_display->trusted_vm_env) ||
+			(panel->panel_mode == DSI_OP_VIDEO_MODE))
 		te_rechecks = 0;
 
 	ret = dsi_display_clk_ctrl(dsi_display->dsi_clk_handle,
@@ -1051,7 +1051,7 @@ static int dsi_display_cmd_rx(struct dsi_display *display,
 	flags |= (DSI_CTRL_CMD_FETCH_MEMORY | DSI_CTRL_CMD_READ);
 	if ((m_ctrl->ctrl->host_config.panel_mode == DSI_OP_VIDEO_MODE) ||
 			((cmd->msg.flags & MIPI_DSI_MSG_CMD_DMA_SCHED) &&
-			 (display->panel->panel_initialized)))
+			 (display->enabled)))
 		flags |= DSI_CTRL_CMD_CUSTOM_DMA_SCHED;
 
 	rc = dsi_ctrl_cmd_transfer(m_ctrl->ctrl, &cmd->msg, &flags);
@@ -1084,6 +1084,7 @@ int dsi_display_cmd_transfer(struct drm_connector *connector,
 		return -EINVAL;
 	}
 
+	SDE_EVT32(dsi_display->tx_cmd_buf_ndx, cmd_buf_len);
 	DSI_DEBUG("[DSI] Display command transfer\n");
 
 	if ((cmd_buf[1]) || (cmd_buf[3] & MIPI_DSI_MSG_LASTCOMMAND))
@@ -1208,6 +1209,8 @@ int dsi_display_cmd_receive(void *display, const char *cmd_buf,
 		return -EINVAL;
 	}
 
+	SDE_EVT32(cmd_buf_len, recv_buf_len);
+
 	rc = dsi_display_cmd_prepare(cmd_buf, cmd_buf_len,
 			&cmd, cmd_payload, MAX_CMD_PAYLOAD_SIZE);
 	if (rc) {
@@ -1303,14 +1306,24 @@ int dsi_display_set_power(struct drm_connector *connector,
 
 	switch (power_mode) {
 	case SDE_MODE_DPMS_LP1:
+		if (display->panel->power_mode == SDE_MODE_DPMS_LP2) {
+			if (dsi_display_set_ulp_load(display, false) < 0)
+				DSI_WARN("failed to set load for lp1 state\n");
+		}
 		rc = dsi_panel_set_lp1(display->panel);
 		DSI_LOG("enter LP1 doze\n");
 		break;
 	case SDE_MODE_DPMS_LP2:
 		rc = dsi_panel_set_lp2(display->panel);
 		DSI_LOG("enter LP2 doze suspend\n");
+		if (dsi_display_set_ulp_load(display, true) < 0)
+			DSI_WARN("failed to set load for lp2 state\n");
 		break;
 	case SDE_MODE_DPMS_ON:
+		if (display->panel->power_mode == SDE_MODE_DPMS_LP2) {
+			if (dsi_display_set_ulp_load(display, false) < 0)
+				DSI_WARN("failed to set load for on state\n");
+		}
 		if ((display->panel->power_mode == SDE_MODE_DPMS_LP1) ||
 			(display->panel->power_mode == SDE_MODE_DPMS_LP2)) {
 			rc = dsi_panel_set_nolp(display->panel);
@@ -1454,6 +1467,14 @@ static ssize_t debugfs_misr_setup(struct file *file,
 	display->misr_frame_count = frame_count;
 
 	mutex_lock(&display->display_lock);
+
+	if (!display->hw_ownership) {
+		DSI_DEBUG("[%s] op not supported due to HW unavailability\n",
+				display->name);
+		rc = -EOPNOTSUPP;
+		goto unlock;
+	}
+
 	rc = dsi_display_clk_ctrl(display->dsi_clk_handle,
 			DSI_CORE_CLK, DSI_CLK_ON);
 	if (rc) {
@@ -1505,6 +1526,14 @@ static ssize_t debugfs_misr_read(struct file *file,
 		return -ENOMEM;
 
 	mutex_lock(&display->display_lock);
+
+	if (!display->hw_ownership) {
+		DSI_DEBUG("[%s] op not supported due to HW unavailability\n",
+				display->name);
+		rc = -EOPNOTSUPP;
+		goto error;
+	}
+
 	rc = dsi_display_clk_ctrl(display->dsi_clk_handle,
 			DSI_CORE_CLK, DSI_CLK_ON);
 	if (rc) {
@@ -1602,16 +1631,28 @@ static ssize_t debugfs_esd_trigger_check(struct file *file,
 
 	display->esd_trigger = esd_trigger;
 
+	mutex_lock(&display->display_lock);
+
+	if (!display->hw_ownership) {
+		DSI_DEBUG("[%s] op not supported due to HW unavailability\n",
+				display->name);
+		rc = -EOPNOTSUPP;
+		goto unlock;
+	}
+
 	if (display->esd_trigger) {
 		DSI_INFO("ESD attack triggered by user\n");
-		rc = dsi_panel_trigger_esd_attack(display->panel);
+		rc = dsi_panel_trigger_esd_attack(display->panel,
+						display->trusted_vm_env);
 		if (rc) {
 			DSI_ERR("Failed to trigger ESD attack\n");
-			goto error;
+			goto unlock;
 		}
 	}
 
 	rc = len;
+unlock:
+	mutex_unlock(&display->display_lock);
 error:
 	kfree(buf);
 	return rc;
@@ -2917,7 +2958,7 @@ static int dsi_display_parse_boot_display_selection(void)
 		strlcpy(disp_buf, boot_displays[i].boot_param,
 			MAX_CMDLINE_PARAM_LEN);
 
-		pos = strnstr(disp_buf, ":", MAX_CMDLINE_PARAM_LEN);
+		pos = strnstr(disp_buf, ":", strlen(disp_buf));
 
 		/* Use ':' as a delimiter to retrieve the display name */
 		if (!pos) {
@@ -3454,8 +3495,12 @@ static int dsi_display_broadcast_cmd(struct dsi_display *display,
 		m_flags |= DSI_CTRL_CMD_LAST_COMMAND;
 	}
 
-	if ((msg->flags & MIPI_DSI_MSG_CMD_DMA_SCHED) &&
-				(display->panel->panel_initialized)) {
+	/*
+	 * During broadcast command dma scheduling is always recommended.
+	 * As long as the display is enabled and TE is running the
+	 * DSI_CTRL_CMD_CUSTOM_DMA_SCHED flag should be set.
+	 */
+	if (display->enabled) {
 		flags |= DSI_CTRL_CMD_CUSTOM_DMA_SCHED;
 		m_flags |= DSI_CTRL_CMD_CUSTOM_DMA_SCHED;
 	}
@@ -3631,7 +3676,7 @@ static ssize_t dsi_host_transfer(struct mipi_dsi_host *host,
 			cmd_flags |= DSI_CTRL_CMD_ASYNC_WAIT;
 
 		if ((msg->flags & MIPI_DSI_MSG_CMD_DMA_SCHED) &&
-				(display->panel->panel_initialized))
+				(display->enabled))
 			cmd_flags |= DSI_CTRL_CMD_CUSTOM_DMA_SCHED;
 
 		/* ASUS BSP Display +++ */
@@ -4247,6 +4292,35 @@ int dsi_pre_clkon_cb(void *priv,
 	return rc;
 }
 
+int dsi_display_set_ulp_load(struct dsi_display *display, bool enable)
+{
+	int i, rc = 0;
+	struct dsi_display_ctrl *display_ctrl;
+	struct dsi_ctrl *ctrl;
+	struct dsi_panel *panel;
+
+	display_for_each_ctrl(i, display) {
+		display_ctrl = &display->ctrl[i];
+		if (!display_ctrl->ctrl)
+			continue;
+		ctrl = display_ctrl->ctrl;
+
+		rc = dsi_pwr_config_vreg_opt_mode(&ctrl->pwr_info.host_pwr, enable);
+		if (rc) {
+			DSI_ERR("failed to set ctrl load\n");
+			return rc;
+		}
+	}
+
+	panel = display->panel;
+	rc = dsi_pwr_config_vreg_opt_mode(&panel->power_info, enable);
+	if (rc) {
+		DSI_ERR("failed to set panel load\n");
+		return rc;
+	}
+	return rc;
+}
+
 static void __set_lane_map_v2(u8 *lane_map_v2,
 	enum dsi_phy_data_lanes lane0,
 	enum dsi_phy_data_lanes lane1,
@@ -4534,10 +4608,13 @@ static int dsi_display_res_init(struct dsi_display *display)
 	 * In trusted vm, the connectors will not be enabled
 	 * until the HW resources are assigned and accepted.
 	 */
-	if (display->trusted_vm_env)
+	if (display->trusted_vm_env) {
 		display->is_active = false;
-	else
+		display->hw_ownership = false;
+	} else {
 		display->is_active = true;
+		display->hw_ownership = true;
+	}
 
 	return 0;
 error_ctrl_put:
@@ -4970,7 +5047,6 @@ static int _dsi_display_dyn_update_clks(struct dsi_display *display,
 		dsi_phy_dynamic_refresh_clear(ctrl->phy);
 	}
 
-defer_dfps_wait:
 	rc = dsi_clk_update_parent(enable_clk,
 			&display->clock_info.mux_clks);
 	if (rc)
@@ -5002,7 +5078,20 @@ recover_byte_clk:
 exit:
 	dsi_clk_disable_unprepare(&display->clock_info.src_clks);
 
+defer_dfps_wait:
 	return rc;
+}
+
+void dsi_display_dfps_update_parent(struct dsi_display *display)
+{
+	int rc = 0;
+
+	rc = dsi_clk_update_parent(&display->clock_info.src_clks,
+			      &display->clock_info.mux_clks);
+	if (rc)
+		DSI_ERR("could not switch back to src clks %d\n", rc);
+
+	dsi_clk_disable_unprepare(&display->clock_info.src_clks);
 }
 
 static int dsi_display_dynamic_clk_switch_vid(struct dsi_display *display,
@@ -5780,18 +5869,32 @@ end:
 
 static int dsi_display_pre_release(void *data)
 {
+	struct dsi_display *display;
+
 	if (!data)
 		return -EINVAL;
 
-	dsi_display_ctrl_irq_update((struct dsi_display *)data, false);
+	display = (struct dsi_display *)data;
+	mutex_lock(&display->display_lock);
+	display->hw_ownership = false;
+	mutex_unlock(&display->display_lock);
+
+	dsi_display_ctrl_irq_update(display, false);
 
 	return 0;
 }
 
 static int dsi_display_pre_acquire(void *data)
 {
+	struct dsi_display *display;
+
 	if (!data)
 		return -EINVAL;
+
+	display = (struct dsi_display *)data;
+	mutex_lock(&display->display_lock);
+	display->hw_ownership = true;
+	mutex_unlock(&display->display_lock);
 
 	dsi_display_ctrl_irq_update((struct dsi_display *)data, true);
 
@@ -6023,6 +6126,8 @@ error_ctrl_deinit:
 		display_ctrl = &display->ctrl[i];
 		(void)dsi_phy_drv_deinit(display_ctrl->phy);
 		(void)dsi_ctrl_drv_deinit(display_ctrl->ctrl);
+		dsi_ctrl_put(display_ctrl->ctrl);
+		dsi_phy_put(display_ctrl->phy);
 	}
 	(void)dsi_display_debugfs_deinit(display);
 error:
@@ -6245,7 +6350,8 @@ int dsi_display_dev_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, display);
 
 	/* initialize display in firmware callback */
-	if (!boot_disp->boot_disp_en &&
+	if (!(boot_displays[DSI_PRIMARY].boot_disp_en ||
+			boot_displays[DSI_SECONDARY].boot_disp_en) &&
 			IS_ENABLED(CONFIG_DSI_PARSER) &&
 			!display->trusted_vm_env) {
 		if (!strcmp(display->display_type, "primary"))
@@ -8065,6 +8171,7 @@ int dsi_display_prepare(struct dsi_display *display)
 	SDE_EVT32(SDE_EVTLOG_FUNC_ENTRY);
 	mutex_lock(&display->display_lock);
 
+	display->hw_ownership = true;
 	mode = display->panel->cur_mode;
 
 	dsi_display_set_ctrl_esd_check_flag(display, false);
@@ -8967,6 +9074,7 @@ int dsi_display_unprepare(struct dsi_display *display)
 			DSI_ERR("[%s] panel post-unprepare failed, rc=%d\n",
 			       display->name, rc);
 	}
+	display->hw_ownership = false;
 
 	mutex_unlock(&display->display_lock);
 

@@ -89,6 +89,9 @@ void iris_init(struct dsi_display *display, struct dsi_panel *panel)
 	iris_dbg_init_fw_calibrate_status();
 	iris_dbg_init_fstatus(display);
 	iris_dbg_init_gpio();
+
+	iris_driver_register();
+	iris_i2c_bus_init();
 }
 
 struct iris_cfg *iris_get_cfg(void)
@@ -4321,6 +4324,8 @@ void iris_deinit(void)
 	}
 
 	iris_free_seq_space();
+	iris_driver_unregister();
+	iris_i2c_bus_exit();
 }
 
 static int _iris_dev_probe(struct platform_device *pdev)
@@ -4379,11 +4384,19 @@ static struct platform_driver iris_driver = {
 	},
 };
 
-module_platform_driver(iris_driver);
-
 bool iris_is_mp_panel(void)
 {
 	struct iris_cfg *pcfg = iris_get_cfg();
 
 	return (pcfg->is_mp_panel == 1);
+}
+
+int iris_driver_register(void)
+{
+	return platform_driver_register(&iris_driver);
+}
+
+void iris_driver_unregister(void)
+{
+	return platform_driver_unregister(&iris_driver);
 }

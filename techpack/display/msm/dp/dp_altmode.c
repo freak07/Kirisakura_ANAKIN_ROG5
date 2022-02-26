@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2012-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2021, The Linux Foundation. All rights reserved.
  */
 
 #include <linux/slab.h>
@@ -17,8 +17,8 @@
 #include "sde_dbg.h"
 
 /* ASUS BSP Display +++ */
-bool g_hpd = false;
 #if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+extern bool g_hpd;
 extern struct completion usb_host_complete1; // to sync usb host
 #endif
 
@@ -137,7 +137,8 @@ static int dp_altmode_notify(void *priv, void *data, size_t len)
 	altmode->dp_altmode.base.hpd_high = !!hpd_state;
 	altmode->dp_altmode.base.hpd_irq = !!hpd_irq;
 	altmode->dp_altmode.base.multi_func = force_multi_func ? true :
-		!(pin == DPAM_HPD_C || pin == DPAM_HPD_E);
+		!(pin == DPAM_HPD_C || pin == DPAM_HPD_E ||
+		pin == DPAM_HPD_OUT);
 
 	DP_LOG("payload=0x%x\n", dp_data);
 	DP_LOG("port_index=%d, orientation=%d, pin=%d, hpd_state=%d\n",
@@ -152,8 +153,11 @@ static int dp_altmode_notify(void *priv, void *data, size_t len)
 			altmode->dp_altmode.base.hpd_high,
 			altmode->dp_altmode.base.hpd_irq, altmode->connected);
 
-	/* ASUS BSP Display +++ */
+/* ASUS BSP Display +++ */
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
 	g_hpd = altmode->dp_altmode.base.hpd_high;
+#endif
+/* ASUS BSP Display --- */
 
 	if (!pin) {
 		/* Cable detach */

@@ -30,6 +30,7 @@ static void dsi_catalog_cmn_init(struct dsi_ctrl_hw *ctrl,
 	ctrl->ops.reset_cmd_fifo         = dsi_ctrl_hw_cmn_reset_cmd_fifo;
 	ctrl->ops.trigger_command_dma    = dsi_ctrl_hw_cmn_trigger_command_dma;
 	ctrl->ops.get_interrupt_status   = dsi_ctrl_hw_cmn_get_interrupt_status;
+	ctrl->ops.poll_slave_dma_status  = dsi_ctrl_hw_cmn_poll_slave_dma_status;
 	ctrl->ops.get_error_status       = dsi_ctrl_hw_cmn_get_error_status;
 	ctrl->ops.clear_error_status     = dsi_ctrl_hw_cmn_clear_error_status;
 	ctrl->ops.clear_interrupt_status =
@@ -83,7 +84,6 @@ static void dsi_catalog_cmn_init(struct dsi_ctrl_hw *ctrl,
 		ctrl->ops.config_clk_gating = NULL;
 		ctrl->ops.configure_cmddma_window = NULL;
 		ctrl->ops.reset_trig_ctrl = NULL;
-		ctrl->ops.map_mdp_regs = NULL;
 		ctrl->ops.log_line_count = NULL;
 		break;
 	case DSI_CTRL_VERSION_2_0:
@@ -102,7 +102,6 @@ static void dsi_catalog_cmn_init(struct dsi_ctrl_hw *ctrl,
 		ctrl->ops.config_clk_gating = NULL;
 		ctrl->ops.configure_cmddma_window = NULL;
 		ctrl->ops.reset_trig_ctrl = NULL;
-		ctrl->ops.map_mdp_regs = NULL;
 		ctrl->ops.log_line_count = NULL;
 		break;
 	case DSI_CTRL_VERSION_2_2:
@@ -129,7 +128,6 @@ static void dsi_catalog_cmn_init(struct dsi_ctrl_hw *ctrl,
 			dsi_ctrl_hw_22_configure_cmddma_window;
 		ctrl->ops.reset_trig_ctrl =
 			dsi_ctrl_hw_22_reset_trigger_controls;
-		ctrl->ops.map_mdp_regs = dsi_ctrl_hw_22_map_mdp_regs;
 		ctrl->ops.log_line_count = dsi_ctrl_hw_22_log_line_count;
 		break;
 	default:

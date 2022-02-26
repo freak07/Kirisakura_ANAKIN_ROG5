@@ -284,4 +284,6 @@ void _iris_rx_bypass_en(void);
 int iris_dsirecover_check(enum iris_op_type op_type);
 void iris_send_mode_switch_pkt(void);
 
+int iris_driver_register(void);
+void iris_driver_unregister(void);
 #endif // _DSI_IRIS_LIGHTUP_H_

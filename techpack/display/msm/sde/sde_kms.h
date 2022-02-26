@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2021, The Linux Foundation. All rights reserved.
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
  *
@@ -478,7 +478,7 @@ void *sde_debugfs_get_root(struct sde_kms *sde_kms);
  * These functions/definitions allow for building up a 'sde_info' structure
  * containing one or more "key=value\n" entries.
  */
-#define SDE_KMS_INFO_MAX_SIZE	4096
+#define SDE_KMS_INFO_MAX_SIZE	8192
 
 /**
  * struct sde_kms_info - connector information structure container
@@ -704,9 +704,11 @@ int sde_kms_get_io_resources(struct sde_kms *kms, struct msm_io_res *io_res);
 /**
  * sde_kms_vm_trusted_resource_init - reserve/initialize the HW/SW resources
  * @sde_kms: poiner to sde_kms structure
+ * @state: current update atomic commit state
  * return: 0 on success; error code otherwise
  */
-int sde_kms_vm_trusted_resource_init(struct sde_kms *sde_kms);
+int sde_kms_vm_trusted_resource_init(struct sde_kms *sde_kms,
+		struct drm_atomic_state *state);
 
 /**
  * sde_kms_vm_trusted_resource_deinit - release the HW/SW resources

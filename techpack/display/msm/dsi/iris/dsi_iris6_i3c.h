@@ -43,5 +43,6 @@ int iris_ioctl_i2c_write(uint32_t addr, uint32_t val);
 int iris_ioctl_i2c_burst_write(uint32_t addr, uint32_t *pval, uint16_t reg_num);
 
 int iris_i2c_multi_write(struct iris_i2c_msg *msg, uint32_t msg_num);
-
+int iris_i2c_bus_init(void);
+void iris_i2c_bus_exit(void);
 #endif
