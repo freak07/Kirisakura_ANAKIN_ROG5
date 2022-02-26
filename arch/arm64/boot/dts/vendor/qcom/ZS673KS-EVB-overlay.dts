@@ -1448,25 +1448,40 @@
 	status = "disabled";
 };
 
-&dai_mi2s0 {
-	qcom,msm-mi2s-rx-lines = <1>;
-	qcom,msm-mi2s-tx-lines = <0>;
+&dai_mi2s0_rx {
+	qcom,msm-mi2s-lines = <1>;
 };
 
-&dai_mi2s2 {
+&dai_mi2s0_tx {
+	qcom,msm-mi2s-lines = <0>;
+};
+
+&dai_mi2s2_rx {
 	pinctrl-names;
 	pinctrl-0;
 	pinctrl-1;
 };
 
-&dai_mi2s3 {
-	qcom,msm-mi2s-rx-lines = <0>;
-	qcom,msm-mi2s-tx-lines = <1>;
+&dai_mi2s2_tx {
+	pinctrl-names;
+	pinctrl-0;
+	pinctrl-1;
 };
 
-&dai_mi2s5 {
-	qcom,msm-mi2s-rx-lines = <2>;
-	qcom,msm-mi2s-tx-lines = <1>;
+&dai_mi2s3_rx {
+	qcom,msm-mi2s-lines = <0>;
+};
+
+&dai_mi2s3_tx {
+	qcom,msm-mi2s-lines = <1>;
+};
+
+&dai_mi2s5_rx {
+	qcom,msm-mi2s-lines = <2>;
+};
+
+&dai_mi2s5_tx {
+	qcom,msm-mi2s-lines = <1>;
 };
 
 &qupv3_se17_i2c {
@@ -1496,7 +1511,7 @@
 		};
 		cirrus,ldpm-config {
 			ldpm-gp1-boost-sel = <0x1>;
-			ldpm-gp1-amp-sel = <0x1>;
+			ldpm-gp1-amp-sel = <0x0>;
 			ldpm-gp1-delay = <0x3>;
 			ldpm-gp1-pcm-thld = <0x6>;
 			ldpm-gp2-imon-sel = <0x1>;
@@ -1536,7 +1551,7 @@
 		};
 		cirrus,ldpm-config {
 			ldpm-gp1-boost-sel = <0x1>;
-			ldpm-gp1-amp-sel = <0x1>;
+			ldpm-gp1-amp-sel = <0x0>;
 			ldpm-gp1-delay = <0x3>;
 			ldpm-gp1-pcm-thld = <0x6>;
 			ldpm-gp2-imon-sel = <0x1>;
