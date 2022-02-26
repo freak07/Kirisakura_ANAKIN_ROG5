@@ -466,7 +466,6 @@ static int cam_cpas_parse_node_tree(struct cam_cpas *cpas_core,
 	return 0;
 }
 
-#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
 int cam_cpas_get_hw_features(struct platform_device *pdev,
 	struct cam_cpas_private_soc *soc_private)
 {
@@ -616,91 +615,6 @@ end:
 	soc_private->num_feature_info = num_feature;
 	return 0;
 }
-#else
-int cam_cpas_get_hw_fuse(struct platform_device *pdev,
-	struct cam_cpas_private_soc *soc_private)
-{
-	struct device_node *of_node;
-	void *fuse;
-	uint32_t fuse_addr, fuse_bit;
-	uint32_t fuse_val = 0, feature_bit_pos;
-	int count = 0, i = 0;
-
-	memset(&soc_private->fuse_info, 0, sizeof(soc_private->fuse_info));
-
-	of_node = pdev->dev.of_node;
-	count   = of_property_count_u32_elems(of_node, "cam_hw_fuse");
-	if (count <= 0) {
-		CAM_INFO(CAM_CPAS, "no or invalid fuse enrties %d", count);
-		return 0;
-	} else if (count%3 != 0) {
-		CAM_INFO(CAM_CPAS, "fuse entries should be multiple of 3 %d",
-			count);
-		return -EINVAL;
-	}
-
-	for (i = 0; i < count; i = i + 3) {
-		of_property_read_u32_index(of_node, "cam_hw_fuse", i,
-				&feature_bit_pos);
-		of_property_read_u32_index(of_node, "cam_hw_fuse", i + 1,
-				&fuse_addr);
-		of_property_read_u32_index(of_node, "cam_hw_fuse", i + 2,
-				&fuse_bit);
-		CAM_INFO(CAM_CPAS, "feature_bit 0x%x addr 0x%x, bit %d",
-			feature_bit_pos, fuse_addr, fuse_bit);
-		fuse = ioremap(fuse_addr, 4);
-		if (fuse) {
-			fuse_val = cam_io_r(fuse);
-			soc_private->fuse_info.fuse_val[i].fuse_id = fuse_addr;
-			soc_private->fuse_info.fuse_val[i].fuse_val = fuse_val;
-		}
-		CAM_INFO(CAM_CPAS, "fuse_addr 0x%x, fuse_val %x",
-			fuse_addr, fuse_val);
-		soc_private->fuse_info.num_fuses++;
-		iounmap(fuse);
-	}
-
-	return 0;
-}
-
-int cam_cpas_get_hw_features(struct platform_device *pdev,
-	struct cam_cpas_private_soc *soc_private)
-{
-	struct device_node *of_node;
-	void *fuse;
-	uint32_t fuse_addr, fuse_bit;
-	uint32_t fuse_val = 0, feature_bit_pos;
-	int count = 0, i = 0;
-
-	of_node = pdev->dev.of_node;
-	count = of_property_count_u32_elems(of_node, "cam_hw_fuse");
-
-	for (i = 0; (i + 3) <= count; i = i + 3) {
-		of_property_read_u32_index(of_node, "cam_hw_fuse", i,
-				&feature_bit_pos);
-		of_property_read_u32_index(of_node, "cam_hw_fuse", i + 1,
-				&fuse_addr);
-		of_property_read_u32_index(of_node, "cam_hw_fuse", i + 2,
-				&fuse_bit);
-		CAM_INFO(CAM_CPAS, "feature_bit 0x%x addr 0x%x, bit %d",
-				feature_bit_pos, fuse_addr, fuse_bit);
-
-		fuse = ioremap(fuse_addr, 4);
-		if (fuse) {
-			fuse_val = cam_io_r(fuse);
-			if (fuse_val & BIT(fuse_bit))
-				soc_private->feature_mask |= feature_bit_pos;
-			else
-				soc_private->feature_mask &= ~feature_bit_pos;
-		}
-		CAM_INFO(CAM_CPAS, "fuse %pK, fuse_val %x, feature_mask %x",
-				fuse, fuse_val, soc_private->feature_mask);
-
-	}
-
-	return 0;
-}
-#endif
 
 int cam_cpas_get_custom_dt_info(struct cam_hw_info *cpas_hw,
 	struct platform_device *pdev, struct cam_cpas_private_soc *soc_private)
@@ -717,11 +631,6 @@ int cam_cpas_get_custom_dt_info(struct cam_hw_info *cpas_hw,
 	}
 
 	of_node = pdev->dev.of_node;
-	
-	#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
-	#else
-	soc_private->feature_mask = 0xFFFFFFFF;
-	#endif
 
 	rc = of_property_read_string(of_node, "arch-compat",
 		&soc_private->arch_compat);
@@ -732,11 +641,6 @@ int cam_cpas_get_custom_dt_info(struct cam_hw_info *cpas_hw,
 	}
 
 	cam_cpas_get_hw_features(pdev, soc_private);
-	
-	#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
-	#else
-	cam_cpas_get_hw_fuse(pdev, soc_private);
-	#endif
 
 	soc_private->camnoc_axi_min_ib_bw = 0;
 	rc = of_property_read_u64(of_node,

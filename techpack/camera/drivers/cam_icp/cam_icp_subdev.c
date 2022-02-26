@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2017-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
  */
 
 #include <linux/delay.h>
@@ -20,6 +20,7 @@
 #include <media/cam_req_mgr.h>
 #include <media/cam_defs.h>
 #include <media/cam_icp.h>
+#include "cam_mem_mgr.h"
 #include "cam_req_mgr_dev.h"
 #include "cam_subdev.h"
 #include "cam_node.h"
@@ -86,10 +87,18 @@ static int cam_icp_subdev_open(struct v4l2_subdev *sd,
 		goto end;
 	}
 
+
+	rc = cam_mem_mgr_init();
+	if (rc) {
+		CAM_ERR(CAM_CRM, "mem mgr init failed");
+		goto end;
+	}
+
 	hw_mgr_intf = &node->hw_mgr_intf;
 	rc = hw_mgr_intf->hw_open(hw_mgr_intf->hw_mgr_priv, NULL);
 	if (rc < 0) {
 		CAM_ERR(CAM_ICP, "FW download failed");
+		cam_mem_mgr_deinit();
 		goto end;
 	}
 	g_icp_dev.open_cnt++;
@@ -98,7 +107,7 @@ end:
 	return rc;
 }
 
-static int cam_icp_subdev_close(struct v4l2_subdev *sd,
+int cam_icp_subdev_close_internal(struct v4l2_subdev *sd,
 	struct v4l2_subdev_fh *fh)
 {
 	int rc = 0;
@@ -108,7 +117,6 @@ static int cam_icp_subdev_close(struct v4l2_subdev *sd,
 	mutex_lock(&g_icp_dev.icp_lock);
 	if (g_icp_dev.open_cnt <= 0) {
 		CAM_DBG(CAM_ICP, "ICP subdev is already closed");
-		rc = -EINVAL;
 		goto end;
 	}
 	g_icp_dev.open_cnt--;
@@ -131,9 +139,23 @@ static int cam_icp_subdev_close(struct v4l2_subdev *sd,
 		goto end;
 	}
 
+	cam_mem_mgr_deinit();
 end:
 	mutex_unlock(&g_icp_dev.icp_lock);
-	return 0;
+	return rc;
+}
+
+static int cam_icp_subdev_close(struct v4l2_subdev *sd,
+	struct v4l2_subdev_fh *fh)
+{
+	bool crm_active = cam_req_mgr_is_open(CAM_ICP);
+
+	if (crm_active) {
+		CAM_DBG(CAM_ICP, "CRM is ACTIVE, close should be from CRM");
+		return 0;
+	}
+
+	return cam_icp_subdev_close_internal(sd, fh);
 }
 
 const struct v4l2_subdev_internal_ops cam_icp_subdev_internal_ops = {
@@ -157,6 +179,7 @@ static int cam_icp_component_bind(struct device *dev,
 
 	g_icp_dev.sd.pdev = pdev;
 	g_icp_dev.sd.internal_ops = &cam_icp_subdev_internal_ops;
+	g_icp_dev.sd.close_seq_prior = CAM_SD_CLOSE_MEDIUM_PRIORITY;
 	rc = cam_subdev_probe(&g_icp_dev.sd, pdev, CAM_ICP_DEV_NAME,
 		CAM_ICP_DEVICE_TYPE);
 	if (rc) {

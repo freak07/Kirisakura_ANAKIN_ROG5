@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2017-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
  */
 
 #include "cam_actuator_dev.h"
@@ -12,6 +12,39 @@
 #if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
 #include "asus_actuator.h"
 #endif
+
+static int cam_actuator_subdev_close_internal(struct v4l2_subdev *sd,
+	struct v4l2_subdev_fh *fh)
+{
+	struct cam_actuator_ctrl_t *a_ctrl =
+		v4l2_get_subdevdata(sd);
+
+	if (!a_ctrl) {
+		CAM_ERR(CAM_ACTUATOR, "a_ctrl ptr is NULL");
+		return -EINVAL;
+	}
+
+	mutex_lock(&(a_ctrl->actuator_mutex));
+	cam_actuator_shutdown(a_ctrl);
+	mutex_unlock(&(a_ctrl->actuator_mutex));
+
+	return 0;
+}
+
+static int cam_actuator_subdev_close(struct v4l2_subdev *sd,
+	struct v4l2_subdev_fh *fh)
+{
+	bool crm_active = cam_req_mgr_is_open(CAM_ACTUATOR);
+
+	if (crm_active) {
+		CAM_DBG(CAM_ACTUATOR,
+			"CRM is ACTIVE, close should be from CRM");
+		return 0;
+	}
+
+	return cam_actuator_subdev_close_internal(sd, fh);
+}
+
 static long cam_actuator_subdev_ioctl(struct v4l2_subdev *sd,
 	unsigned int cmd, void *arg)
 {
@@ -25,6 +58,14 @@ static long cam_actuator_subdev_ioctl(struct v4l2_subdev *sd,
 		if (rc)
 			CAM_ERR(CAM_ACTUATOR,
 				"Failed for driver_cmd: %d", rc);
+		break;
+	case CAM_SD_SHUTDOWN:
+		if (!cam_req_mgr_is_shutdown()) {
+			CAM_ERR(CAM_CORE, "SD shouldn't come from user space");
+			return 0;
+		}
+
+		rc = cam_actuator_subdev_close_internal(sd, NULL);
 		break;
 	default:
 		CAM_ERR(CAM_ACTUATOR, "Invalid ioctl cmd: %u", cmd);
@@ -79,24 +120,6 @@ static long cam_actuator_init_subdev_do_ioctl(struct v4l2_subdev *sd,
 }
 #endif
 
-static int cam_actuator_subdev_close(struct v4l2_subdev *sd,
-	struct v4l2_subdev_fh *fh)
-{
-	struct cam_actuator_ctrl_t *a_ctrl =
-		v4l2_get_subdevdata(sd);
-
-	if (!a_ctrl) {
-		CAM_ERR(CAM_ACTUATOR, "a_ctrl ptr is NULL");
-		return -EINVAL;
-	}
-
-	mutex_lock(&(a_ctrl->actuator_mutex));
-	cam_actuator_shutdown(a_ctrl);
-	mutex_unlock(&(a_ctrl->actuator_mutex));
-
-	return 0;
-}
-
 static struct v4l2_subdev_core_ops cam_actuator_subdev_core_ops = {
 	.ioctl = cam_actuator_subdev_ioctl,
 #ifdef CONFIG_COMPAT
@@ -129,10 +152,13 @@ static int cam_actuator_init_subdev(struct cam_actuator_ctrl_t *a_ctrl)
 	a_ctrl->v4l2_dev_str.ent_function =
 		CAM_ACTUATOR_DEVICE_TYPE;
 	a_ctrl->v4l2_dev_str.token = a_ctrl;
+	a_ctrl->v4l2_dev_str.close_seq_prior =
+		 CAM_SD_CLOSE_MEDIUM_PRIORITY;
 
 	rc = cam_register_subdev(&(a_ctrl->v4l2_dev_str));
 	if (rc)
-		CAM_ERR(CAM_SENSOR, "Fail with cam_register_subdev rc: %d", rc);
+		CAM_ERR(CAM_ACTUATOR,
+			"Fail with cam_register_subdev rc: %d", rc);
 
 	return rc;
 }
