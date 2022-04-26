@@ -1503,7 +1503,7 @@ static ssize_t asusdebug_write(struct file *file, const char __user *buf, size_t
 		if (!asus_asdf_set) {
 			asus_asdf_set = 1;
 			save_phone_hang_log(1);
-			printk_buffer_rebase();
+//			printk_buffer_rebase();
 			printk("[ASDF] get_last_shutdown_log: printk_buffer_slot2_addr=%p, value=0x%lx\n", printk_buffer_slot2_addr, *printk_buffer_slot2_addr);
 #if 0
 			if ((*printk_buffer_slot2_addr) == (ulong)PRINTK_BUFFER_MAGIC)
