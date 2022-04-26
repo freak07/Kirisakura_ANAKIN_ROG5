@@ -2478,16 +2478,16 @@ static void cnss_wlfw_respond_get_info_ind_cb(struct qmi_handle *qmi_wlfw,
 		container_of(qmi_wlfw, struct cnss_plat_data, qmi_wlfw);
 	const struct wlfw_respond_get_info_ind_msg_v01 *ind_msg = data;
 
-	cnss_pr_buf("Received QMI WLFW respond get info indication\n");
+	//cnss_pr_buf("Received QMI WLFW respond get info indication\n");
 
 	if (!txn) {
 		cnss_pr_err("Spurious indication\n");
 		return;
 	}
 
-	cnss_pr_buf("Extract message with event length: %d, type: %d, is last: %d, seq no: %d\n",
-		    ind_msg->data_len, ind_msg->type,
-		    ind_msg->is_last, ind_msg->seq_no);
+	//cnss_pr_buf("Extract message with event length: %d, type: %d, is last: %d, seq no: %d\n",
+	//	    ind_msg->data_len, ind_msg->type,
+	//	    ind_msg->is_last, ind_msg->seq_no);
 
 	if (plat_priv->get_info_cb_ctx && plat_priv->get_info_cb)
 		plat_priv->get_info_cb(plat_priv->get_info_cb_ctx,

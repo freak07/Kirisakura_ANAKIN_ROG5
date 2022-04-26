@@ -74,6 +74,23 @@ enum gsi_ep_op {
  * @sgt_data_buff: Data buffer related sgtable entries
  * @dev: pointer to the DMA-capable dwc device
  */
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT 
+ struct usb_gsi_request {
+	void *buf_base_addr;
+	dma_addr_t dma;
+	size_t num_bufs;
+	size_t buf_len;
+	u32 db_reg_phs_addr_lsb;
+	dma_addr_t mapped_db_reg_phs_addr_lsb;
+	u32 db_reg_phs_addr_msb;
+	u8 ep_intr_num;
+	struct sg_table sgt_trb_xfer_ring;
+	struct sg_table sgt_data_buff;
+	struct device *dev;	
+	bool use_tcm_mem;
+	struct llcc_tcm_data *tcm_mem;	
+};
+#else
 struct usb_gsi_request {
 	void *buf_base_addr;
 	dma_addr_t dma;
@@ -89,7 +106,7 @@ struct usb_gsi_request {
 	bool use_tcm_mem;
 	struct llcc_tcm_data *tcm_mem;
 };
-
+#endif
 /*
  * @last_trb_addr: Address (LSB - based on alignment restrictions) of
  *	last TRB in queue. Used to identify rollover case.

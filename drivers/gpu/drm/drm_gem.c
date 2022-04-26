@@ -1178,6 +1178,7 @@ int drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 
 	if (!drm_vma_node_is_allowed(node, priv)) {
 		drm_gem_object_put_unlocked(obj);
+		printk("drm:: gem_mmap");
 		return -EACCES;
 	}
 

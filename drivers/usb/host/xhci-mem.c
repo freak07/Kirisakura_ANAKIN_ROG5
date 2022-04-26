@@ -2328,7 +2328,7 @@ static void xhci_add_in_port(struct xhci_hcd *xhci, unsigned int num_ports,
 		xhci->ext_caps[xhci->num_ext_caps++] = temp;
 
 	if ((xhci->hci_version >= 0x100) && (major_revision != 0x03) &&
-		 (temp & XHCI_HLC)) {
+		 (0 & (temp & XHCI_HLC))) {
 		xhci_dbg_trace(xhci, trace_xhci_dbg_init,
 			       "xHCI 1.0: support USB2 hardware lpm");
 		xhci->hw_lpm_support = 1;

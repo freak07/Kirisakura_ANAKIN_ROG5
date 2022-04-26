@@ -121,6 +121,24 @@ static const char * const hw_platform_subtype[] = {
 	[PLATFORM_SUBTYPE_INVALID] = "Invalid",
 };
 
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+//ASUS_BSP Eason: check hwID & prjID to change platform_subtype for select magnetometer json +++
+enum {
+	PLATFORM_SUBTYPE_ROG5_DEF = 0,    //Default
+	PLATFORM_SUBTYPE_ROG5_ER1 = 1,
+	PLATFORM_SUBTYPE_ROG5_ER2 = 2,
+	PLATFORM_SUBTYPE_ROG5_PR  = 3,
+};
+
+const char *hw_platform_subtype_mag[] = {
+	[PLATFORM_SUBTYPE_ROG5_DEF] = "R5D",
+	[PLATFORM_SUBTYPE_ROG5_ER1] = "R5ER1",
+	[PLATFORM_SUBTYPE_ROG5_ER2] = "R5ER2",
+	[PLATFORM_SUBTYPE_ROG5_PR]  = "R5PR",
+};
+//ASUS_BSP Eason: check hwID & prjID to change platform_subtype for select magnetometer json ---
+#endif
+
 /* Socinfo SMEM item structure */
 static struct socinfo {
 	__le32 fmt;
@@ -454,8 +472,29 @@ msm_get_platform_subtype(struct device *dev,
 			pr_err("Invalid hardware platform subtype\n");
 			hw_subtype = PLATFORM_SUBTYPE_INVALID;
 		}
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT		
+//ASUS_BSP Eason: check hwID & prjID to change platform_subtype for select magnetometer json +++
+		if (HW_REV_ER == g_ASUS_hwID){
+				hw_subtype = PLATFORM_SUBTYPE_ROG5_ER1;
+		}else if(HW_REV_ER2 == g_ASUS_hwID){
+				hw_subtype = PLATFORM_SUBTYPE_ROG5_ER2;
+		}else if(HW_REV_PR == g_ASUS_hwID){
+				hw_subtype = PLATFORM_SUBTYPE_ROG5_PR;
+		}else{
+				hw_subtype = PLATFORM_SUBTYPE_ROG5_DEF;
+		}
+		printk("subtype_id: hw_subtype %d, asus_hwID %d",hw_subtype, g_ASUS_hwID);
+		return snprintf(buf, PAGE_SIZE, "%-.32s\n",
+			hw_platform_subtype_mag[hw_subtype]);
+#if 0
 		return snprintf(buf, PAGE_SIZE, "%-.32s\n",
 			hw_platform_subtype[hw_subtype]);
+#endif			
+//ASUS_BSP Eason: check hwID & prjID to change platform_subtype for select magnetometer json ---
+#else
+		return snprintf(buf, PAGE_SIZE, "%-.32s\n",
+			hw_platform_subtype[hw_subtype]);
+#endif
 	}
 }
 ATTR_DEFINE(platform_subtype);

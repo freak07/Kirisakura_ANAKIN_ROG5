@@ -24,11 +24,65 @@
 #include <linux/irqdesc.h>
 
 #include "power.h"
+//[PM_debug +++]
+#include <linux/pm_debug.h>
+//Extern: this flag to check dpm_suspend has been callback for resume_console
+extern unsigned int pm_pwrcs_ret;
+extern int pmsp_flag;
+extern void pmsp_print(void);
+extern void print_pm_cpuinfo(void);
+struct work_struct pms_printer;
+struct work_struct pm_cpuinfo_printer;
+//for ipcc_0 debug +++
+extern void print_ipcc_irq_client(void);
+//for ipcc_0 debug ---
+//[PM_debug ---]
 
 #ifndef CONFIG_SUSPEND
 suspend_state_t pm_suspend_target_state;
 #define pm_suspend_target_state	(PM_SUSPEND_ON)
 #endif
+
+void pmsp_print(void)
+{
+	schedule_work(&pms_printer);
+	return;
+}
+EXPORT_SYMBOL(pmsp_print);
+
+void print_pm_cpuinfo(void)
+{
+	schedule_work(&pm_cpuinfo_printer);
+	return;
+}
+//no this function+++
+//extern int asus_extcon_set_state_sync(struct extcon_dev *edev, int cable_state);
+//extern void call_smb5_pmsp_extcon(int value);
+//no this function---
+void pms_printer_func(struct work_struct *work)
+{
+	static int pmsp_counter = 0;
+
+	if(pmsp_counter % 2) {
+		printk("[PM] %s:enter pmsprinter ready to send uevent 0 \n",__func__);
+		//call_smb5_pmsp_extcon(0);
+		pmsp_counter++;
+	}
+	else {
+		printk("[PM] %s:enter pmsprinter ready to send uevent 1 \n",__func__);
+		//call_smb5_pmsp_extcon(1);
+		pmsp_counter++;
+	}
+}
+
+void pm_cpuinfo_func(struct work_struct *work)
+{
+//	static bool toggle = false;
+//
+//	toggle = !toggle;
+//	printk("[PM] %s: Dump PowerManagerService wakelocks, toggle %d\n",__func__, toggle ? 1 : 0);
+//	extcon_set_state_sync(&pm_dumpthread_dev, EXTCON_SUSPEND, toggle);
+}
 
 /*
  * If set, the suspend/hibernate code will abort transitions to a sleep state
@@ -861,7 +915,10 @@ void pm_print_active_wakeup_sources(void)
 	srcuidx = srcu_read_lock(&wakeup_srcu);
 	list_for_each_entry_rcu(ws, &wakeup_sources, entry) {
 		if (ws->active) {
-			pm_pr_dbg("active wakeup source: %s\n", ws->name);
+            //[PM_debug +++]
+			//pm_pr_dbg("active wakeup source: %s\n", ws->name);
+            pm_printk("active wakeup source: %s\n", ws->name);
+            //[PM_debug ---]
 			active = 1;
 		} else if (!active &&
 			   (!last_activity_ws ||
@@ -872,11 +929,60 @@ void pm_print_active_wakeup_sources(void)
 	}
 
 	if (!active && last_activity_ws)
-		pm_pr_dbg("last active wakeup source: %s\n",
+        //[PM_debug +++]
+		//pm_pr_dbg("last active wakeup source: %s\n",
+        pm_printk("last active wakeup source: %s\n",
 			last_activity_ws->name);
+        //[PM_debug ---]
 	srcu_read_unlock(&wakeup_srcu, srcuidx);
 }
 EXPORT_SYMBOL_GPL(pm_print_active_wakeup_sources);
+
+//[PM_debug +++]
+void asus_uts_print_active_locks(void)
+{
+	struct wakeup_source *ws;
+	int wl_active_cnt = 0;
+	int srcuidx;
+
+	srcuidx = srcu_read_lock(&wakeup_srcu);
+	list_for_each_entry_rcu(ws, &wakeup_sources, entry) {
+		if (ws->active) {
+			wl_active_cnt++;
+            pm_printk("active wake lock %s\n", ws->name);
+
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT			
+			ASUSEvtlog("[PM] active wake lock: %s\n", ws->name);
+#endif
+			if (pmsp_flag == 1) {
+				pmsp_print();
+				//printk("[PM] pm_stay_unattended_period: %d\n",
+                pm_printk("pm_stay_unattended_period: %d\n",
+						pm_stay_unattended_period);
+
+				if( pm_stay_unattended_period >= PM_UNATTENDED_TIMEOUT * 3 ) {
+					pm_stay_unattended_period = 0;
+					print_pm_cpuinfo();
+				}
+			}
+			 pmsp_flag = 0;
+		}
+	}
+
+	if (wl_active_cnt == 0) {
+		//printk("[PM] all wakelock are inactive\n");
+        pm_printk("all wakelock are inactive\n");
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT			
+		ASUSEvtlog("[PM] all wakelock are inactive\n");
+#endif
+	}
+
+	srcu_read_unlock(&wakeup_srcu, srcuidx);
+	return;
+}
+EXPORT_SYMBOL(asus_uts_print_active_locks);
+
+//[PM_debug ---]
 
 /**
  * pm_wakeup_pending - Check if power transition in progress should be aborted.
@@ -904,11 +1010,16 @@ bool pm_wakeup_pending(void)
 
 	if (ret) {
 		pm_pr_dbg("Wakeup pending, aborting suspend\n");
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT		
+        //[PM_debug+++]
+        pm_printk("Wakeup pending, aborting suspend\n");
+        //[PM_debug ---]
+#endif        
 		pm_print_active_wakeup_sources();
 		pm_get_active_wakeup_sources(suspend_abort,
 					     MAX_SUSPEND_ABORT_LEN);
 		log_suspend_abort_reason(suspend_abort);
-		pr_info("PM: %s\n", suspend_abort);
+		pr_info("%s\n", suspend_abort);
 	}
 
 	return ret || atomic_read(&pm_abort_suspend) > 0;
@@ -948,8 +1059,23 @@ void pm_system_irq_wakeup(unsigned int irq_number)
 				name = desc->action->name;
 
 			log_irq_wakeup_reason(irq_number);
-			pr_warn("%s: %d triggered %s\n", __func__,
+            //[PM_debug +++]
+        	//irq debug
+            if(!strcmp(name,"ipcc_0"))
+                print_ipcc_irq_client();            
+			//pr_warn("%s: %d triggered %s\n", __func__,
+            pm_printk("%d triggered %s\n", 
+            //[PM_debug ---]
 					irq_number, name);
+
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT			
+            //[PM_debug +++]
+            //irq debug
+            ASUSEvtlog("[PM] IRQs triggered: %d %s\n", irq_number, name);
+			//log_wakeup_reason(irq_number);
+			pm_pwrcs_ret = 0; //Don't print gic_show_resume_irq to ASUSEvtlog if here already shows           
+            //[PM_debug ---]
+#endif            
 
 		}
 		pm_wakeup_irq = irq_number;

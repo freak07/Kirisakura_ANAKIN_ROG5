@@ -1,0 +1,6 @@
+config GOODIX_FINGERPRINT
+	tristate "generic goodix fingerprint driver"
+	depends on MACH_ASUS_ZS673KS
+	default m
+	help
+	  add support for goodix fingerprint driver.

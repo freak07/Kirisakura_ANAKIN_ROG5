@@ -532,9 +532,13 @@ prune:
 
 	list_for_each_entry(mode, &connector->modes, head)
 		mode->vrefresh = drm_mode_vrefresh(mode);
-
+	// ASUS BSP Display   do not sort mode list (DSI)
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+	if(connector->connector_type != DRM_MODE_CONNECTOR_DSI)
+		drm_mode_sort(&connector->modes);
+#else
 	drm_mode_sort(&connector->modes);
-
+#endif
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s] probed modes :\n", connector->base.id,
 			connector->name);
 	list_for_each_entry(mode, &connector->modes, head) {

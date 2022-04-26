@@ -1,0 +1,66 @@
+config EXFAT_FS
+	tristate "exFAT file system support"
+	select NLS
+	help
+	  exFAT is the interoperable file system of choice by Microsoft.
+
+	  Saying Y or M here enables full support for the exFAT file system.
+
+	  For more information see <http://www.tuxera.com/>.
+
+	  To compile this file system support as a module, choose M here: the
+	  module will be called exfat.
+
+	  If you do not need to interoperate with exFAT formatted devices it is
+	  safe to say N.
+
+config EXFAT_DEBUG
+	bool "exFAT debugging support"
+	depends on EXFAT_FS
+	help
+	  If you are experiencing any problems with the exFAT file system, say
+	  Y here.  This will result in additional consistency checks to be
+	  performed by the driver as well as additional debugging messages to
+	  be written to the system log.  Note that debugging messages are
+	  disabled by default.  To enable them, supply the option
+	  exfat_debug_msgs=1 at the kernel command line when booting the kernel
+	  or as an option to insmod when loading the exFAT module.  Once the
+	  driver is active, you can enable debugging messages by doing (as
+	  root):
+	  	echo 1 > /proc/sys/fs/exfat-debug
+	  Replacing the "1" with "0" would disable debug messages.
+
+	  If you leave debugging messages disabled, this results in little
+	  overhead, but enabling debug messages results in very significant
+	  slowdown of the system.
+
+	  When reporting bugs, please try to have available a full dump of
+	  debugging messages while the misbehaviour was occurring.
+
+config EXFAT_NLS_DEFAULT
+	string "Default NLS Option"
+	depends on EXFAT_FS
+	default "utf8"
+	help
+	  Set this to the default NLS option to use for exFAT.
+
+	  You can always override the NLS option at mount time using the nls
+	  mount option.
+
+	  It is perfectly safe to say N here.
+
+config EXFAT_NAME
+	bool "exFAT name"
+	depends on EXFAT_FS
+	help
+	  Set this to the name of the generated file system you want.  This
+	  will also become the kernel module name.  Normally this is just
+	  "exfat" so the file system is mounted with "mount -t exfat" and the
+	  module is called "exfat.ko".
+
+	  The reason you can change it here is if you have a kernel with an
+	  other exFAT driver built into the kernel then by changing the name
+	  here you can use the more uptodate driver you build.  Otherwise it
+	  would not be possible to load the kernel module as the names would
+	  clash.
+

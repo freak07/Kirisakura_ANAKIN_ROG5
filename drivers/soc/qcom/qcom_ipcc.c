@@ -88,8 +88,11 @@ static irqreturn_t qcom_ipcc_irq_fn(int irq, void *data)
 
 		virq = irq_find_mapping(proto_data->irq_domain, packed_id);
 
+        //[PM_debug+++]
 		dev_dbg(proto_data->dev,
 			"IRQ for client_id: %u; signal_id: %u; virq: %d\n",
+		//printk("qcom_ipcc_irq_fn:IRQ for client_id: %u; signal_id: %u; virq: %d\n",
+        //[PM_debug---]
 			qcom_ipcc_get_client_id(packed_id),
 			qcom_ipcc_get_signal_id(packed_id), virq);
 
@@ -303,6 +306,27 @@ static int qcom_ipcc_setup_mbox(struct ipcc_protocol_data *proto_data,
 	return mbox_controller_register(mbox);
 }
 
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+//[PM_debug+++]
+static struct ipcc_protocol_data *ipcc_proto_data;
+void print_ipcc_irq_client(void){
+    u32 packed_id;
+    int virq;
+    struct ipcc_protocol_data *proto_data = ipcc_proto_data;
+
+    packed_id = readl_no_log(proto_data->base + IPCC_REG_RECV_ID);
+    if (packed_id == IPCC_NO_PENDING_IRQ)
+        return;
+    virq = irq_find_mapping(proto_data->irq_domain, packed_id);
+    pr_err("IRQ for client_id: %u; signal_id: %u; virq: %d\n",
+        qcom_ipcc_get_client_id(packed_id),
+        qcom_ipcc_get_signal_id(packed_id), virq);
+}
+
+EXPORT_SYMBOL_GPL(print_ipcc_irq_client);
+//[PM_debug---]
+#endif
+
 #ifdef CONFIG_PM_SLEEP
 static int qcom_ipcc_pm_suspend(struct device *dev)
 {
@@ -328,7 +352,13 @@ static int qcom_ipcc_pm_resume(struct device *dev)
 	else if (desc->action && desc->action->name)
 		name = desc->action->name;
 
-	pr_warn("%s: %d triggered %s (client-id: %u; signal-id: %u\n",
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+	//[PM_debug+++]
+    pr_err("%s: %d triggered %s (client-id: %u; signal-id: %u\n",
+    //[PM_debug---]
+#else
+    pr_warn("%s: %d triggered %s (client-id: %u; signal-id: %u\n",
+#endif
 		__func__, virq, name, qcom_ipcc_get_client_id(packed_id),
 		qcom_ipcc_get_signal_id(packed_id));
 
@@ -351,7 +381,12 @@ static int qcom_ipcc_probe(struct platform_device *pdev)
 	if (!proto_data)
 		return -ENOMEM;
 
-	proto_data->dev = &pdev->dev;
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+	//[PM_debug +++]
+    ipcc_proto_data = proto_data;
+    //[PM_debug ---]
+#endif
+    proto_data->dev = &pdev->dev;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
@@ -430,9 +465,52 @@ static const struct dev_pm_ops qcom_ipcc_dev_pm_ops = {
 	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(qcom_ipcc_pm_suspend, qcom_ipcc_pm_resume)
 };
 
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+//[PM_debug +++]
+static int suspend(struct platform_device *pdev, pm_message_t state);
+static int resume(struct platform_device *pdev);
+static int suspend(struct platform_device *pdev, pm_message_t state)
+{
+	return 0;
+}
+
+static int resume(struct platform_device *pdev)
+{
+	int virq;
+	struct irq_desc *desc;
+	const char *name = "null";
+	u32 packed_id;
+    struct device *dev = &(pdev->dev);
+	struct ipcc_protocol_data *proto_data = dev_get_drvdata(dev);
+
+	packed_id = readl_no_log(proto_data->base + IPCC_REG_RECV_ID);
+	if (packed_id == IPCC_NO_PENDING_IRQ)
+		return 0;
+
+	virq = irq_find_mapping(proto_data->irq_domain, packed_id);
+	desc = irq_to_desc(virq);
+	if (desc == NULL)
+		name = "stray irq";
+	else if (desc->action && desc->action->name)
+		name = desc->action->name;
+
+	pr_err("%s: %d triggered %s (client-id: %u; signal-id: %u\n",
+		__func__, virq, name, qcom_ipcc_get_client_id(packed_id),
+		qcom_ipcc_get_signal_id(packed_id));
+
+	return 0;
+}
+//[PM_debug ---]
+#endif
+
 static struct platform_driver qcom_ipcc_driver = {
 	.probe = qcom_ipcc_probe,
 	.remove = qcom_ipcc_remove,
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+//[PM_debug +++]
+    .suspend =  suspend,
+    .resume =   resume,
+#endif
 	.driver = {
 		.name = "qcom_ipcc",
 		.of_match_table = qcom_ipcc_of_match,

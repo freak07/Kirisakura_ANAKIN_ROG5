@@ -69,6 +69,32 @@ struct css_task_iter {
 	struct list_head		iters_node;	/* css_set->task_iters */
 };
 
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+#ifdef CONFIG_CGF_NOTIFY_EVENT
+#define FREEZER_SS_NAME	"freezer"
+#define	FREEZER_KN_NAME	""
+#define	FREEZER_BG_KN_NAME	"frozen"
+struct cgf_event {
+     int type;
+	struct signal_struct *info;
+	void *data;
+};
+struct freezer {
+	struct cgroup_subsys_state	css;
+	struct notifier_block	nf;
+	struct cgf_event	event;
+	struct workqueue_struct *cgf_notify_wq;
+	struct work_struct	cgf_notify_work;
+	unsigned int		state;
+	spinlock_t		lock;
+};
+extern int cgf_register_notifier(struct notifier_block *nb);
+extern int cgf_unregister_notifier(struct notifier_block *nb);
+extern int cgf_notifier_call_chain(unsigned long val, void *v);
+extern int cgf_attach_task_group(struct cgroup *cgrp, u64 pid);
+#endif
+#endif
+
 extern struct cgroup_root cgrp_dfl_root;
 extern struct css_set init_css_set;
 

@@ -302,6 +302,11 @@ static long calc_load_nohz_read(void)
  * Once we've updated the global active value, we need to apply the exponential
  * weights adjusted to the number of cycles missed.
  */
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+#define LOAD_INT(x) ((x) >> FSHIFT)
+#define LOAD_FRAC(x) LOAD_INT(((x) & (FIXED_1-1)) * 100)
+#endif
+
 static void calc_global_nohz(void)
 {
 	unsigned long sample_window;
@@ -333,6 +338,9 @@ static void calc_global_nohz(void)
 	 * index, this avoids a double flip messing things up.
 	 */
 	smp_wmb();
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+	printk("loadavg %lu.%02lu  %ld/%d \n", LOAD_INT(avenrun[0]), LOAD_FRAC(avenrun[0]), nr_running(), nr_threads);
+#endif
 	calc_load_idx++;
 }
 #else /* !CONFIG_NO_HZ_COMMON */

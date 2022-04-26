@@ -60,6 +60,9 @@ struct stats_entry {
 	struct appended_entry appended_entry;
 };
 
+//[PM_debug +++]
+struct soc_sleep_stats_data *gsoc_drv;
+//[PM_debug ---]
 static inline u64 get_time_in_sec(u64 counter)
 {
 	do_div(counter, arch_timer_get_rate());
@@ -87,6 +90,84 @@ static inline ssize_t append_data_to_buf(char *buf, int length,
 			 data->entry.accumulated,
 			 data->appended_entry.client_votes);
 }
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+//[PM_debug +++]
+int pre_aosd_count;
+bool need_dump_rpmh_master_stat;
+void soc_sleep_stats_print(bool suspend)
+{
+	int i;
+	uint32_t offset;
+	struct stats_entry data;
+	struct entry *e = &data.entry;
+	struct appended_entry *ae = &data.appended_entry;
+	struct soc_sleep_stats_data *drv = gsoc_drv;
+	void __iomem *reg = drv->reg;
+	char stat_type[5] = {0};
+    char buf[200];
+    ssize_t length = 0;
+    
+    if(!drv){
+        printk("[PM]%s failed.", __func__);
+        return;
+    }
+	for (i = 0; i < drv->config->num_records; i++) {
+		offset = offsetof(struct entry, stat_type);
+		e->stat_type = le32_to_cpu(readl_relaxed(reg + offset));
+		offset = offsetof(struct entry, count);
+		e->count = le32_to_cpu(readl_relaxed(reg + offset));
+
+		offset = offsetof(struct entry, last_entered_at);
+		e->last_entered_at = le64_to_cpu(readq_relaxed(reg + offset));
+
+		offset = offsetof(struct entry, last_exited_at);
+		e->last_exited_at = le64_to_cpu(readq_relaxed(reg + offset));
+
+		offset = offsetof(struct entry, accumulated);
+		e->accumulated = le64_to_cpu(readq_relaxed(reg + offset));
+
+		e->last_entered_at = get_time_in_sec(e->last_entered_at);
+		e->last_exited_at = get_time_in_sec(e->last_exited_at);
+		e->accumulated = get_time_in_sec(e->accumulated);
+
+		reg += sizeof(struct entry);
+
+		if (drv->config->appended_stats_avail) {
+			offset = offsetof(struct appended_entry, client_votes);
+			ae->client_votes = le32_to_cpu(readl_relaxed(reg +
+								     offset));
+
+			reg += sizeof(struct appended_entry);
+		} else {
+			ae->client_votes = 0;
+		}
+        memcpy(stat_type, &e->stat_type, sizeof(u32));
+        length += scnprintf(buf + length, PAGE_SIZE - length, 
+                "{%s:%u :%llu(s) :%llu(s) :%llu(s) :0x%x}",
+             stat_type, e->count,
+             e->last_entered_at,
+             e->last_exited_at,
+             e->accumulated,
+             ae->client_votes);                           
+		if( i == 0 && suspend == 0)
+		{
+			ASUSEvtlog("[RPM] Resume: status: Mode: %s, Count: %d\n", stat_type, e->count);
+			if(pre_aosd_count == e->count)
+			{
+				need_dump_rpmh_master_stat=true;
+			}
+			else
+			{
+				need_dump_rpmh_master_stat=false;
+			}
+			pre_aosd_count=e->count;
+		}
+	}
+    printk("[PM]%s", buf);    
+}
+EXPORT_SYMBOL(soc_sleep_stats_print);
+//[PM_debug ---]
+#endif
 
 static ssize_t stats_show(struct kobject *obj, struct kobj_attribute *attr,
 			  char *buf)
@@ -229,6 +310,7 @@ static int soc_sleep_stats_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, drv);
+    gsoc_drv = drv;
 	return 0;
 }
 

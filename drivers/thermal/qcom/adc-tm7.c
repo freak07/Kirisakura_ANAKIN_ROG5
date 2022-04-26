@@ -203,6 +203,7 @@ static int32_t adc_tm_add_to_list(struct adc_tm_chip *chip,
 			return -ENOMEM;
 
 		pr_debug("new client\n");
+		client_info->param = param;
 		client_info->param->id = (uintptr_t) client_info;
 		client_info->low_thr_requested = param->low_thr;
 		client_info->high_thr_requested = param->high_thr;
@@ -391,7 +392,7 @@ void notify_adc_tm7_fn(struct adc_tm_sensor *adc_tm)
 }
 
 /* Used by non-thermal clients to configure an ADC_TM channel */
-static int32_t adc_tm7_channel_measure(struct adc_tm_chip *chip,
+int32_t adc_tm7_channel_measure(struct adc_tm_chip *chip,
 					struct adc_tm_param *param)
 
 {
@@ -449,6 +450,7 @@ fail_unlock:
 	mutex_unlock(&chip->adc_mutex_lock);
 	return ret;
 }
+EXPORT_SYMBOL(adc_tm7_channel_measure);
 
 /* Used by non-thermal clients to release an ADC_TM channel */
 static int32_t adc_tm7_disable_chan_meas(struct adc_tm_chip *chip,

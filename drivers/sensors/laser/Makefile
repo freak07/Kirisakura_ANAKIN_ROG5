@@ -1,0 +1,1 @@
+obj-$(CONFIG_MACH_ASUS_PICASSO)	+= vl53l5/

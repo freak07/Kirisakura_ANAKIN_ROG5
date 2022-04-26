@@ -966,6 +966,7 @@ static int get_info(struct net *net, void __user *user,
 	if (!IS_ERR(t)) {
 		struct ipt_getinfo info;
 		const struct xt_table_info *private = t->private;
+
 #ifdef CONFIG_COMPAT
 		struct xt_table_info tmp;
 

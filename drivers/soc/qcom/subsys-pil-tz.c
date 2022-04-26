@@ -7,6 +7,12 @@
 
 #include <linux/kernel.h>
 #include <linux/err.h>
+//ASUS_BSP+++ "AntennaSwap"
+#ifdef ASUS_ZS673KS_PROJECT
+#include <linux/gpio.h>
+#include <linux/of_gpio.h>
+#endif
+//ASUS_BSP--- "AntennaSwap"
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -43,6 +49,12 @@
 #define ERR_READY	0
 #define PBL_DONE	1
 
+//ASUS_BSP+++ "AntennaSwap"
+#ifdef ASUS_ZS673KS_PROJECT
+#define GPIO_DEFAULT_STATE		"phone_default"
+#define GPIO_HIGH_STATE		        "phone_high"
+#endif
+//ASUS_BSP--- "AntennaSwap"
 #define desc_to_data(d) container_of(d, struct pil_tz_data, desc)
 #define subsys_to_data(d) container_of(d, struct pil_tz_data, subsys_desc)
 
@@ -57,6 +69,20 @@ struct reg_info {
 	int uV;
 	int uA;
 };
+
+struct antenna_switch_vreg {
+	struct regulator *reg;
+	const char *name;
+	u32 min_v;
+	u32 max_v;
+	u32 load_ua;
+	bool enabled;
+};
+// static int do_antenna_switch = 1;
+// module_param(do_antenna_switch, int, S_IWUSR | S_IRUGO);
+// MODULE_PARM_DESC(do_antenna_switch, "Switch VREG_L16A_3P3 flag");
+static struct antenna_switch_vreg priv_switch_vreg = { NULL, "vdd-3.0-antenna", 2850000, 2850000, 0, false};
+
 
 /**
  * struct pil_tz_data
@@ -779,7 +805,10 @@ static void log_failure_reason(const struct pil_tz_data *d)
 	}
 
 	strlcpy(reason, smem_reason, min(size, (size_t)MAX_SSR_REASON_LEN));
-	pr_err("%s subsystem failure reason: %s.\n", name, reason);
+	#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+	subsys_save_reason(name, reason);/*AS-K ASUS SSR and Debug - Save SSR reason+*/
+	#endif
+	pr_err("%s subsystem failure reason: %s.\n", name, reason);	
 }
 
 static int subsys_shutdown(const struct subsys_desc *subsys, bool force_stop)
@@ -1333,6 +1362,203 @@ static int subsys_setup_irqs(struct platform_device *pdev)
 	return 0;
 }
 
+
+static int antenna_switch_enable_vreg()
+{
+	int ret = 0;
+	struct antenna_switch_vreg *vreg_antenna = &priv_switch_vreg;
+
+	if (!(vreg_antenna) || !(vreg_antenna->reg) || (vreg_antenna->enabled)) {
+		pr_err("[subsys-pil]: antenna_switch_enable_vreg, (%s) return.\n", vreg_antenna->name);
+		return ret;
+	}
+
+	ret = regulator_set_voltage(vreg_antenna->reg, vreg_antenna->min_v, vreg_antenna->max_v);
+	if (ret) {
+		pr_err("[subsys-pil]: set voltage fail, %s (min_v:%u, max_v:%u) ret=%d.\n",
+		       vreg_antenna->name, vreg_antenna->min_v, vreg_antenna->max_v, ret);
+		return ret;
+	}
+
+	if (vreg_antenna->load_ua) {
+		ret = regulator_set_load(vreg_antenna->reg, vreg_antenna->load_ua);
+		if (ret < 0) {
+			pr_err("[subsys-pil]: set load fail, %s load_ua:%u, ret=%d.\n", vreg_antenna->name, vreg_antenna->load_ua, ret);
+			return ret;
+		}
+	}
+
+
+	ret = regulator_enable(vreg_antenna->reg);
+	if (ret) {
+		pr_err("[subsys-pil]: %s enable fail, ret=%d.\n", vreg_antenna->name, ret);
+		return ret;
+	}
+
+	vreg_antenna->enabled = true;
+	pr_err("[subsys-pil]: %s enabled.\n", vreg_antenna->name);
+
+	return ret;
+}
+static int antenna_switch_disable_vreg()
+{
+	int ret = 0;
+	struct antenna_switch_vreg *vreg_antenna = &priv_switch_vreg;
+
+	if (!(vreg_antenna) || !(vreg_antenna->reg) || !(vreg_antenna->enabled)) {
+		pr_err("[subsys-pil]: antenna_switch_disable_vreg, (%s) return.\n", vreg_antenna->name);
+		return ret;
+	}
+
+	ret = regulator_disable(vreg_antenna->reg);
+	if (ret) {
+		pr_err("[subsys-pil]: %s disable fail, ret=%d.\n", vreg_antenna->name, ret);
+		return ret;
+	}
+
+	ret = regulator_set_load(vreg_antenna->reg, 0);
+	if (ret < 0) {
+		pr_err("[subsys-pil]: set load 0 fail, %s ret=%d.\n", vreg_antenna->name, ret);
+		return ret;
+	}
+
+	ret = regulator_set_voltage(vreg_antenna->reg, 0, vreg_antenna->max_v);
+	if (ret) {
+		pr_err("[subsys-pil]: set voltage 0 fail, %s ret=%d.\n", vreg_antenna->name, ret);
+		return ret;
+	}
+
+	vreg_antenna->enabled = false;
+	pr_err("[subsys-pil]: %s disabled.\n", vreg_antenna->name);
+
+	return ret;
+}
+static int subsys_setAntennaSwitch(int enable)
+{
+	int ret = 0;
+
+	if (enable == 0)
+	{
+		pr_err("[subsys-pil]: subsys_setAntennaSwitch, antenna_switch_disable_vreg.\n");
+		ret = antenna_switch_disable_vreg();
+		if (ret != 0) {
+			pr_err("[subsys-pil]: subsys_setAntennaSwitch, antenna_switch_disable_vreg failed.\n");
+		}
+	}
+	else
+	{
+		pr_err("[subsys-pil]: subsys_setAntennaSwitch, antenna_switch_enable_vreg.\n");
+		ret = antenna_switch_enable_vreg();
+		if (ret != 0)
+		{
+			pr_err("[subsys-pil]: subsys_setAntennaSwitch, antenna_switch_enable_vreg failed.\n");
+		}
+	}
+	return ret;
+}
+EXPORT_SYMBOL(subsys_setAntennaSwitch);
+
+static ssize_t antennaSwitch_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct antenna_switch_vreg *vreg_antenna = &priv_switch_vreg;
+	return snprintf(buf, PAGE_SIZE, "%d", vreg_antenna->enabled);
+}
+
+static ssize_t antennaSwitch_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	int val = 1;
+	// pr_err("[subsys-pil] strlen(buf)=%d, counter=%d",strlen(buf), count);
+	if (strlen(buf) !=2)
+		return -EINVAL;
+	kstrtoint(buf,10,&val);
+	// pr_err("[subsys-pil] val=%d",val);
+	subsys_setAntennaSwitch(val);
+	return -EPERM;
+}
+
+static DEVICE_ATTR(antennaSwitch, 0644,
+		antennaSwitch_show, antennaSwitch_store);
+
+//ASUS_BSP+++ "AntennaSwap"
+#ifdef ASUS_ZS673KS_PROJECT
+static ssize_t antennaSwap_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	int gpio_val = 0;
+	int phone_asus_ant_83_gpio = of_get_named_gpio(dev->of_node,"phone-asus_ant_83",0);
+	if (phone_asus_ant_83_gpio < 0) {
+		pr_err("[subsys-pil] no phone-asus_ant_83 \n");
+	}
+
+	if (gpio_is_valid (phone_asus_ant_83_gpio))
+	{
+		gpio_val = gpio_get_value(phone_asus_ant_83_gpio);
+		pr_err("[subsys-pil] gpio_get_value_83 %d\n", gpio_val);
+	}
+	else
+	{
+		pr_err("[subsys-pil] gpio_83 is not valid");
+	}
+
+	return snprintf(buf,PAGE_SIZE,"%d\n",gpio_val);
+}
+
+static ssize_t antennaSwap_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	int val = 1, rc = 0;
+	int phone_asus_ant_83_gpio = of_get_named_gpio(dev->of_node,"phone-asus_ant_83",0);
+	struct pinctrl *key_pinctrl;
+	struct pinctrl_state *set_state;
+	// pr_err("[subsys-pil] strlen(buf)=%d, counter=%d",strlen(buf), count);
+	if (strlen(buf) !=2)
+		return -EINVAL;
+	kstrtoint(buf,10,&val);
+	// pr_err("[subsys-pil] val=%d",val);
+	key_pinctrl = devm_pinctrl_get(dev);
+	if (IS_ERR_OR_NULL(key_pinctrl)) {
+	    pr_err("[subsys-pil] get_pinctrl failed");
+	}
+
+	if (val == 0)
+	{
+	    pr_err("[subsys-pil]: antennaSwap_store, GPIO pull low.\n");
+	    set_state = pinctrl_lookup_state(key_pinctrl, GPIO_DEFAULT_STATE);
+	    rc = pinctrl_select_state(key_pinctrl, set_state);
+	    if (rc < 0) {
+		    pr_err("[subsys-pil] pinctrl_select_state failed");
+		    return rc;
+	    }
+	}
+	else
+	{
+	    pr_err("[subsys-pil]: antennaSwap_store, GPIO pull high.\n");
+	    set_state = pinctrl_lookup_state(key_pinctrl, GPIO_HIGH_STATE);
+	    rc = pinctrl_select_state(key_pinctrl, set_state);
+	    if (rc < 0) {
+		    pr_err("[subsys-pil] pinctrl_select_state failed");
+		    return rc;
+	    }
+	}
+
+	if (rc == 0)
+	{
+	    if (phone_asus_ant_83_gpio < 0) {
+		    pr_err("[subsys-pil] no phone-asus_ant_83 \n");
+	    } else {
+		    gpio_free(phone_asus_ant_83_gpio);
+	    }
+	}
+
+	return count;
+}
+
+static DEVICE_ATTR(antennaSwap, 0644,
+		antennaSwap_show, antennaSwap_store);
+#endif
+//ASUS_BSP--- "AntennaSwap"
+
+
 static int pil_tz_generic_probe(struct platform_device *pdev)
 {
 	struct pil_tz_data *d;
@@ -1340,6 +1566,15 @@ static int pil_tz_generic_probe(struct platform_device *pdev)
 	u32 proxy_timeout, rmb_gp_reg_val;
 	int len, rc;
 	char md_node[20];
+	struct regulator *temp_reg;
+	struct device *dev = &pdev->dev;
+	struct antenna_switch_vreg *vreg_antenna = &priv_switch_vreg;
+	//ASUS_BSP+++ "AntennaSwap"
+	#ifdef ASUS_ZS673KS_PROJECT
+	struct pinctrl *key_pinctrl;
+	struct pinctrl_state *set_state;
+	#endif
+	//ASUS_BSP--- "AntennaSwap"
 
 	/* Do not probe the generic PIL driver yet if the SCM BW driver
 	 * is not yet registered. Return error if that driver returns with
@@ -1558,6 +1793,48 @@ load_from_pil:
 		subsys_unregister(d->subsys);
 		goto err_subsys;
 	}
+	if(!strncmp(d->desc.name,"ipa_fws",strlen(d->desc.name))){
+		pr_err("[subsys-pil]: name:%s\n", d->desc.name);
+		//1.get regulator
+		temp_reg = devm_regulator_get(dev, vreg_antenna->name);
+		if (IS_ERR_OR_NULL(temp_reg))
+		{
+			rc = PTR_ERR(temp_reg);
+			pr_err("[subsys-pil]: failed to get %s, rc=%d.\n", vreg_antenna->name, rc);
+			return rc;
+		}
+		vreg_antenna->reg = temp_reg;
+		pr_err("[subsys-pil]: %s init ok.\n", vreg_antenna->name);
+		rc = antenna_switch_enable_vreg();
+		if (rc != 0)
+		{
+			printk("[subsys-pil]: pil_tz_driver_probe, antenna_switch_enable_vreg ret=%d.\n", rc);
+		}
+		//2. create file node
+		rc = device_create_file(&pdev->dev, &dev_attr_antennaSwitch);
+		if (rc) {
+			pr_err("[subsys-pil]: sysfs node create failed error:%d\n", rc);
+			goto err_subsys;
+		}
+		//ASUS_BSP+++ "AntennaSwap"
+		#ifdef ASUS_ZS673KS_PROJECT
+		key_pinctrl = devm_pinctrl_get(dev);
+		if (IS_ERR_OR_NULL(key_pinctrl)) {
+			pr_err("[subsys-pil] get_pinctrl failed");
+		}
+		set_state = pinctrl_lookup_state(key_pinctrl, GPIO_DEFAULT_STATE);
+		rc = pinctrl_select_state(key_pinctrl, set_state);
+		if (rc < 0) {
+			pr_err("[subsys-pil] pinctrl_select_state failed");
+		}
+		rc = device_create_file(&pdev->dev, &dev_attr_antennaSwap);
+		if (rc) {
+			pr_err("[subsys-pil]: sysfs node create failed error:%d\n", rc);
+			goto err_subsys;
+		}
+		#endif
+		//ASUS_BSP--- "AntennaSwap"
+	}
 
 	return 0;
 err_subsys:
@@ -1619,6 +1896,7 @@ static int pil_tz_driver_exit(struct platform_device *pdev)
 	if (match->data == pil_tz_scm_pas_probe) {
 		icc_put(scm_perf_client);
 	} else {
+		device_remove_file(&pdev->dev, &dev_attr_antennaSwitch);
 		subsys_unregister(d->subsys);
 		destroy_ramdump_device(d->ramdump_dev);
 		destroy_ramdump_device(d->minidump_dev);

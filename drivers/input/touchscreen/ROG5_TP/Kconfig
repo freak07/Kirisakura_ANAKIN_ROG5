@@ -1,0 +1,16 @@
+#
+# Focaltech Touchscreen driver configuration
+#
+
+config TOUCHSCREEN_ROG
+    tristate "Focaltech Touchscreen"
+    depends on MACH_ASUS_ZS673KS || MACH_ASUS_PICASSO
+    help
+      Say Y here if you have Focaltech touch panel.
+      If unsure, say N.
+      
+config TOUCHSCREEN_FTS_DIRECTORY
+    string "Focaltech ts directory name"
+    default "focaltech_touch_rog"
+    depends on TOUCHSCREEN_ROG    
+#endif

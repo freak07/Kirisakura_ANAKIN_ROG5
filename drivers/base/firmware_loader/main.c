@@ -444,6 +444,9 @@ static int fw_decompress_xz(struct device *dev, struct fw_priv *fw_priv,
 static char fw_path_para[256];
 static const char * const fw_path[] = {
 	fw_path_para,
+#if defined ASUS_ZS673KS_PROJECT
+	"/data/vendor/BBY",
+#endif
 	"/lib/firmware/updates/" UTS_RELEASE,
 	"/lib/firmware/updates",
 	"/lib/firmware/" UTS_RELEASE,
@@ -496,6 +499,117 @@ fw_get_filesystem_firmware(struct device *device, struct fw_priv *fw_priv,
 			rc = -ENAMETOOLONG;
 			break;
 		}
+
+		//ASUS_BSP_haptic+++
+		//#ifdef CONFIG_TSPDRV
+		#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+		/*  AW8697 firmware file loading */
+		if (!strncmp(fw_priv->fw_name, "aw8697", 6) || !strncmp(fw_priv->fw_name, "awinic", 6)) {
+			snprintf(path, PATH_MAX, "%s/%s", "/system/vendor/firmware/awinic", fw_priv->fw_name);
+			dev_err(device, "[AW8697] Try to load firmware : %s \n", path);
+		}
+		/*  ROG2 firmware file loading */
+		if (!strncmp(fw_priv->fw_name, "rog2", 4)) {
+			snprintf(path, PATH_MAX, "%s/%s", "/system/vendor/firmware/rog2_haptic", fw_priv->fw_name);
+			dev_err(device, "[AW8697] Try to load firmware : %s \n", path);
+		}
+		#endif
+		//ASUS_BSP_haptic---
+
+                /* ASUS BSP : For Change Sensor Core FW loading path */
+                if (!strncmp(fw_priv->fw_name, "slpi", 4)) {
+                        snprintf(path, PATH_MAX, "%s/%s", "/vendor/firmware", fw_priv->fw_name);
+                        dev_err(device, "[SLPI] Try to load firmware : %s \n", path);
+                }
+                /* ASUS BSP ---*/
+
+		/* ASUS BSP audio: change fw path */
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+		if (!strncmp(fw_priv->fw_name, "adsp", 4)) {
+			snprintf(path, PATH_MAX, "%s/%s", "/vendor/firmware", fw_priv->fw_name);
+			dev_err(device, "[Audio] Try to load firmware: %s\n", path);
+		}
+		if (!strncmp(fw_priv->fw_name, "cs35l45", 7)) {
+			snprintf(path, PATH_MAX, "%s/%s", "/vendor/firmware", fw_priv->fw_name);
+			dev_err(device, "[Audio] Try to load firmware: %s\n", path);
+		}
+#endif
+		/* ASUS BSP audio --- */
+
+#if defined ASUS_SAKE_PROJECT || defined ASUS_VODKA_PROJECT
+		if (!strncmp(fw_priv->fw_name, "adsp", 4)) {
+			snprintf(path, PATH_MAX, "%s/%s", "/vendor/firmware", fw_priv->fw_name);
+			dev_err(device, "[Audio] Try to load firmware: %s\n", path);
+		}
+#endif
+
+/* ASUS BSP audio: change fw path */
+#if defined ASUS_SAKE_PROJECT
+		if (!strncmp(fw_priv->fw_name, "cs35l45", 7)) {
+			snprintf(path, PATH_MAX, "%s/%s", "/vendor/firmware", fw_priv->fw_name);
+			dev_err(device, "[Audio] Try to load firmware: %s\n", path);
+		}
+#endif
+/* ASUS BSP audio --- */
+
+		/* +++ ASUS BSP : change cdsp fw path */
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+		if (!strncmp(fw_priv->fw_name, "cdsp", 4)) {
+			snprintf(path, PATH_MAX, "%s/%s", "/vendor/firmware", fw_priv->fw_name);
+			dev_err(device, "[CDSP] Try to load firmware: %s\n", path);
+		}
+#endif
+		/* --- ASUS BSP : change cdsp fw path */
+
+		/* BSP_WIFI +++ */
+#if defined ASUS_ZS673KS_PROJECT
+		if (!strncmp(fw_priv->fw_name, "bdwlan", 6)) {
+			if (HW_REV_PR <= g_ASUS_hwID) {
+				snprintf(path, PATH_MAX, "%s/%s", "/vendor/firmware", fw_priv->fw_name);
+			} else if (HW_REV_ER <= g_ASUS_hwID) {
+				snprintf(path, PATH_MAX, "%s", "/vendor/firmware/bdwlan.e34");
+			} else {
+				snprintf(path, PATH_MAX, "%s", "/vendor/firmware/bdwlan.e0d");
+			}
+			dev_err(device, "[wlan] Try to load firmware : %s \n", path);
+		}
+#else
+		if (!strncmp(fw_priv->fw_name, "bdwlan", 6)) {
+			snprintf(path, PATH_MAX, "%s/%s", "/vendor/firmware", fw_priv->fw_name);
+			dev_err(device, "[wlan] Try to load firmware : %s \n", path);
+		}
+#endif
+		if (!strncmp(fw_priv->fw_name, "amss", 4)) {
+			snprintf(path, PATH_MAX, "%s/%s", "/vendor/firmware", fw_priv->fw_name);
+			dev_err(device, "[wlan] Try to load firmware : %s \n", path);
+		}
+		if (!strncmp(fw_priv->fw_name, "regdb", 5)) {
+			snprintf(path, PATH_MAX, "%s/%s", "/vendor/firmware", fw_priv->fw_name);
+			dev_err(device, "[wlan] Try to load firmware : %s \n", path);
+		}
+		if (!strncmp(fw_priv->fw_name, "m3.bin", 6)) {
+			snprintf(path, PATH_MAX, "%s/%s", "/vendor/firmware", fw_priv->fw_name);
+			dev_err(device, "[wlan] Try to load firmware : %s \n", path);
+		}
+		/* BSP_WIFI ---*/
+#ifdef CONFIG_PXLW_IRIS // Start iris6
+		if ((!strcmp(fw_priv->fw_name, "iris6_ccf1.fw") || !strcmp(fw_priv->fw_name, "iris6_ccf2.fw") || !strcmp(fw_priv->fw_name, "iris6_ccf3.fw") || !strcmp(fw_priv->fw_name, "iris6.fw")) && i == 1) {
+			snprintf(path, PATH_MAX, "%s/%s", "/vendor/firmware", fw_priv->fw_name);
+		}
+
+		if (i == 1) {
+			if (!strcmp(fw_priv->fw_name, "iris6_ccf1b.fw"))
+				snprintf(path, PATH_MAX, "%s/%s", "/vendor/factory/display", fw_priv->fw_name);
+
+			if (!strcmp(fw_priv->fw_name, "iris6_ccf2b.fw"))
+				snprintf(path, PATH_MAX, "%s/%s", "/vendor/factory/display", fw_priv->fw_name);
+
+			if (!strcmp(fw_priv->fw_name, "iris6_ccf3b.fw"))
+				snprintf(path, PATH_MAX, "%s/%s", "/vendor/factory/display", fw_priv->fw_name);
+
+		}
+
+#endif // End iris6
 
 		fw_priv->size = 0;
 		rc = kernel_read_file_from_path(path, &buffer, &size,

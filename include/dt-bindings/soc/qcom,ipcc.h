@@ -34,7 +34,11 @@
 #define IPCC_CLIENT_PCIE1		14
 #define IPCC_CLIENT_PCIE2		15
 #define IPCC_CLIENT_SPSS		16
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
 #define IPCC_CLIENT_WPSS		24
 #define IPCC_CLIENT_MAX			25 /* Used by driver only */
+#else
+#define IPCC_CLIENT_MAX			17 /* Used by driver only */
+#endif
 
 #endif

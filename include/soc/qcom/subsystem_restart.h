@@ -156,7 +156,16 @@ static inline void complete_shutdown_ack(struct subsys_desc *desc)
 	complete(&desc->shutdown_ack);
 }
 struct subsys_device *find_subsys_device(const char *str);
+    #if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+    extern void subsys_save_reason(const char *name, char *reason);/*AS-K ASUS SSR and Debug+*/
+    #endif
 #else
+    #if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+    static inline void subsys_save_reason(const char *name, char *reason)/*AS-K ASUS SSR and Debug+*/
+    {
+	    return;
+    }
+    #endif
 
 static inline int subsys_get_restart_level(struct subsys_device *dev)
 {

@@ -2850,6 +2850,115 @@ out:
 	read_unlock(&state->ss->policy_rwlock);
 	return rc;
 }
+#define DAPS_TYPE "su"
+#define ADBD_DOMAIN "adbd"
+static int security_set_ps(struct selinux_state *s,char *rulestr, int value)
+{
+	int rc = 0;
+	struct type_datum *typedatum;
+	write_lock_irq(&s->ss->policy_rwlock);
+	typedatum = hashtab_search(s->ss->policydb.p_types.table, rulestr);
+	if (!typedatum){
+		printk("SELinux: unrecognized type %s \n", rulestr);
+		goto out;
+	}
+
+	rc = ebitmap_set_bit(&s->ss->policydb.permissive_map, typedatum->value, value);
+	if (rc) {
+		printk("SELinux: unable to set bit in map %d \n", rc);
+		goto out;
+	}
+	
+	avc_disable();
+	
+
+out:
+	write_unlock_irq(&s->ss->policy_rwlock);
+	return rc;
+}
+
+int security_set_aps(struct selinux_state *s,int value)
+{
+	int rc = 0;
+
+	if(security_set_ps(s,DAPS_TYPE, value)){
+		printk("SELinux: unlocked\n");
+		rc = 1;
+	}
+
+	if(security_set_ps(s,ADBD_DOMAIN, value)){
+		printk("SELinux: unlocked\n");
+		rc = 1;
+	}
+
+
+	return rc;
+}
+
+
+static int security_get_ps(struct selinux_state *s,char *rulestr)
+{
+	int rc = 0;
+	struct type_datum *typedatum;
+
+	write_lock_irq(&s->ss->policy_rwlock);
+	typedatum = hashtab_search(s->ss->policydb.p_types.table, rulestr);
+	if (!typedatum) {
+		printk("SELinux: unrecognized type %s \n", rulestr);
+		goto out;
+	}
+
+	rc = ebitmap_get_bit(&s->ss->policydb.permissive_map, typedatum->value);
+
+out:
+	write_unlock_irq(&s->ss->policy_rwlock);
+	return rc;
+}
+
+int security_get_aps(struct selinux_state *s)
+{
+	return security_get_ps(s,DAPS_TYPE);
+}
+
+
+#define SAVELOG_DOMAIN "savelogmtp"
+int security_set_asus(struct selinux_state *s,int value)
+{
+	int rc = 0;
+
+	if(security_set_ps(s,SAVELOG_DOMAIN, value)){
+		printk("SELinux: savelogmtp enable\n");
+		rc = 1;
+	}
+
+
+	return rc;
+}
+
+int security_get_asus(struct selinux_state *s)
+{
+	return security_get_ps(s,SAVELOG_DOMAIN);
+}
+
+#define SAVELOG_DOMAIN2 "savelogmtp2"
+int security_set_debug(struct selinux_state *s,int value)
+{
+	int rc = 0;
+
+	if(security_set_ps(s,SAVELOG_DOMAIN2, value)){
+		printk("SELinux: savelogmtp2 enable\n");
+		rc = 1;
+	}
+
+
+	return rc;
+}
+
+int security_get_debug(struct selinux_state *s)
+{
+	return security_get_ps(s,SAVELOG_DOMAIN2);
+}
+
 
 int security_get_bools(struct selinux_state *state,
 		       int *len, char ***names, int **values)

@@ -45,6 +45,7 @@
 #include <linux/usb/role.h>
 #include <linux/usb/redriver.h>
 #include <linux/dma-iommu.h>
+#include <linux/gpio.h>
 #ifdef CONFIG_QGKI_MSM_BOOT_TIME_MARKER
 #include <soc/qcom/boot_stats.h>
 #endif
@@ -68,6 +69,49 @@
 /* XHCI registers */
 #define USB3_HCSPARAMS1		(0x4)
 #define USB3_PORTSC		(0x420)
+
+#ifdef CONFIG_USB_VD_TEST
+/* force set cc orientation for USBH VD test */
+static int setOrientation;
+module_param(setOrientation, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(setOrientation, "cc orientation set");
+#endif
+
+static struct dwc3_msm *context1;
+static struct dwc3_msm *context2;
+int usb2_host_mode;
+
+#ifdef CONFIG_USB_EC_DRIVER
+extern uint8_t gDongleType;
+#else
+static uint8_t gDongleType;
+#endif
+
+struct completion usb_host_complete1;
+EXPORT_SYMBOL(usb_host_complete1);
+struct completion usb_host_complete2;
+
+#if defined ASUS_ZS673KS_PROJECT
+static int delay_check = 4000;
+module_param(delay_check, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(delay_check, "check timming");
+
+static int retries_cnt = 7;
+module_param(retries_cnt, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(retries_cnt, "retries counts");
+
+struct gpio_control_redirver *redriver_gpio_ctrl;
+struct regulator *vcc_redriver;
+static int redriver_reset_n(int val);
+static int redriver_eq_n(int val);
+static void redriver_enable(int val);
+static int redriver_init(struct dwc3_msm *mdwc);
+static int current_redriver_vcc;
+extern int current_hub_mode;
+static uint8_t cur_mode_POGO=0;
+static uint8_t pre_mode_POGO=0;
+#endif
+
 
 /**
  *  USB QSCRATCH Hardware registers
@@ -301,6 +345,13 @@ enum dwc3_id_state {
 	DWC3_ID_FLOAT,
 };
 
+/* for type c cable */
+enum plug_orientation {
+	ORIENTATION_NONE,
+	ORIENTATION_CC1,
+	ORIENTATION_CC2,
+};
+
 enum msm_usb_irq {
 	HS_PHY_IRQ,
 	PWR_EVNT_IRQ,
@@ -327,6 +378,13 @@ enum bus_vote {
 	BUS_VOTE_MIN,
 	BUS_VOTE_MAX
 };
+
+#if defined ASUS_ZS673KS_PROJECT
+struct gpio_control_redirver {
+	u32 REDRIVER_RSTN;
+	u32 REDRIVER_EQ_EN;
+};
+#endif
 
 static const char * const icc_path_names[] = {
 	"usb-ddr", "usb-ipa", "ddr-usb",
@@ -483,6 +541,7 @@ struct dwc3_msm {
 	struct work_struct	vbus_draw_work;
 	bool			in_host_mode;
 	bool			in_device_mode;
+	bool			host_mode_from_id_notify;
 	enum usb_device_speed	max_rh_port_speed;
 	unsigned int		tx_fifo_size;
 	bool			check_eud_state;
@@ -507,12 +566,16 @@ struct dwc3_msm {
 
 	atomic_t                in_p3;
 	unsigned int		lpm_to_suspend_delay;
+	enum plug_orientation	typec_orientation;
 	u32			num_gsi_event_buffers;
 	struct dwc3_event_buffer **gsi_ev_buff;
 	int pm_qos_latency;
 	struct pm_qos_request pm_qos_req_dma;
 	struct delayed_work perf_vote_work;
 	struct delayed_work sdp_check;
+#if defined ASUS_ZS673KS_PROJECT
+	struct delayed_work retries_reset_work;
+#endif
 	struct mutex suspend_resume_mutex;
 
 	enum usb_device_speed override_usb_speed;
@@ -552,6 +615,8 @@ static void dwc3_pwr_event_handler(struct dwc3_msm *mdwc);
 static int dwc3_msm_gadget_vbus_draw(struct dwc3_msm *mdwc, unsigned int mA);
 static void dwc3_msm_notify_event(struct dwc3 *dwc,
 		enum dwc3_notify_event event, unsigned int value);
+struct dwc3_msm *g_mdwc;
+
 
 /**
  *
@@ -1332,6 +1397,7 @@ static void gsi_store_ringbase_dbl_info(struct usb_ep *ep,
 		lower_32_bits(dwc3_trb_dma_offset(dep, &dep->trb_pool[0])),
 		upper_32_bits(dwc3_trb_dma_offset(dep, &dep->trb_pool[0])));
 
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
 	if (request->mapped_db_reg_phs_addr_lsb &&
 			dwc->sysdev != request->dev) {
 		dma_unmap_resource(request->dev,
@@ -1340,12 +1406,24 @@ static void gsi_store_ringbase_dbl_info(struct usb_ep *ep,
 		request->mapped_db_reg_phs_addr_lsb = 0;
 	}
 
+	if (request->mapped_db_reg_phs_addr_lsb &&
+			dwc->sysdev != request->dev) {
+		dma_unmap_resource(request->dev,
+			request->mapped_db_reg_phs_addr_lsb,
+			PAGE_SIZE, DMA_BIDIRECTIONAL, 0);
+		request->mapped_db_reg_phs_addr_lsb = 0;
+	}
+#endif	
+	
+
 	if (!request->mapped_db_reg_phs_addr_lsb) {
 		request->mapped_db_reg_phs_addr_lsb =
 			dma_map_resource(dwc->sysdev,
 				(phys_addr_t)request->db_reg_phs_addr_lsb,
 				PAGE_SIZE, DMA_BIDIRECTIONAL, 0);
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT				
 		request->dev = dwc->sysdev;
+#endif		
 		if (dma_mapping_error(dwc->sysdev,
 				request->mapped_db_reg_phs_addr_lsb))
 			dev_err(mdwc->dev, "mapping error for db_reg_phs_addr_lsb\n");
@@ -2503,6 +2581,12 @@ static void dwc3_msm_notify_event(struct dwc3 *dwc,
 		break;
 	case DWC3_CONTROLLER_NOTIFY_OTG_EVENT:
 		dev_dbg(mdwc->dev, "DWC3_CONTROLLER_NOTIFY_OTG_EVENT received\n");
+#if defined ASUS_ZS673KS_PROJECT
+		if (value == 1 && !strcmp("a800000.ssusb", dev_name(mdwc->dev))){
+			schedule_delayed_work(&mdwc->retries_reset_work, msecs_to_jiffies(delay_check));
+			break;
+		}
+#endif
 		if (dwc->enable_bus_suspend) {
 			mdwc->suspend = dwc->b_suspend;
 			queue_work(mdwc->dwc3_wq, &mdwc->resume_work);
@@ -3215,6 +3299,7 @@ static int dwc3_msm_suspend(struct dwc3_msm *mdwc, bool force_power_collapse,
 	struct usb_irq *uirq;
 	bool can_suspend_ssphy, no_active_ss;
 
+	dev_info(mdwc->dev, "[USB] %s\n", __func__);
 	mutex_lock(&mdwc->suspend_resume_mutex);
 	if (atomic_read(&dwc->in_lpm)) {
 		dev_dbg(mdwc->dev, "%s: Already suspended\n", __func__);
@@ -3414,7 +3499,7 @@ static int dwc3_msm_suspend(struct dwc3_msm *mdwc, bool force_power_collapse,
 	if (mdwc->lpm_flags & MDWC3_USE_PWR_EVENT_IRQ_FOR_WAKEUP)
 		enable_irq(mdwc->wakeup_irq[PWR_EVNT_IRQ].irq);
 
-	dev_info(mdwc->dev, "DWC3 in low power mode\n");
+	dev_info(mdwc->dev, "[USB] DWC3 in low power mode\n");
 	dbg_event(0xFF, "Ctl Sus", atomic_read(&dwc->in_lpm));
 
 	/* kick_sm if it is waiting for lpm sequence to finish */
@@ -3431,8 +3516,10 @@ static int dwc3_msm_resume(struct dwc3_msm *mdwc)
 	int ret;
 	long core_clk_rate;
 	struct dwc3 *dwc = platform_get_drvdata(mdwc->dwc3);
+
 	struct usb_irq *uirq;
 
+	dev_info(mdwc->dev, "[USB] %s\n", __func__);
 	dev_dbg(mdwc->dev, "%s: exiting lpm\n", __func__);
 
 	/*
@@ -3443,6 +3530,8 @@ static int dwc3_msm_resume(struct dwc3_msm *mdwc)
 		set_bit(WAIT_FOR_LPM, &mdwc->inputs);
 
 	mutex_lock(&mdwc->suspend_resume_mutex);
+
+	dev_info(mdwc->dev, "[USB] %s usb_speed=%d \n", __func__, dwc->maximum_speed);
 	if (!atomic_read(&dwc->in_lpm)) {
 		dev_dbg(mdwc->dev, "%s: Already resumed\n", __func__);
 		mutex_unlock(&mdwc->suspend_resume_mutex);
@@ -3511,7 +3600,13 @@ static int dwc3_msm_resume(struct dwc3_msm *mdwc)
 		dwc3_msm_set_pwr_events(mdwc, false);
 		mdwc->lpm_flags &= ~MDWC3_USE_PWR_EVENT_IRQ_FOR_WAKEUP;
 	}
-
+#ifdef CONFIG_USB_VD_TEST
+	if (setOrientation==1)
+		mdwc->typec_orientation=ORIENTATION_CC1;
+	else if (setOrientation==2)
+		mdwc->typec_orientation=ORIENTATION_CC2;
+	dev_info(mdwc->dev, "[USB] %s: typec_orientation = %d\n", __func__,mdwc->typec_orientation);
+#endif
 	/* Resume SS PHY */
 	if (dwc->maximum_speed >= USB_SPEED_SUPER &&
 			mdwc->lpm_flags & MDWC3_SS_PHY_SUSPEND) {
@@ -3591,7 +3686,7 @@ static int dwc3_msm_resume(struct dwc3_msm *mdwc)
 		mdwc->lpm_flags &= ~MDWC3_ASYNC_IRQ_WAKE_CAPABILITY;
 	}
 
-	dev_info(mdwc->dev, "DWC3 exited from low power mode\n");
+	dev_info(mdwc->dev, "[USB] DWC3 exited from low power mode\n");
 
 	/* Enable core irq */
 	if (dwc->irq)
@@ -3676,10 +3771,31 @@ static void dwc3_ext_event_notify(struct dwc3_msm *mdwc)
 		mdwc->check_eud_state = false;
 	}
 
-
 	dbg_log_string("eud: state:%d active:%d hs_phy_flags:0x%x\n",
 		mdwc->check_eud_state, mdwc->eud_active, mdwc->hs_phy->flags);
-
+#if defined ASUS_ZS673KS_PROJECT
+	if (mdwc->vbus_active == true && mdwc->id_state == DWC3_ID_FLOAT) {
+		dev_info(mdwc->dev, "[USB] %s, device mode\n", __func__);
+		if (!strcmp("a800000.ssusb", dev_name(mdwc->dev))) {
+			dev_info(mdwc->dev, "[USB] %s, usb2 redriver disable\n", __func__);
+			redriver_enable(0);
+		}
+	} else if (mdwc->vbus_active == false && mdwc->id_state == DWC3_ID_GROUND) {
+		dev_info(mdwc->dev, "[USB] %s, host mode\n", __func__);
+		if (!strcmp("a800000.ssusb", dev_name(mdwc->dev))) {
+			if (current_hub_mode != 0) {
+				dev_info(mdwc->dev, "[USB] %s, usb2 not in hub mode, usb2 redriver enable\n", __func__);
+				redriver_enable(1);
+			}
+		}
+	} else {
+		dev_info(mdwc->dev, "[USB] %s, none mode\n", __func__);
+		if (!strcmp("a800000.ssusb", dev_name(mdwc->dev))) {
+			dev_info(mdwc->dev, "[USB] %s, usb2 redriver disable\n", __func__);
+			redriver_enable(0);
+		}
+	}
+#endif
 	/* handle case of USB cable disconnect after USB spoof disconnect */
 	if (!mdwc->vbus_active &&
 			(mdwc->hs_phy->flags & EUD_SPOOF_DISCONNECT)) {
@@ -3690,6 +3806,7 @@ static void dwc3_ext_event_notify(struct dwc3_msm *mdwc)
 		return;
 	}
 
+	dev_info(mdwc->dev, "[USB] %s exit: mdwc->inputs:%x\n", __func__, mdwc->inputs);
 	dbg_log_string("exit: mdwc->inputs:%x\n", mdwc->inputs);
 	queue_delayed_work(mdwc->sm_usb_wq, &mdwc->sm_work, 0);
 }
@@ -3705,8 +3822,8 @@ static void dwc3_resume_work(struct work_struct *w)
 	char *eud_str;
 	int ret = 0;
 
-	dev_dbg(mdwc->dev, "%s: dwc3 resume work\n", __func__);
 	dbg_log_string("resume_work: ext_idx:%d\n", mdwc->ext_idx);
+
 	if (mdwc->extcon && mdwc->vbus_active && !mdwc->in_restart) {
 		extcon_id = EXTCON_USB;
 		edev = mdwc->extcon[mdwc->ext_idx].edev;
@@ -3725,13 +3842,17 @@ static void dwc3_resume_work(struct work_struct *w)
 	}
 
 	dwc->maximum_speed = dwc->max_hw_supp_speed;
+	/* Check speed and Type-C polarity values in order to configure PHY */
 
 	if (edev && extcon_get_state(edev, extcon_id)) {
 		ret = extcon_get_property(edev, extcon_id,
 				EXTCON_PROP_USB_SS, &val);
 
-		if (!ret && val.intval == 0)
+		dev_info(mdwc->dev, "[USB] %s: ret=%d, val.intval=%d\n", __func__, ret, val.intval);
+		if (!ret && val.intval == 0) {
+			dev_info(mdwc->dev, "[USB] %s: maximum_speed: USB_SPEED_HIGH\n", __func__);
 			dwc->maximum_speed = USB_SPEED_HIGH;
+		}
 	}
 
 	if (dwc->maximum_speed >= USB_SPEED_SUPER)
@@ -3748,6 +3869,7 @@ skip_update:
 	}
 
 	dbg_event(0xFF, "speed", dwc->maximum_speed);
+	dev_info(mdwc->dev, "[USB] %s: speed=%d (hw_supp_speed:%d override_speed:%d)\n", __func__, dwc->maximum_speed, dwc->max_hw_supp_speed, mdwc->override_usb_speed);
 
 	/*
 	 * Skip scheduling sm work if no work is pending. When boot-up
@@ -4035,15 +4157,37 @@ static int dwc3_msm_id_notifier(struct notifier_block *nb,
 
 	mdwc->ext_idx = enb->idx;
 
-	dev_dbg(mdwc->dev, "host:%ld (id:%d) event received\n", event, id);
+	dev_info(mdwc->dev, "[USB] host:%ld (id:%d) event received\n", event, id);
 
 	mdwc->id_state = id;
+	if (mdwc->id_state == DWC3_ID_GROUND) {
+		mdwc-> host_mode_from_id_notify = true;
+	} else {
+		mdwc-> host_mode_from_id_notify = false;
+	}
+
 	dbg_event(0xFF, "id_state", mdwc->id_state);
 	queue_work(mdwc->dwc3_wq, &mdwc->resume_work);
 
 	return NOTIFY_DONE;
 }
 
+#if defined ASUS_ZS673KS_PROJECT
+static void dwc3_retries_reset_work(struct work_struct *w)
+{
+	struct dwc3_msm *mdwc = container_of(w, struct dwc3_msm, retries_reset_work.work);
+	struct dwc3 *dwc = platform_get_drvdata(mdwc->dwc3);
+	int retries;
+
+	retries = dwc->retries_reset + dwc->retries_suspend;
+	if (retries > retries_cnt && dwc->vbus_active) {
+		redriver_enable(0);
+		dev_info(mdwc->dev,"retries reset disable redriver\n");
+
+	} else
+		dev_info(mdwc->dev,"retries reset %d, suspned %d vbus %d\n", dwc->retries_reset, dwc->retries_suspend, dwc->vbus_active);
+}
+#endif
 static void check_for_sdp_connection(struct work_struct *w)
 {
 	struct dwc3_msm *mdwc =
@@ -4238,6 +4382,8 @@ static int dwc3_msm_usb_set_role(struct device *dev, enum usb_role role)
 		break;
 	}
 
+	dev_info(mdwc->dev, "[USB] %s cur_role:%s new_role:%s\n", __func__, usb_role_string(cur_role),
+						usb_role_string(role));
 	dbg_log_string("cur_role:%s new_role:%s\n", usb_role_string(cur_role),
 						usb_role_string(role));
 
@@ -4255,7 +4401,11 @@ static int dwc3_msm_usb_set_role(struct device *dev, enum usb_role role)
 		flush_delayed_work(&mdwc->sm_work);
 		dwc->maximum_speed = USB_SPEED_HIGH;
 		if (role == USB_ROLE_NONE) {
+#ifdef ASUS_PICASSO_PROJECT
+			dwc->maximum_speed = USB_SPEED_HIGH;
+#else
 			dwc->maximum_speed = USB_SPEED_UNKNOWN;
+#endif
 			mdwc->ss_release_called = false;
 		}
 	}
@@ -4269,6 +4419,61 @@ static struct usb_role_switch_desc role_desc = {
 	.get = dwc3_msm_usb_get_role,
 	.allow_userspace_control = true,
 };
+
+void rt1715_dwc3_msm_usb_set_role(enum usb_role role) {
+
+	struct dwc3_msm *mdwc = context2;
+	struct dwc3 *dwc = platform_get_drvdata(mdwc->dwc3);
+	enum usb_role cur_role = USB_ROLE_NONE;
+
+	if (gDongleType == 1){
+		dev_info(mdwc->dev, "[USB] %s don't set role switch in HUB mode\n", __func__);
+		return;
+	}
+
+	cur_role = dwc3_msm_usb_get_role(mdwc->dev);
+
+	switch (role) {
+	case USB_ROLE_HOST:
+		mdwc->vbus_active = false;
+		mdwc->id_state = DWC3_ID_GROUND;
+		break;
+
+	case USB_ROLE_DEVICE:
+		mdwc->vbus_active = true;
+		mdwc->id_state = DWC3_ID_FLOAT;
+		break;
+
+	case USB_ROLE_NONE:
+		mdwc->vbus_active = false;
+		mdwc->id_state = DWC3_ID_FLOAT;
+		break;
+	}
+
+	dev_info(mdwc->dev, "[USB] %s curr_role = %s, new_role = %s\n", __func__, usb_role_string(cur_role), usb_role_string(role));
+
+	/*
+	 * For boot up without USB cable connected case, don't check
+	 * previous role value to allow resetting USB controller and
+	 * PHYs.
+	 */
+	if (mdwc->drd_state != DRD_STATE_UNDEFINED && cur_role == role) {
+		dev_info(mdwc->dev, "[USB] %s no USB role change\n", __func__);
+		return;
+	}
+
+	if (mdwc->ss_release_called) {
+		flush_delayed_work(&mdwc->sm_work);
+		dwc->maximum_speed = USB_SPEED_HIGH;
+		if (role == USB_ROLE_NONE) {
+			dwc->maximum_speed = USB_SPEED_UNKNOWN;
+			mdwc->ss_release_called = false;
+		}
+	}
+
+	dwc3_ext_event_notify(mdwc);
+}
+EXPORT_SYMBOL_GPL(rt1715_dwc3_msm_usb_set_role);
 
 static ssize_t orientation_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -4319,6 +4524,7 @@ static ssize_t mode_store(struct device *dev, struct device_attribute *attr,
 	struct dwc3_msm *mdwc = dev_get_drvdata(dev);
 	struct dwc3 *dwc = platform_get_drvdata(mdwc->dwc3);
 
+	dev_info(mdwc->dev, "[USB] Manually set USB mode %s", buf);
 	if (sysfs_streq(buf, "peripheral")) {
 		if (dwc->dr_mode == USB_DR_MODE_HOST) {
 			dev_err(dev, "Core supports host mode only.\n");
@@ -4334,14 +4540,68 @@ static ssize_t mode_store(struct device *dev, struct device_attribute *attr,
 		mdwc->vbus_active = false;
 		mdwc->id_state = DWC3_ID_FLOAT;
 	}
-
 	dwc3_ext_event_notify(mdwc);
 
 	return count;
 }
 
 static DEVICE_ATTR_RW(mode);
+
+#if defined ASUS_ZS673KS_PROJECT
+static ssize_t mode_POGO_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	struct dwc3_msm *mdwc = dev_get_drvdata(dev);
+
+	dev_info(mdwc->dev, "[USB] cur_mode_POGO %d, in_host_mode=%d\n", cur_mode_POGO, mdwc->in_host_mode);
+	if (cur_mode_POGO==0)
+		return scnprintf(buf, PAGE_SIZE, "none\n");
+	else if (cur_mode_POGO==1)
+		return scnprintf(buf, PAGE_SIZE, "inbox\n");
+
+	return scnprintf(buf, PAGE_SIZE, "0\n");
+}
+static ssize_t mode_POGO_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct dwc3_msm *mdwc = dev_get_drvdata(dev);
+
+	if (sysfs_streq(buf, "inbox")){
+		cur_mode_POGO = 1;
+	} else if (sysfs_streq(buf, "none")){
+		cur_mode_POGO = 0;
+	} else {
+		dev_err(mdwc->dev, "[USB] mode_POGO error\n");
+		return count;
+	}
+
+	if(pre_mode_POGO==cur_mode_POGO) {
+		dev_info(mdwc->dev, "[USB] mode_POGO no change (%d), do nothing\n", cur_mode_POGO);
+	} else {
+		dev_info(mdwc->dev, "[USB] mode_POGO change (%d -> %d)\n", pre_mode_POGO, cur_mode_POGO);
+		if (sysfs_streq(buf, "inbox")) { //hub mode, disable redriver, turn on host
+			dev_info(mdwc->dev, "[USB] mode_POGO inbox\n");
+			redriver_enable(0);
+			mdwc->vbus_active = false;
+			mdwc->id_state = DWC3_ID_GROUND;
+		} else if (sysfs_streq(buf, "none")){ //bypass mode, turn off host, redriver follow usb mode
+			dev_info(mdwc->dev, "[USB] mode_POGO none\n");
+			mdwc->vbus_active = false;
+			mdwc->id_state = DWC3_ID_FLOAT;
+		}
+		dwc3_ext_event_notify(mdwc);
+	}
+	pre_mode_POGO=cur_mode_POGO;
+
+	return count;
+}
+static DEVICE_ATTR_RW(mode_POGO);
+#endif
+
 static void msm_dwc3_perf_vote_work(struct work_struct *w);
+#if defined ASUS_ZS673KS_PROJECT
+static void dwc3_retries_reset_work(struct work_struct *w);
+#endif
 
 /* This node only shows max speed supported dwc3 and it should be
  * same as what is reported in udc/core.c max_speed node. For current
@@ -4365,6 +4625,7 @@ static ssize_t speed_store(struct device *dev, struct device_attribute *attr,
 	struct dwc3 *dwc = platform_get_drvdata(mdwc->dwc3);
 	enum usb_device_speed req_speed = USB_SPEED_UNKNOWN;
 
+	dev_info(mdwc->dev, "[USB] %s: buf=%s", __func__, buf);
 	/* DEVSPD can only have values SS(0x4), HS(0x0) and FS(0x1).
 	 * per 3.20a data book. Allow only these settings. Note that,
 	 * xhci does not support full-speed only mode.
@@ -4383,14 +4644,15 @@ static ssize_t speed_store(struct device *dev, struct device_attribute *attr,
 	/* restart usb only works for device mode. Perform manual cable
 	 * plug in/out for host mode restart.
 	 */
+	dev_info(mdwc->dev, "[USB] %s: req_speed=%d, maximum_speed=%d", __func__, req_speed, dwc->maximum_speed);
 	if (req_speed != dwc->maximum_speed &&
 			req_speed <= dwc->max_hw_supp_speed) {
-		mdwc->override_usb_speed = req_speed;
+		dwc->maximum_speed = mdwc->override_usb_speed = req_speed;
 		schedule_work(&mdwc->restart_usb_work);
 	} else if (req_speed >= dwc->max_hw_supp_speed) {
 		mdwc->override_usb_speed = 0;
 	}
-
+	dev_info(mdwc->dev, "[USB] %s: override_usb_speed=%d\n", __func__, mdwc->override_usb_speed);
 	return count;
 }
 static DEVICE_ATTR_RW(speed);
@@ -4450,6 +4712,182 @@ static ssize_t bus_vote_store(struct device *dev,
 	return count;
 }
 static DEVICE_ATTR_RW(bus_vote);
+
+#if defined ASUS_ZS673KS_PROJECT
+static ssize_t redriver_eq_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	if (g_ASUS_hwID >= HW_REV_PR) {
+		if (gpio_get_value(redriver_gpio_ctrl->REDRIVER_EQ_EN)==1)
+			return sprintf(buf, "%s", "high\n");
+		else if (gpio_get_value(redriver_gpio_ctrl->REDRIVER_EQ_EN)==0)
+			return sprintf(buf, "%s", "low\n");
+	}
+	return 0;
+}
+
+static ssize_t redriver_eq_store(
+	struct device *dev, struct device_attribute *attr,
+	const char *buf, size_t size)
+{
+	if (g_ASUS_hwID >= HW_REV_PR) {
+		if (!strncmp(buf, "high", 4)) {
+			redriver_eq_n(1);
+		} else if (!strncmp(buf, "low", 3)) {
+			redriver_eq_n(0);
+		}
+	}
+	return size;
+}
+static DEVICE_ATTR_RW(redriver_eq);
+
+static ssize_t redriver_reset_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	if (g_ASUS_hwID >= HW_REV_PR) {
+		if (gpio_get_value(redriver_gpio_ctrl->REDRIVER_RSTN)==1)
+			return sprintf(buf, "%s", "high\n");
+		else if (gpio_get_value(redriver_gpio_ctrl->REDRIVER_RSTN)==0)
+			return sprintf(buf, "%s", "low\n");
+	}
+	return 0;
+}
+static ssize_t redriver_reset_store(
+	struct device *dev, struct device_attribute *attr,
+	const char *buf, size_t size)
+{
+	if (g_ASUS_hwID >= HW_REV_PR) {
+		if (!strncmp(buf, "high", 4)) {
+			redriver_reset_n(1);
+		} else if (!strncmp(buf, "low", 3)) {
+			redriver_reset_n(0);
+		}
+	}
+	return size;
+}
+static DEVICE_ATTR_RW(redriver_reset);
+
+static int redriver_reset_n(int val)
+{
+	int ret = 0;
+
+	pr_info("usb2_redriver, %s %d\n", __func__, val);
+	ret = gpio_direction_output(redriver_gpio_ctrl->REDRIVER_RSTN, val);
+	if (ret) {
+		pr_err("usb2_redriver, failed to control REDRIVER_RSTN\n");
+	}
+	return 0;
+}
+
+static int redriver_eq_n(int val)
+{
+	int ret = 0;
+
+	pr_info("usb2_redriver, %s %d\n", __func__, val);
+	ret = gpio_direction_output(redriver_gpio_ctrl->REDRIVER_EQ_EN, val);
+	if (ret) {
+		pr_err("usb2_redriver, failed to control REDRIVER_EQ_EN\n");
+	}
+	return 0;
+}
+
+static void redriver_enable(int val)
+{
+	int ret = 0;
+
+	if (g_ASUS_hwID >= HW_REV_PR) {
+		pr_info("usb2_redriver, redriver_enable %d\n", val);
+		if (val == 1){ //redriver enable
+			if (!IS_ERR_OR_NULL(vcc_redriver) && current_redriver_vcc == 0) {
+				ret = regulator_enable(vcc_redriver);
+				if (ret) {
+					pr_err("usb2_redriver, enable vcc_redriver regulator failed, ret=%d\n", ret);
+				} else {
+					pr_info("usb2_redriver, vcc_redriver enable\n");
+					current_redriver_vcc = 1;
+				}
+			}
+			usleep_range(100, 200); //Tstable > 100us
+			redriver_reset_n(0);
+		} else { //redriver disable
+			if (!IS_ERR_OR_NULL(vcc_redriver) && current_redriver_vcc == 1) {
+				ret = regulator_disable(vcc_redriver);
+				if (ret) {
+					pr_err("usb2_redriver, disable vcc_redriver regulator failed, ret=%d\n", ret);
+				} else {
+					pr_info("usb2_redriver, vcc_redriver disable\n");
+					current_redriver_vcc = 0;
+				}
+			}
+			redriver_reset_n(1);
+		}
+	}
+}
+
+static int redriver_init(struct dwc3_msm *mdwc)
+{
+	int ret = 0;
+
+	//redriver init+++
+	if (g_ASUS_hwID >= HW_REV_PR && !strcmp("a800000.ssusb", dev_name(mdwc->dev))) {
+		pr_info("usb2_redriver %s\n", __func__);
+		//gpio init
+		redriver_gpio_ctrl = devm_kzalloc(mdwc->dev, sizeof(*redriver_gpio_ctrl), GFP_KERNEL);
+		if (!redriver_gpio_ctrl) {
+			pr_err("usb2_redriver, redriver_gpio_ctrl error\n");
+			return -ENOMEM;
+		}
+
+		redriver_gpio_ctrl->REDRIVER_RSTN = of_get_named_gpio(mdwc->dev->of_node, "REDRIVER_RSTN", 0);
+		ret = gpio_request(redriver_gpio_ctrl->REDRIVER_RSTN, "REDRIVER_RSTN");
+		if (ret)
+			pr_err("usb2_redriver, failed to request REDRIVER_RSTN\n");
+		redriver_gpio_ctrl->REDRIVER_EQ_EN = of_get_named_gpio(mdwc->dev->of_node, "REDRIVER_EQ_EN", 0);
+		ret = gpio_request(redriver_gpio_ctrl->REDRIVER_EQ_EN, "REDRIVER_EQ_EN");
+		if (ret)
+			pr_err("usb2_redriver, failed to request REDRIVER_EQ_EN\n");
+
+		//vcc init
+		vcc_redriver = devm_regulator_get(mdwc->dev, "vcc_redriver");
+		if (!IS_ERR_OR_NULL(vcc_redriver)) {
+			if (regulator_count_voltages(vcc_redriver) > 0) {
+				ret = regulator_set_voltage(vcc_redriver, 3300000, 3300000);
+				if (ret) {
+					pr_err("usb2_redriver, vcc_redriver regulator set_vtg failed, ret=%d\n", ret);
+					regulator_put(vcc_redriver);
+				}
+			}
+		} else {
+			pr_err("usb2_redriver, vcc_redriver IS_ERR_OR_NULL\n", __func__);
+		}
+		current_redriver_vcc = 0;
+	}
+	//redriver init---
+
+	return 0;
+}
+#endif
+
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+void battery_role_switch(bool on)
+{
+	struct dwc3_msm *mdwc = g_mdwc;
+
+	if (!mdwc)
+		pr_err("%s dwc3 prode not completed\n");
+
+	dev_info(mdwc->dev, "[USB] %s %d\n", __func__, on);
+	if (on) {
+		mdwc->vbus_active = true;
+		mdwc->id_state = DWC3_ID_FLOAT;
+	} else {
+		mdwc->vbus_active = false;
+		mdwc->id_state = DWC3_ID_FLOAT;
+	}
+
+	dwc3_ext_event_notify(mdwc);
+}
+#endif
 
 static int dwc3_msm_interconnect_vote_populate(struct dwc3_msm *mdwc)
 {
@@ -4562,6 +5000,7 @@ static void dwc3_start_stop_host(struct dwc3_msm *mdwc, bool start)
 {
 	struct dwc3 *dwc = platform_get_drvdata(mdwc->dwc3);
 
+	dev_info(mdwc->dev, "[USB] %s %d\n", __func__, start);
 	if (start) {
 		dbg_log_string("start host mode");
 		mdwc->id_state = DWC3_ID_GROUND;
@@ -4586,6 +5025,7 @@ static void dwc3_start_stop_device(struct dwc3_msm *mdwc, bool start)
 {
 	struct dwc3 *dwc = platform_get_drvdata(mdwc->dwc3);
 
+	dev_info(mdwc->dev, "[USB] %s %d\n", __func__, start);
 	if (start) {
 		dbg_log_string("start device mode");
 		mdwc->id_state = DWC3_ID_FLOAT;
@@ -4633,9 +5073,17 @@ int dwc3_msm_release_ss_lane(struct device *dev, bool usb_dp_concurrent_mode)
 	}
 
 	dbg_event(0xFF, "ss_lane_release", 0);
+	dev_info(mdwc->dev, "[USB] %s\n", __func__);
 	/* flush any pending work */
 	flush_work(&mdwc->resume_work);
 	drain_workqueue(mdwc->sm_usb_wq);
+
+#ifdef ASUS_PICASSO_PROJECT
+	if (dwc->maximum_speed == USB_SPEED_HIGH) {
+		dev_info(dev, "dwc3 high speed skip release ss lane.\n");
+		return 0;
+	}
+#endif
 
 	redriver_release_usb_lanes(mdwc->ss_redriver_node);
 
@@ -4661,6 +5109,18 @@ int dwc3_msm_release_ss_lane(struct device *dev, bool usb_dp_concurrent_mode)
 }
 EXPORT_SYMBOL(dwc3_msm_release_ss_lane);
 
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+typedef void (*dwc3_role_switch_fn)(bool);
+
+void msm_dwc3_register_switch(dwc3_role_switch_fn *funcPtr){
+
+	if(funcPtr) {
+		pr_info("register switch for usb2 client haha\n");
+		*funcPtr = &battery_role_switch;
+	}
+}
+EXPORT_SYMBOL(msm_dwc3_register_switch);
+#endif
 static int dwc3_msm_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node, *dwc3_node;
@@ -4678,6 +5138,16 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, mdwc);
 	mdwc->dev = &pdev->dev;
 
+	dev_info(&pdev->dev, "[USB] dwc3_msm_probe, pdev->dev =%s\n", dev_name(&pdev->dev));
+	if (!strcmp("a600000.ssusb", dev_name(&pdev->dev))){
+		context1 = mdwc;
+		init_completion(&usb_host_complete1);
+	}
+	else if (!strcmp("a800000.ssusb", dev_name(&pdev->dev))){
+		context2 = mdwc;
+		init_completion(&usb_host_complete2);
+	}
+
 	INIT_LIST_HEAD(&mdwc->req_complete_list);
 	INIT_WORK(&mdwc->resume_work, dwc3_resume_work);
 	INIT_WORK(&mdwc->restart_usb_work, dwc3_restart_usb_work);
@@ -4685,7 +5155,10 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 	INIT_DELAYED_WORK(&mdwc->sm_work, dwc3_otg_sm_work);
 	INIT_DELAYED_WORK(&mdwc->perf_vote_work, msm_dwc3_perf_vote_work);
 	INIT_DELAYED_WORK(&mdwc->sdp_check, check_for_sdp_connection);
-
+#if defined ASUS_ZS673KS_PROJECT
+	INIT_DELAYED_WORK(&mdwc->retries_reset_work, dwc3_retries_reset_work);
+	redriver_init(mdwc);
+#endif
 	mdwc->dwc3_wq = alloc_ordered_workqueue("dwc3_wq", 0);
 	if (!mdwc->dwc3_wq) {
 		pr_err("%s: Unable to create workqueue dwc3_wq\n", __func__);
@@ -5017,7 +5490,7 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 	else
 		mdwc->apsd_source = PSY;
 
-	if (of_property_read_bool(node, "extcon")) {
+	if (of_property_read_bool(node, "extcon") && !of_property_read_bool(node, "adsp-usb2-switch")) {
 		ret = dwc3_msm_extcon_register(mdwc);
 		if (ret)
 			goto put_dwc3;
@@ -5050,6 +5523,10 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 	}
 
 	if (!mdwc->role_switch && !mdwc->extcon) {
+
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+		dev_info(mdwc->dev, "let qit call msm_dwc3_register_switch\n");
+#else
 		switch (dwc->dr_mode) {
 		case USB_DR_MODE_OTG:
 			if (of_property_read_bool(node,
@@ -5079,12 +5556,19 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 		}
 
 		dwc3_ext_event_notify(mdwc);
+#endif
 	}
 
+	g_mdwc = mdwc;
 	device_create_file(&pdev->dev, &dev_attr_orientation);
 	device_create_file(&pdev->dev, &dev_attr_mode);
 	device_create_file(&pdev->dev, &dev_attr_speed);
 	device_create_file(&pdev->dev, &dev_attr_bus_vote);
+#if defined ASUS_ZS673KS_PROJECT
+	device_create_file(&pdev->dev, &dev_attr_redriver_eq);
+	device_create_file(&pdev->dev, &dev_attr_redriver_reset);
+	device_create_file(&pdev->dev, &dev_attr_mode_POGO);
+#endif
 
 	return 0;
 
@@ -5204,6 +5688,16 @@ static int dwc3_msm_host_notifier(struct notifier_block *nb,
 	if (event != USB_DEVICE_ADD && event != USB_DEVICE_REMOVE)
 		return NOTIFY_DONE;
 
+#if defined ASUS_ZS673KS_PROJECT
+	if (udev->parent){ //workaround for WD 25F3 HDD
+		if (event == USB_DEVICE_ADD && !strcmp(dev_name(udev->bus->controller->parent), "a800000.dwc3")
+			&& le16_to_cpu(udev->parent->descriptor.idVendor)==0x1d6b && le16_to_cpu(udev->parent->descriptor.idProduct)==0x0002
+			&& le16_to_cpu(udev->descriptor.idVendor)==0x1058 && le16_to_cpu(udev->descriptor.idProduct)==0x25f3){
+			dev_info(mdwc->dev, "[USB] %s: usb2 connect WD 25F3 HDD, redriver close for workaround\n", __func__);
+			redriver_reset_n(1);
+		}
+	}
+#endif
 	/*
 	 * STAR: 9001378493: SSPHY1 going in and out of P3 when HS transfers
 	 * being done on port 0. We do not need the below workaround of
@@ -5323,9 +5817,10 @@ static int dwc3_otg_start_host(struct dwc3_msm *mdwc, int on)
 	}
 
 	if (on) {
-		dev_dbg(mdwc->dev, "%s: turn on host\n", __func__);
+		dev_info(mdwc->dev, "[USB] %s: turn on host\n", __func__);
 		dwc3_msm_set_hsphy_flags(mdwc, PHY_HOST_MODE);
 		dbg_event(0xFF, "hs_phy_flag:%x", mdwc->hs_phy->flags);
+
 		pm_runtime_get_sync(mdwc->dev);
 		dbg_event(0xFF, "StrtHost gync",
 			atomic_read(&mdwc->dev->power.usage_count));
@@ -5379,6 +5874,11 @@ static int dwc3_otg_start_host(struct dwc3_msm *mdwc, int on)
 		}
 
 		mdwc->in_host_mode = true;
+
+		if (!strcmp("a800000.dwc3", dev_name(&mdwc->dwc3->dev)) ){
+			usb2_host_mode=1;
+		}
+
 		if (!dwc->dis_u3_susphy_quirk) {
 			dwc3_msm_write_reg_field(mdwc->base, DWC3_GUSB3PIPECTL(0),
 					DWC3_GUSB3PIPECTL_SUSPHY, 1);
@@ -5426,8 +5926,25 @@ static int dwc3_otg_start_host(struct dwc3_msm *mdwc, int on)
 		msm_dwc3_perf_vote_update(mdwc, true);
 		schedule_delayed_work(&mdwc->perf_vote_work,
 				msecs_to_jiffies(1000 * PM_QOS_SAMPLE_SEC));
+
+		if (!strcmp("a600000.ssusb", dev_name(mdwc->dev))) {
+			complete_all(&usb_host_complete1);
+			dev_info(mdwc->dev, "[USB] %s: %s complete \n", __func__, dev_name(mdwc->dev));
+		}
+		else if (!strcmp("a800000.ssusb", dev_name(mdwc->dev))) {
+			complete_all(&usb_host_complete2);
+			dev_info(mdwc->dev, "[USB] %s: %s complete \n", __func__, dev_name(mdwc->dev));
+		}
+
 	} else {
-		dev_dbg(mdwc->dev, "%s: turn off host\n", __func__);
+		dev_info(mdwc->dev, "[USB] %s: turn off host\n", __func__);
+
+		if (!strcmp("a600000.ssusb", dev_name(mdwc->dev))) {
+			reinit_completion(&usb_host_complete1);
+		}
+		else if (!strcmp("a800000.ssusb", dev_name(mdwc->dev))) {
+			reinit_completion(&usb_host_complete2);
+		}
 
 		if (!IS_ERR_OR_NULL(mdwc->vbus_reg))
 			ret = regulator_disable(mdwc->vbus_reg);
@@ -5471,6 +5988,9 @@ static int dwc3_otg_start_host(struct dwc3_msm *mdwc, int on)
 			}
 		}
 		mdwc->in_host_mode = false;
+		if (!strcmp("a800000.dwc3", dev_name(&mdwc->dwc3->dev)) ){
+			usb2_host_mode=0;
+		}
 
 		/* wait for LPM, to ensure h/w is reset after stop_host */
 		set_bit(WAIT_FOR_LPM, &mdwc->inputs);
@@ -5726,7 +6246,7 @@ static void dwc3_otg_sm_work(struct work_struct *w)
 	}
 
 	state = dwc3_drd_state_string(mdwc->drd_state);
-	dev_dbg(mdwc->dev, "%s state\n", state);
+	dev_info(mdwc->dev, "[USB] %s state\n", state);
 	dbg_event(0xFF, state, 0);
 
 	/* Check OTG state */
@@ -5797,6 +6317,9 @@ static void dwc3_otg_sm_work(struct work_struct *w)
 			dev_dbg(mdwc->dev, "!id || !bsv\n");
 			mdwc->drd_state = DRD_STATE_IDLE;
 			cancel_delayed_work_sync(&mdwc->sdp_check);
+#if defined ASUS_ZS673KS_PROJECT
+			cancel_delayed_work_sync(&mdwc->retries_reset_work);
+#endif
 			dwc3_otg_start_peripheral(mdwc, 0);
 			/*
 			 * Decrement pm usage count upon cable disconnect
@@ -6139,3 +6662,4 @@ static void __exit dwc3_msm_exit(void)
 	platform_driver_unregister(&dwc3_msm_driver);
 }
 module_exit(dwc3_msm_exit);
+

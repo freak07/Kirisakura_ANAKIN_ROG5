@@ -1,0 +1,31 @@
+###############################################################################################
+#
+# Reverse the order of the configs for the override to work properly
+# Correct order is : 
+#1.base_defconfig : kernel/msm-5.4/arch/arm64/configs/gki_defconfig 
+#2.GKI.config : /kernel/msm-5.4/arch/arm64/configs/vendor/lahaina_GKI.config (GKI.config)
+#3.QGKI.config : /kernel/msm-5.4/arch/arm64/configs/vendor/lahaina_QGKI.config  (QGKI.config)
+#4.Consolidate.config : /kernel/msm-5.4/arch/arm64/configs/vendor/lahaina_consolidate.config
+#5.debug.config : kernel/msm-5.4/arch/arm64/configs/vendor/lahaina_debug.config  (debug.config)
+#6.asus_defconfig : kernel/msm-5.4/arch/arm64/configs/vendor/PICASSO_defconfig
+#
+###############################################################################################
+CONFIG_LOCALVERSION="picasso-qgki-perf"
+CONFIG_MACH_ASUS_PICASSO=y
+CONFIG_TOUCHSCREEN_FTS_ASUS=m
+CONFIG_SLA_STAIC_COLLECT=y
+CONFIG_SLA=m
+CONFIG_NETFILTER_XT_TARGET_LOG=y
+CONFIG_NETFILTER_XT_MATCH_MULTIPORT=y
+CONFIG_INPUT_SX932X=m
+CONFIG_INPUT_SX932X_2ND=m
+CONFIG_TSPDRV=n
+CONFIG_INPUT_HALLSENSOR=m
+CONFIG_INPUT_HALLSENSOR2=m
+# ASUS_BSP : Support PD_RT1715 +++
+CONFIG_RT_REGMAP=y
+CONFIG_TCPC_CLASS=y
+CONFIG_USB_POWER_DELIVERY=y
+CONFIG_TCPC_RT1711H=y
+# ASUS_BSP : Support PD_RT1715 ---
+CONFIG_MSM_QBT_HANDLER=y

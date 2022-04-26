@@ -916,6 +916,12 @@ static int usb_psy_set_icl(struct battery_chg_dev *bcdev, u32 prop_id, int val)
 	 * port type. Also, clients like EUD driver can pass 0 or -22 to
 	 * suspend or unsuspend the input for its use case.
 	 */
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT 	 
+	//[+++] ASUS_BSP : Skip to set ICL=2mA to avoid USBIN suspend
+		if (val == 2000)
+			val = 100000;//Limit the imin ICL to 100mA
+	//[---] ASUS_BSP : Skip to set ICL=2mA to avoid USBIN suspend
+#endif	
 
 	temp = val;
 	if (val < 0)
@@ -971,6 +977,9 @@ static int usb_psy_set_prop(struct power_supply *psy,
 
 	switch (prop) {
 	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT 	
+		printk(KERN_ERR "[BAT][CHG] INPUT_CURRENT_LIMIT. val : %d uA\n", pval->intval);//ASUS_BSP
+#endif		
 		rc = usb_psy_set_icl(bcdev, prop_id, pval->intval);
 		break;
 	default:
@@ -1126,6 +1135,12 @@ static int battery_psy_get_prop(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT_MAX:
 		pval->intval = bcdev->num_thermal_levels;
 		break;
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+	case POWER_SUPPLY_PROP_STATUS:
+		pval->intval = pst->prop[prop_id];
+		set_qc_stat(pval->intval);
+		break;		
+#endif
 	default:
 		pval->intval = pst->prop[prop_id];
 		break;
@@ -2115,10 +2130,19 @@ static const struct of_device_id battery_chg_match_table[] = {
 	{},
 };
 
+#if 0 // defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+static const struct dev_pm_ops asus_chg_pm_ops = {
+	.resume		= asus_chg_resume,
+};
+#endif
+
 static struct platform_driver battery_chg_driver = {
 	.driver = {
 		.name = "qti_battery_charger",
 		.of_match_table = battery_chg_match_table,
+#if 0 // defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+		.pm	= &asus_chg_pm_ops,
+#endif
 	},
 	.probe = battery_chg_probe,
 	.remove = battery_chg_remove,

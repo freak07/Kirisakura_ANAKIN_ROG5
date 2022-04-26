@@ -268,11 +268,13 @@ static int usbhid_restart_ctrl_queue(struct usbhid_device *usbhid)
  * Input interrupt completion handler.
  */
 
+extern u8 key_state;
 static void hid_irq_in(struct urb *urb)
 {
 	struct hid_device	*hid = urb->context;
 	struct usbhid_device	*usbhid = hid->driver_data;
 	int			status;
+	u8	buffer_ret[2];
 
 	switch (urb->status) {
 	case 0:			/* success */
@@ -293,6 +295,12 @@ static void hid_irq_in(struct urb *urb)
 				set_bit(HID_KEYS_PRESSED, &usbhid->iofl);
 			else
 				clear_bit(HID_KEYS_PRESSED, &usbhid->iofl);
+		}
+
+		if ( (hid->vendor == 0x0BDA) && ((hid->product == 0x4BF0) || (hid->product == 0x4A80)) ){
+			memcpy(buffer_ret, urb->transfer_buffer, sizeof(buffer_ret));
+			pr_info("%s(%d)buf0:%x,buf1:%x\n",__func__, __LINE__, buffer_ret[0], buffer_ret[1]);
+			key_state = buffer_ret[1];
 		}
 		break;
 	case -EPIPE:		/* stall */
@@ -868,7 +876,7 @@ static int hid_alloc_buffers(struct usb_device *dev, struct hid_device *hid)
 	return 0;
 }
 
-static int usbhid_get_raw_report(struct hid_device *hid,
+int usbhid_get_raw_report(struct hid_device *hid,
 		unsigned char report_number, __u8 *buf, size_t count,
 		unsigned char report_type)
 {
@@ -901,8 +909,48 @@ static int usbhid_get_raw_report(struct hid_device *hid,
 
 	return ret;
 }
+EXPORT_SYMBOL(usbhid_get_raw_report);
 
-static int usbhid_set_raw_report(struct hid_device *hid, unsigned int reportnum,
+//ASUS_BSP : Add for gamepad vendor protocol ++
+int asus_usbhid_set_raw_report(struct hid_device *hid, unsigned int reportnum,
+				 __u8 *buf, size_t count, unsigned char rtype)
+{
+	struct usbhid_device *usbhid = hid->driver_data;
+	struct usb_device *dev = hid_to_usb_dev(hid);
+	struct usb_interface *intf = usbhid->intf;
+	struct usb_host_interface *interface = intf->cur_altsetting;
+	int ret, skipped_report_id = 0;
+
+	/* Byte 0 is the report number. Report data starts at byte 1.*/
+	if ((rtype == HID_OUTPUT_REPORT) &&
+	    (hid->quirks & HID_QUIRK_SKIP_OUTPUT_REPORT_ID))
+		buf[0] = 0;
+	else
+		buf[0] = reportnum;
+
+	if (buf[0] == 0x0) {
+		/* Don't send the Report ID */
+		buf++;
+		count--;
+		skipped_report_id = 1;
+	}
+
+	ret = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
+			HID_REQ_SET_REPORT,
+			USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE,
+			((rtype - 1) << 8) | reportnum,
+			interface->desc.bInterfaceNumber, buf, count,
+			USB_CTRL_SET_TIMEOUT);
+	/* count also the report id, if this was a numbered report. */
+	if (ret > 0 && skipped_report_id)
+		ret++;
+
+	return ret;
+}
+EXPORT_SYMBOL(asus_usbhid_set_raw_report);
+//ASUS_BSP : Add for gamepad vendor protocol --
+
+int usbhid_set_raw_report(struct hid_device *hid, unsigned int reportnum,
 				 __u8 *buf, size_t count, unsigned char rtype)
 {
 	struct usbhid_device *usbhid = hid->driver_data;
@@ -937,6 +985,7 @@ static int usbhid_set_raw_report(struct hid_device *hid, unsigned int reportnum,
 
 	return ret;
 }
+EXPORT_SYMBOL(usbhid_set_raw_report);
 
 static int usbhid_output_report(struct hid_device *hid, __u8 *buf, size_t count)
 {
@@ -1604,6 +1653,7 @@ static int hid_suspend(struct usb_interface *intf, pm_message_t message)
 		goto failed;
 	}
 	dev_dbg(&intf->dev, "suspend\n");
+	printk("[USB_PM] hid_suspend, dev=%s\n", dev_name(&intf->dev));
 	return status;
 
  failed:
@@ -1618,6 +1668,7 @@ static int hid_resume(struct usb_interface *intf)
 
 	status = hid_resume_common(hid, true);
 	dev_dbg(&intf->dev, "resume status %d\n", status);
+	printk("[USB_PM] hid_resume, dev=%s\n", dev_name(&intf->dev));
 	return 0;
 }
 

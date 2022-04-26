@@ -607,6 +607,11 @@ struct ufs_dev_info {
 	u32 d_wb_alloc_units;
 	bool b_rpm_dev_flush_capable;
 	u8 b_presrv_uspc_en;
+
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+	/*UFS device Product Version */
+	u8 *version;
+#endif
 };
 
 /**

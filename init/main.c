@@ -146,13 +146,835 @@ static char *initcall_command_line;
 
 static char *execute_command;
 static char *ramdisk_execute_command;
-
+char g_lcd_unique_id[10];
 /*
  * Used to generate warnings if static_key manipulation functions are used
  * before jump_label_init is called.
  */
 bool static_key_initialized __read_mostly;
 EXPORT_SYMBOL_GPL(static_key_initialized);
+
+/* ASUS BSP Display +++ */
+static int set_lcd_unique_id(char *str)
+{
+	scnprintf(g_lcd_unique_id, sizeof(g_lcd_unique_id), str);
+    printk("[Display] lcd unique id = %s\n",  g_lcd_unique_id);
+    return 0;
+}
+__setup("LCD=", set_lcd_unique_id);
+EXPORT_SYMBOL(g_lcd_unique_id);
+/* ASUS BSP Display --- */
+
+/* ASUS_BSP charger +++ */
+bool g_Charger_mode = false;
+static int set_charger_mode(char *str)
+{
+    if ( strcmp("charger", str) == 0 )
+        g_Charger_mode = true;
+    else
+        g_Charger_mode = false;
+
+    printk("g_Charger_mode = %d\n", g_Charger_mode);
+    return 0;
+}
+__setup("androidboot.mode=", set_charger_mode);
+EXPORT_SYMBOL(g_Charger_mode);
+/* ASUS_BSP charger --- */
+
+/* ASUS BSP Display +++ */
+// for skip hdcp on unlock device
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+char g_verified_boot_state[20];
+char g_unlock[2];
+EXPORT_SYMBOL(g_verified_boot_state);
+EXPORT_SYMBOL(g_unlock);
+
+static int __init verified_boot_state_param(char *line)
+{
+	strlcpy(g_verified_boot_state, line, sizeof(g_verified_boot_state));
+	return 1;
+}
+
+__setup("androidboot.verifiedbootstate=", verified_boot_state_param);
+
+static int __init unlock_param(char *line)
+{
+	strlcpy(g_unlock, line, sizeof(g_unlock));
+	return 1;
+}
+
+__setup("UNLOCKED", unlock_param);
+#endif
+/* ASUS BSP Display --- */
+
+int g_ftm_mode = 0;
+EXPORT_SYMBOL(g_ftm_mode);
+
+static int set_ftm_mode(char *str)
+{
+    if ( strcmp("1", str) == 0 )
+    {
+        g_ftm_mode = 1;
+    }
+    else
+    {
+        g_ftm_mode = 0;
+    }
+    printk("androidboot.pre-ftm= %d\n",  g_ftm_mode);
+    return 0;
+}
+__setup("androidboot.pre-ftm=", set_ftm_mode);
+
+#ifdef ASUS_SAKE_PROJECT
+enum DEVICE_HWID g_ASUS_hwID = HW_REV_INVALID;
+EXPORT_SYMBOL(g_ASUS_hwID);
+static int set_hardware_id(char *str)
+{
+        if ( strcmp("0", str) == 0 )
+        {
+                g_ASUS_hwID = HW_REV_EVB;
+                printk("Kernel HW ID = SAKE_EVB\n");
+        }
+     else if ( strcmp("1", str) == 0 )
+        {
+                g_ASUS_hwID = HW_REV_EVB2;
+                printk("Kernel HW ID = SAKE_EVB2\n");
+        }
+        else if ( strcmp("2", str) == 0 )
+        {
+                g_ASUS_hwID = HW_REV_SR;
+                printk("Kernel HW ID = SAKE_SR\n");
+        }
+        else if ( strcmp("3", str) == 0 )
+        {
+                g_ASUS_hwID = HW_REV_ER;
+                printk("Kernel HW ID = SAKE_ER\n");
+        }
+        else if ( strcmp("4", str) == 0 )
+        {
+                g_ASUS_hwID = HW_REV_ER2;
+                printk("Kernel HW ID = SAKE_ER2\n");
+        }
+        else if ( strcmp("5", str) == 0 )
+        {
+                g_ASUS_hwID = HW_REV_PR;
+                printk("Kernel HW ID = SAKE_PR\n");
+        }
+        else if ( strcmp("6", str) == 0 )
+        {
+                g_ASUS_hwID = HW_REV_PR2;
+                printk("Kernel HW ID = SAKE_PR2\n");
+        }
+        else if ( strcmp("7", str) == 0 )
+        {
+                g_ASUS_hwID = HW_REV_MP;
+                printk("Kernel HW ID = SAKE_MP\n");
+        }
+
+        printk("g_Asus_hwID = %d\n", g_ASUS_hwID);
+        return 0;
+}
+__setup("androidboot.id.stage=", set_hardware_id);
+
+#endif //ASUS_SAKE_PROJECT
+
+#ifdef ASUS_VODKA_PROJECT
+enum DEVICE_HWID g_ASUS_hwID = HW_REV_INVALID;
+EXPORT_SYMBOL(g_ASUS_hwID);
+static int set_hardware_id(char *str)
+{
+        if ( strcmp("0", str) == 0 )
+        {
+                g_ASUS_hwID = HW_REV_EVB;
+                printk("Kernel HW ID = VODKA_EVB\n");
+        }
+     else if ( strcmp("1", str) == 0 )
+        {
+                g_ASUS_hwID = HW_REV_EVB2;
+                printk("Kernel HW ID = VODKA_EVB2\n");
+        }
+        else if ( strcmp("2", str) == 0 )
+        {
+                g_ASUS_hwID = HW_REV_SR;
+                printk("Kernel HW ID = VODKA_SR\n");
+        }
+        else if ( strcmp("3", str) == 0 )
+        {
+                g_ASUS_hwID = HW_REV_ER;
+                printk("Kernel HW ID = VODKA_ER\n");
+        }
+        else if ( strcmp("4", str) == 0 )
+        {
+                g_ASUS_hwID = HW_REV_ER2;
+                printk("Kernel HW ID = VODKA_ER2\n");
+        }
+        else if ( strcmp("5", str) == 0 )
+        {
+                g_ASUS_hwID = HW_REV_PR;
+                printk("Kernel HW ID = VODKA_PR\n");
+        }
+        else if ( strcmp("6", str) == 0 )
+        {
+                g_ASUS_hwID = HW_REV_PR2;
+                printk("Kernel HW ID = VODKA_PR2\n");
+        }
+        else if ( strcmp("7", str) == 0 )
+        {
+                g_ASUS_hwID = HW_REV_MP;
+                printk("Kernel HW ID = VODKA_MP\n");
+        }
+
+        printk("g_Asus_hwID = %d\n", g_ASUS_hwID);
+        return 0;
+}
+__setup("androidboot.id.stage=", set_hardware_id);
+#endif
+
+#if defined ASUS_SAKE_PROJECT || defined ASUS_VODKA_PROJECT
+#if defined ASUS_SAKE_PROJECT
+int g_SAKE_Panel_ID = 255;
+EXPORT_SYMBOL(g_SAKE_Panel_ID);
+static int set_sake_panel_id(char *str)
+{
+        if ( strcmp("0", str) == 0 )
+        {
+        	g_SAKE_Panel_ID = 0;
+        }else if ( strcmp("1", str) == 0 )
+        {
+        	g_SAKE_Panel_ID = 1;
+        }else
+        {
+        	g_SAKE_Panel_ID = 255;
+        }
+
+	 printk("g_SAKE_Panel_ID = %d\n", g_SAKE_Panel_ID);
+        return 0;
+}
+__setup("androidboot.id.panel=", set_sake_panel_id);
+#endif
+
+enum DEVICE_PROJID g_ASUS_prjID = PROJECT_INVALID;
+EXPORT_SYMBOL(g_ASUS_prjID);
+static int set_project_id(char *str)
+{
+        if ( strcmp("4", str) == 0 )
+        {
+                g_ASUS_prjID = PROJECT_SAKE;
+                printk("Kernel PROJECT ID = PROJECT_SAKE (4)\n");
+        }else if ( strcmp("5", str) == 0 )
+        {
+                g_ASUS_prjID = PROJECT_VODKA;
+                printk("Kernel PROJECT ID = PROJECT_VODKA (5)\n");
+        }else if ( strcmp("6", str) == 0 )
+        {
+                g_ASUS_prjID = PROJECT_SAKE_PLUS;
+                printk("Kernel PROJECT ID = PROJECT_SAKE_PLUS (6)\n");
+        }else if ( strcmp("7", str) == 0 )
+        {
+                g_ASUS_prjID = PROJECT_VODKA_PLUS;
+                printk("Kernel PROJECT ID = PROJECT_VODKA_PLUS (7)\n");
+        }
+        printk("g_Asus_prjID = %d\n", g_ASUS_prjID);
+        return 0;
+}
+__setup("androidboot.id.prj=", set_project_id);
+
+enum DEVICE_SKUID g_ASUS_skuID = SKU_ID_INVALID;
+EXPORT_SYMBOL(g_ASUS_skuID);
+static int set_sku_id(char *str)
+{
+        if ( strcmp("0", str) == 0 )
+        {
+                g_ASUS_skuID = SKU_ID_0;
+                printk("Kernel SKU ID = 0 (SKU1)\n");
+        }
+        else if ( strcmp("1", str) == 0 )
+        {
+                g_ASUS_skuID = SKU_ID_1;
+                printk("Kernel SKU ID = 1 (SKU2)\n");
+        }
+        else if ( strcmp("2", str) == 0 )
+        {
+                g_ASUS_skuID = SKU_ID_2;
+                printk("Kernel SKU ID = 2 (SKU3)\n");
+        }
+        else if ( strcmp("3", str) == 0 )
+        {
+                g_ASUS_skuID = SKU_ID_3;
+                printk("Kernel SKU ID = 3 (SKU4)\n");
+        }
+        else if ( strcmp("4", str) == 0 )
+        {
+                g_ASUS_skuID = SKU_ID_4;
+                printk("Kernel SKU ID = 4 (SKU5)\n");
+        }
+        else if ( strcmp("5", str) == 0 )
+        {
+                g_ASUS_skuID = SKU_ID_5;
+                printk("Kernel SKU ID = 5 (SKU6)\n");
+        }
+        else if ( strcmp("6", str) == 0 )
+        {
+                g_ASUS_skuID = SKU_ID_6;
+                printk("Kernel SKU ID = 6 (SKU7)\n");
+        }
+        else if ( strcmp("7", str) == 0 )
+        {
+                g_ASUS_skuID = SKU_ID_7;
+                printk("Kernel SKU ID = 7 (SKU8)\n");
+        }
+
+        printk("g_Asus_skuID = %d\n", g_ASUS_skuID);
+        return 0;
+}
+__setup("androidboot.id.sku=", set_sku_id);
+
+enum DEVICE_NFCID g_ASUS_nfcID = NFC_VENDOR_INVALID;
+EXPORT_SYMBOL(g_ASUS_nfcID);
+static int set_nfc_id(char *str)
+{
+        if ( strcmp("0", str) == 0 )
+        {
+                g_ASUS_nfcID = NFC_NOT_SUPPORT;
+                printk("Kernel NFC not support\n");
+        }
+        else if ( strcmp("1", str) == 0 )
+        {
+                g_ASUS_nfcID = NFC_SUPPORT;
+                printk("Kernel NFC support\n");
+        }
+
+        printk("g_Asus_nfcID = %d\n", g_ASUS_nfcID);
+        return 0;
+}
+__setup("androidboot.id.nfc=", set_nfc_id);
+
+enum DEVICE_FPID g_ASUS_fpID = FP_VENDOR_INVALID;
+EXPORT_SYMBOL(g_ASUS_fpID);
+static int set_fp_id(char *str)
+{
+        if ( strcmp("0", str) == 0 )
+        {
+                g_ASUS_fpID = FP_VENDOR1;
+                printk("Kernel FP VENDOR = VENDOR1\n");
+        }
+        else if ( strcmp("1", str) == 0 )
+        {
+                g_ASUS_fpID = FP_VENDOR2;
+                printk("Kernel FP VENDOR = VENDOR2\n");
+        }
+
+        printk("g_Asus_fpID = %d\n", g_ASUS_fpID);
+        return 0;
+}
+__setup("androidboot.id.fp=", set_fp_id);
+//  +++ ASUS_BSP : parse cmdline to load eu/build.prop
+bool g_is_country_code_QC = false;
+bool g_is_country_code_WW = false;
+bool g_is_country_code_EU = false;
+bool g_is_country_code_RU = false;
+bool g_is_country_code_US = false;
+bool g_is_country_code_CN = false;
+EXPORT_SYMBOL(g_is_country_code_QC);
+EXPORT_SYMBOL(g_is_country_code_WW);
+EXPORT_SYMBOL(g_is_country_code_EU);
+EXPORT_SYMBOL(g_is_country_code_RU);
+EXPORT_SYMBOL(g_is_country_code_US);
+EXPORT_SYMBOL(g_is_country_code_CN);
+static int check_country_code(char *str)
+{
+        if ( strcmp("EU", str) == 0 ) {
+            g_is_country_code_EU = true;
+        } else if ( strcmp("RU", str) == 0 ) {
+            g_is_country_code_RU = true;
+        } else if ( strcmp("WW", str) == 0 ) {
+            g_is_country_code_WW = true;
+    } else if ( strcmp("CN", str) == 0 ) {
+            g_is_country_code_CN = true;
+    } else if (strcmp("US", str) == 0) {
+            g_is_country_code_US = true;
+    } else if (strcmp("QC", str) == 0) {
+            g_is_country_code_QC = true;
+    }
+
+    printk("country code= = %s\n", str);
+    return 0;
+}
+__setup("androidboot.country_code=", check_country_code);
+#endif //ASUS_SAKE_PROJECT || ASUS_VODKA_PROJECT
+
+#ifdef ASUS_ZS673KS_PROJECT
+enum DEVICE_PROJID g_ASUS_prjID = PROJECT_INVALID;
+EXPORT_SYMBOL(g_ASUS_prjID);
+static int set_project_id(char *str)
+{
+        if ( strcmp("0", str) == 0 )
+        {
+                g_ASUS_prjID = PROJECT_ANAKIN_ENTRY;
+                printk("Kernel PROJECT ID = PROJECT_ANAKIN_ENTRY (0)\n");
+        }else if ( strcmp("1", str) == 0 )
+        {
+                g_ASUS_prjID = PROJECT_ANAKIN_ELITE;
+                printk("Kernel PROJECT ID = PROJECT_ANAKIN_ENTRY (1)\n");
+        }else if ( strcmp("2", str) == 0 )
+        {
+                g_ASUS_prjID = PROJECT_PICASSO;
+                printk("Kernel PROJECT ID = PROJECT_PICASSO (2)\n");
+        }else if ( strcmp("9", str) == 0 )
+        {
+                g_ASUS_prjID = PROJECT_ANAKIN2_ERC_ARUA;
+                printk("Kernel PROJECT ID = PROJECT_ANAKIN2_ERC_ARUA (9)\n");
+        }else if ( strcmp("A", str) == 0 )
+        {
+                g_ASUS_prjID = PROJECT_ANAKIN2_ERC_POMLED;
+                printk("Kernel PROJECT ID = PROJECT_ANAKIN2_ERC_POMLED (10)\n");
+        }else if ( strcmp("B", str) == 0 )
+        {
+                g_ASUS_prjID = PROJECT_ANAKIN2_ERA;
+                printk("Kernel PROJECT ID = PROJECT_ANAKIN2_ERA (11)\n");
+        }else if ( strcmp("C", str) == 0 )
+        {
+                g_ASUS_prjID = PROJECT_ANAKIN2_ARUA;
+                printk("Kernel PROJECT ID = PROJECT_ANAKIN2_ARUA (12)\n");
+        }else if ( strcmp("D", str) == 0 )
+        {
+                g_ASUS_prjID = PROJECT_ANAKIN2_POMLED;
+                printk("Kernel PROJECT ID = PROJECT_ANAKIN2_POMLED (13)\n");
+        }else if ( strcmp("E", str) == 0 )
+        {
+                g_ASUS_prjID = PROJECT_ANAKIN2_PX_ARUA;
+                printk("Kernel PROJECT ID = PROJECT_ANAKIN2_PX_ARUA (14)\n");
+        }else if ( strcmp("F", str) == 0 )
+        {
+                g_ASUS_prjID = PROJECT_ANAKIN2_PX_POMLED;
+                printk("Kernel PROJECT ID = PROJECT_ANAKIN2_PX_POMLED (15)\n");
+        }
+        printk("g_Asus_prjID = %d\n", g_ASUS_prjID);
+        return 0;
+}
+__setup("androidboot.id.prj=", set_project_id);
+
+enum DEVICE_HWID g_ASUS_hwID = HW_REV_INVALID;
+EXPORT_SYMBOL(g_ASUS_hwID);
+static int set_hardware_id(char *str)
+{
+	if (g_ASUS_prjID >= 9){
+	       if ( strcmp("0", str) == 0 )
+		{
+		        g_ASUS_hwID = HW_REV_ANAKIN2_ER;
+		        printk("Kernel HW ID = ANAKIN2_ER\n");
+		}
+		 else if ( strcmp("1", str) == 0 )
+		{
+		        g_ASUS_hwID = HW_REV_ANAKIN2_PR;
+		        printk("Kernel HW ID = ANAKIN2_PR\n");
+		}
+		else if ( strcmp("2", str) == 0 )
+		{
+		        g_ASUS_hwID = HW_REV_ANAKIN2_MP;
+		        printk("Kernel HW ID = ANAKIN2_MP\n");
+		}
+		printk("g_Asus_hwID = %d\n", g_ASUS_hwID);
+		return 0;
+	}
+
+        if ( strcmp("0", str) == 0 )
+        {
+                g_ASUS_hwID = HW_REV_EVB;
+                printk("Kernel HW ID = ZS673KS_EVB\n");
+        }
+	 else if ( strcmp("1", str) == 0 )
+        {
+                g_ASUS_hwID = HW_REV_EVB2;
+                printk("Kernel HW ID = ZS673KS_EVB2\n");
+        }
+        else if ( strcmp("2", str) == 0 )
+        {
+                g_ASUS_hwID = HW_REV_SR;
+                printk("Kernel HW ID = ZS673KS_SR\n");
+        }
+        else if ( strcmp("3", str) == 0 )
+        {
+                g_ASUS_hwID = HW_REV_ER;
+                printk("Kernel HW ID = ZS673KS_ER\n");
+        }
+        else if ( strcmp("4", str) == 0 )
+        {
+                g_ASUS_hwID = HW_REV_ER2;
+                printk("Kernel HW ID = ZS673KS_ER2\n");
+        }
+        else if ( strcmp("5", str) == 0 )
+        {
+                g_ASUS_hwID = HW_REV_PR;
+                printk("Kernel HW ID = ZS673KS_PR\n");
+        }
+        else if ( strcmp("6", str) == 0 )
+        {
+                g_ASUS_hwID = HW_REV_PR2;
+                printk("Kernel HW ID = ZS673KS_PR2\n");
+        }
+        else if ( strcmp("7", str) == 0 )
+        {
+                g_ASUS_hwID = HW_REV_MP;
+                printk("Kernel HW ID = ZS673KS_MP\n");
+        }
+        else if ( strcmp("8", str) == 0 )
+        {
+                g_ASUS_hwID = HW_REV_MP3;
+                printk("Kernel HW ID = ZS673KS_MP3\n");
+        }
+        else if ( strcmp("9", str) == 0 )
+        {
+                g_ASUS_hwID = HW_REV_MP4;
+                printk("Kernel HW ID = ZS673KS_MP4\n");
+        }
+        else if ( strcmp("A", str) == 0 )
+        {
+                g_ASUS_hwID = HW_REV_MP5;
+                printk("Kernel HW ID = ZS673KS_MP5\n");
+        }
+        else if ( strcmp("B", str) == 0 )
+        {
+                g_ASUS_hwID = HW_REV_MP6;
+                printk("Kernel HW ID = ZS673KS_MP6\n");
+        }
+        else if ( strcmp("C", str) == 0 )
+        {
+                g_ASUS_hwID = HW_REV_MP7;
+                printk("Kernel HW ID = ZS673KS_MP7\n");
+        }
+        else if ( strcmp("D", str) == 0 )
+        {
+                g_ASUS_hwID = HW_REV_MP8;
+                printk("Kernel HW ID = ZS673KS_MP8\n");
+        }
+        else if ( strcmp("E", str) == 0 )
+        {
+                g_ASUS_hwID = HW_REV_MP9;
+                printk("Kernel HW ID = ZS673KS_MP9\n");
+        }
+        else if ( strcmp("F", str) == 0 )
+        {
+                g_ASUS_hwID = HW_REV_MP10;
+                printk("Kernel HW ID = ZS673KS_MP10\n");
+        }
+
+        printk("g_Asus_hwID = %d\n", g_ASUS_hwID);
+        return 0;
+}
+__setup("androidboot.id.stage=", set_hardware_id);
+
+enum DEVICE_BCID g_ASUS_bcID = BC_ID_INVALID;
+EXPORT_SYMBOL(g_ASUS_bcID);
+static int set_bc_id(char *str)
+{
+        if ( strcmp("0", str) == 0 )
+        {
+                g_ASUS_bcID = BC_ID_AURA_Light;
+                printk("Kernel BC ID = AURA_Light\n");
+        }
+        else if ( strcmp("1", str) == 0 )
+        {
+                g_ASUS_bcID = BC_ID_PMOLED;
+                printk("Kernel BC ID = PMOLED\n");
+        }
+
+        printk("g_ASUS_bcID = %d\n", g_ASUS_bcID);
+        return 0;
+}
+__setup("androidboot.id.bc=", set_bc_id);
+
+enum DEVICE_SECDISPID g_ASUS_secdispID = SEC_DISP_ID_INVALID;
+EXPORT_SYMBOL(g_ASUS_secdispID);
+static int set_sec_disp_id(char *str)
+{
+        if ( strcmp("0", str) == 0 )
+        {
+                g_ASUS_secdispID = SEC_DISP_ID_MONO;
+                printk("Kernel SEC DISP ID = MONO\n");
+        }
+        else if ( strcmp("1", str) == 0 )
+        {
+                g_ASUS_secdispID = SEC_DISP_ID_COLOR;
+                printk("Kernel SEC DISP ID = COLOR\n");
+        }
+
+        printk("g_ASUS_secdispID = %d\n", g_ASUS_secdispID);
+        return 0;
+}
+__setup("androidboot.id.sec_disp=", set_sec_disp_id);
+#endif //ASUS_ZS673KS_PROJECT
+
+#ifdef ASUS_PICASSO_PROJECT
+enum DEVICE_PROJID g_ASUS_prjID = PROJECT_INVALID;
+EXPORT_SYMBOL(g_ASUS_prjID);
+static int set_project_id(char *str)
+{
+        if ( strcmp("0", str) == 0 )
+        {
+                g_ASUS_prjID = PROJECT_ANAKIN_ENTRY;
+                printk("Kernel PROJECT ID = PROJECT_ANAKIN_ENTRY (0)\n");
+        }else if ( strcmp("1", str) == 0 )
+        {
+                g_ASUS_prjID = PROJECT_ANAKIN_ELITE;
+                printk("Kernel PROJECT ID = PROJECT_ANAKIN_ENTRY (1)\n");
+        }else if ( strcmp("2", str) == 0 )
+        {
+                g_ASUS_prjID = PROJECT_PICASSO;
+                printk("Kernel PROJECT ID = PROJECT_PICASSO (2)\n");
+        }
+        printk("g_Asus_prjID = %d\n", g_ASUS_prjID);
+        return 0;
+}
+__setup("androidboot.id.prj=", set_project_id);
+
+enum DEVICE_HWID g_ASUS_hwID = HW_REV_INVALID;
+EXPORT_SYMBOL(g_ASUS_hwID);
+static int set_hardware_id(char *str)
+{
+        if ( strcmp("0", str) == 0 )
+        {
+                g_ASUS_hwID = HW_REV_EVB;
+                printk("Kernel HW ID = PICASSO_EVB\n");
+        }
+	 else if ( strcmp("1", str) == 0 )
+        {
+                g_ASUS_hwID = HW_REV_EVB2;
+                printk("Kernel HW ID = PICASSO_EVB2\n");
+        }
+        else if ( strcmp("2", str) == 0 )
+        {
+                g_ASUS_hwID = HW_REV_SR;
+                printk("Kernel HW ID = PICASSO_SR\n");
+        }
+        else if ( strcmp("3", str) == 0 )
+        {
+                g_ASUS_hwID = HW_REV_ER;
+                printk("Kernel HW ID = PICASSO_ER\n");
+        }
+        else if ( strcmp("4", str) == 0 )
+        {
+                g_ASUS_hwID = HW_REV_ER2;
+                printk("Kernel HW ID = PICASSO_ER2\n");
+        }
+        else if ( strcmp("5", str) == 0 )
+        {
+                g_ASUS_hwID = HW_REV_PR;
+                printk("Kernel HW ID = PICASSO_PR\n");
+        }
+        else if ( strcmp("6", str) == 0 )
+        {
+                g_ASUS_hwID = HW_REV_PR2;
+                printk("Kernel HW ID = PICASSO_PR2\n");
+        }
+        else if ( strcmp("7", str) == 0 )
+        {
+                g_ASUS_hwID = HW_REV_MP;
+                printk("Kernel HW ID = PICASSO_MP\n");
+        }
+
+        printk("g_Asus_hwID = %d\n", g_ASUS_hwID);
+        return 0;
+}
+__setup("androidboot.id.stage=", set_hardware_id);
+
+#endif //ASUS_PICASSO_PROJECT
+
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+enum DEVICE_SKUID g_ASUS_skuID = SKU_ID_INVALID;
+EXPORT_SYMBOL(g_ASUS_skuID);
+static int set_sku_id(char *str)
+{
+        if ( strcmp("0", str) == 0 )
+        {
+                g_ASUS_skuID = SKU_ID_0;
+                printk("Kernel SKU ID = 0 (SKU1)\n");
+        }
+        else if ( strcmp("1", str) == 0 )
+        {
+                g_ASUS_skuID = SKU_ID_1;
+                printk("Kernel SKU ID = 1 (SKU2)\n");
+        }
+        else if ( strcmp("2", str) == 0 )
+        {
+                g_ASUS_skuID = SKU_ID_2;
+                printk("Kernel SKU ID = 2 (SKU3)\n");
+        }
+        else if ( strcmp("3", str) == 0 )
+        {
+                g_ASUS_skuID = SKU_ID_3;
+                printk("Kernel SKU ID = 3 (SKU4)\n");
+        }
+        else if ( strcmp("4", str) == 0 )
+        {
+                g_ASUS_skuID = SKU_ID_4;
+                printk("Kernel SKU ID = 4 (SKU5)\n");
+        }
+        else if ( strcmp("5", str) == 0 )
+        {
+                g_ASUS_skuID = SKU_ID_5;
+                printk("Kernel SKU ID = 5 (SKU6)\n");
+        }
+        else if ( strcmp("6", str) == 0 )
+        {
+                g_ASUS_skuID = SKU_ID_6;
+                printk("Kernel SKU ID = 6 (SKU7)\n");
+        }
+        else if ( strcmp("7", str) == 0 )
+        {
+                g_ASUS_skuID = SKU_ID_7;
+                printk("Kernel SKU ID = 7 (SKU8)\n");
+        }
+
+        printk("g_Asus_skuID = %d\n", g_ASUS_skuID);
+        return 0;
+}
+__setup("androidboot.id.sku=", set_sku_id);
+
+/*
+enum DEVICE_RFSKU g_ASUS_rfSKU = RF_SKU_UNKNOWN;
+EXPORT_SYMBOL(g_ASUS_rfSKU);
+static int set_rf_id(char *str)
+{
+        if ( strcmp("5", str) == 0 )
+        {
+                g_ASUS_rfSKU = NA_SKU;
+                printk("Kernel RF SKU= NA SKU\n");
+        }
+        else if ( strcmp("6", str) == 0 )
+        {
+                g_ASUS_rfSKU = WW_SKU;
+                printk("Kernel RF SKU = WW SKU\n");
+        }
+        else if ( strcmp("7", str) == 0 )
+        {
+                g_ASUS_rfSKU = TW_SKU;
+                printk("Kernel RF SKU = TW SKU\n");
+        }
+
+        printk("g_Asus_rfSKU = %d\n", g_ASUS_rfSKU);
+        return 0;
+}
+__setup("androidboot.id.rf=", set_rf_id);
+*/
+/*
+enum DEVICE_LCMID g_ASUS_lcmID = LCM_VENDOR_INVALID;
+EXPORT_SYMBOL(g_ASUS_lcmID);
+static int set_lcm_id(char *str)
+{
+        if ( strcmp("0", str) == 0 )
+        {
+                g_ASUS_lcmID = LCM_VENDOR1;
+                printk("Kernel LCM VENDOR = VENDOR1\n");
+        }
+        else if ( strcmp("1", str) == 0 )
+        {
+                g_ASUS_lcmID = LCM_VENDOR2;
+                printk("Kernel LCM VENDOR = VENDOR2\n");
+        }
+
+        printk("g_Asus_lcmID = %d\n", g_ASUS_lcmID);
+        return 0;
+}
+__setup("androidboot.id.lcm=", set_lcm_id);
+*/
+
+enum DEVICE_NFCID g_ASUS_nfcID = NFC_VENDOR_INVALID;
+EXPORT_SYMBOL(g_ASUS_nfcID);
+static int set_nfc_id(char *str)
+{
+        if ( strcmp("0", str) == 0 )
+        {
+                g_ASUS_nfcID = NFC_NOT_SUPPORT;
+                printk("Kernel NFC not support\n");
+        }
+        else if ( strcmp("1", str) == 0 )
+        {
+                g_ASUS_nfcID = NFC_SUPPORT;
+                printk("Kernel NFC support\n");
+        }
+
+        printk("g_Asus_nfcID = %d\n", g_ASUS_nfcID);
+        return 0;
+}
+__setup("androidboot.id.nfc=", set_nfc_id);
+
+enum DEVICE_FPID g_ASUS_fpID = FP_VENDOR_INVALID;
+EXPORT_SYMBOL(g_ASUS_fpID);
+static int set_fp_id(char *str)
+{
+        if ( strcmp("0", str) == 0 )
+        {
+                g_ASUS_fpID = FP_VENDOR1;
+                printk("Kernel FP VENDOR = VENDOR1\n");
+        }
+        else if ( strcmp("1", str) == 0 )
+        {
+                g_ASUS_fpID = FP_VENDOR2;
+                printk("Kernel FP VENDOR = VENDOR2\n");
+        }
+
+        printk("g_Asus_fpID = %d\n", g_ASUS_fpID);
+        return 0;
+}
+__setup("androidboot.id.fp=", set_fp_id);
+
+//  +++ ASUS_BSP : parse cmdline to load eu/build.prop
+bool g_is_country_code_QC = false;
+bool g_is_country_code_WW = false;
+bool g_is_country_code_EU = false;
+bool g_is_country_code_RU = false;
+bool g_is_country_code_US = false;
+bool g_is_country_code_CN = false;
+EXPORT_SYMBOL(g_is_country_code_QC);
+EXPORT_SYMBOL(g_is_country_code_WW);
+EXPORT_SYMBOL(g_is_country_code_EU);
+EXPORT_SYMBOL(g_is_country_code_RU);
+EXPORT_SYMBOL(g_is_country_code_US);
+EXPORT_SYMBOL(g_is_country_code_CN);
+static int check_country_code(char *str)
+{
+    if ( strcmp("EU", str) == 0 ) {
+            g_is_country_code_EU = true;
+    } else if ( strcmp("RU", str) == 0 ) {
+            g_is_country_code_RU = true;
+    } else if ( strcmp("WW", str) == 0 ) {
+            g_is_country_code_WW = true;
+    } else if ( strcmp("CN", str) == 0 ) {
+            g_is_country_code_CN = true;
+    } else if (strcmp("US", str) == 0) {
+            g_is_country_code_US = true;
+    } else if (strcmp("QC", str) == 0) {
+            g_is_country_code_QC = true;
+    }
+
+    printk("country code = %s\n", str);
+    return 0;
+}
+__setup("androidboot.country_code=", check_country_code);
+
+bool g_ASUS_Media = false;
+EXPORT_SYMBOL(g_ASUS_Media);
+static int set_media_flag(char *str)
+{
+        if ( strcmp("Y", str) == 0 )
+        {
+                g_ASUS_Media = true;
+                printk("Kernel MEDIA DEV = Y\n");
+        }
+        else
+        {
+                g_ASUS_Media = false;
+                printk("Kernel MEDIA DEV  = N\n");
+        }
+
+        printk("g_ASUS_Media = %d\n", g_ASUS_Media);
+        return 0;
+}
+__setup("androidboot.media=", set_media_flag);
+#endif //ASUS_ZS673KS_PROJECT || ASUS_PICASSO_PROJECT
+//  --- ASUS_BSP : parse cmdline to load eu/build.prop
+
 
 /*
  * If set, this is an indication to the drivers that reset the underlying
@@ -887,8 +1709,8 @@ static __init_or_module void
 trace_initcall_start_cb(void *data, initcall_t fn)
 {
 	ktime_t *calltime = (ktime_t *)data;
-
-	printk(KERN_DEBUG "calling  %pS @ %i\n", fn, task_pid_nr(current));
+	if (initcall_debug)
+		printk(KERN_DEBUG "calling  %pS @ %i\n", fn, task_pid_nr(current));
 	*calltime = ktime_get();
 }
 
@@ -902,8 +1724,14 @@ trace_initcall_finish_cb(void *data, initcall_t fn, int ret)
 	rettime = ktime_get();
 	delta = ktime_sub(rettime, *calltime);
 	duration = (unsigned long long) ktime_to_ns(delta) >> 10;
-	printk(KERN_DEBUG "initcall %pS returned %d after %lld usecs\n",
-		 fn, ret, duration);
+	if (initcall_debug)
+		printk(KERN_DEBUG "initcall %pS returned %d after %lld usecs\n",
+		 	fn, ret, duration);
+       	if (initcall_debug == 0) {
+               if (duration > 100000)
+                       printk(KERN_WARNING "[debuginit] initcall %pF returned %d after %lld usecs\n", fn,
+                               ret, duration);
+       	}
 }
 
 static ktime_t initcall_calltime;

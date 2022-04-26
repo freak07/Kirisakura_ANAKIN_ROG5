@@ -6,7 +6,10 @@
  *
  * Copyright (C) 2012 Rafael J. Wysocki <rjw@sisk.pl>
  */
-
+//[PM_debug +++]
+//add debug message header
+#define pr_fmt(fmt) "PM: " fmt
+//[PM_debug ---]
 #include <linux/device.h>
 #include <linux/mutex.h>
 #include <linux/pm_wakeup.h>

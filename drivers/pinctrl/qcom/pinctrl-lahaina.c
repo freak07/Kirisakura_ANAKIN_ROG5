@@ -1953,12 +1953,12 @@ static const struct msm_gpio_wakeirq_map lahaina_pdc_map[] = {
 	{ 35, 131 }, { 36, 79 }, { 38, 99 }, { 39, 92 }, { 40, 101 }, { 43, 137 },
 	{ 44, 102 }, { 46, 96 }, { 47, 93 }, { 50, 108 }, { 51, 127 }, { 55, 128 },
 	{ 56, 81 }, { 59, 112 }, { 60, 119 }, { 63, 73 }, { 67, 74 }, { 71, 134 },
-	{ 75, 103 }, { 79, 104 }, { 80, 126 }, { 81, 139 }, { 82, 140 }, { 83, 141 },
+	{ 75, 103 }, { 79, 104 }, { 80, 126 }, { 81, 139 }, /*{ 82, 140 },*/ { 83, 141 },
 	{ 84, 124 }, { 85, 109 }, { 86, 143 }, { 87, 138 }, { 88, 122 }, { 89, 113 },
 	{ 90, 114 }, { 91, 115 }, { 92, 76 }, { 95, 147 }, { 96, 148 }, { 98, 149 },
 	{ 99, 150 }, { 115, 125 }, { 116, 106 }, { 117, 105 }, { 118, 116 }, { 119, 123 },
-	{ 130, 145 }, { 136, 72 }, { 140, 100 }, { 151, 110 }, { 153, 95 }, { 155, 107 },
-	{ 156, 94 }, { 157, 111 }, { 159, 118 }, { 162, 77 }, { 165, 78 }, { 169, 130 },
+	{ 130, 145 }, { 136, 72 }, { 140, 100 }, /*{ 151, 110 },*/ { 153, 95 }, { 155, 107 },
+	{ 156, 94 }, { 157, 111 }, { 159, 118 }, /*{ 162, 77 },*/ { 165, 78 }, { 169, 130 },
 	{ 172, 132 }, { 174, 87 }, { 175, 88 }, { 177, 89 }, { 179, 120 }, { 180, 129 },
 	{ 183, 90 }, { 185, 136 }, { 187, 142 }, { 190, 144 }, { 198, 91 }, { 200, 133 },
 	{ 202, 135 },
@@ -1982,7 +1982,87 @@ static struct msm_pinctrl_soc_data lahaina_pinctrl = {
 /* By default, all the gpios that are mpm wake capable are enabled.
  * The following list disables the gpios explicitly
  */
-static const unsigned int config_mpm_wake_disable_gpios[] = { 151, 202 };
+static const unsigned int config_mpm_wake_disable_gpios[] = {
+//	2,  	//CS35L45_SPK_INT
+//	7,  	//POGO_TEMP_INT
+//	11, 	//NA
+//	14, 	//CODEC_INT
+//	15, 	//BACK_KEY
+//	19, 	//UART_MSM_RX
+//	23, 	//TS_INT_N
+//	26, 	//BTM_CC_SW_EN
+//	27, 	//ERR_FG
+//	31, 	//AFC_PHY_TA_D_MINUS
+//	32, 	//PM8008_1_IRQ
+//	34, 	//PM8008_2_IRQ
+//	35, 	//PM8008_2_RESET_N
+//	36, 	//PX_I3C_SDA_PX8568
+//	38, 	//FP_INT_N
+//	39, 	//FP_RST_N
+//	40, 	//SMB_SPMI_DATA
+//	43, 	//FORCE_USB_BOOT
+//	44, 	//VIB_INTZ
+//	46, 	//GYRO_INT
+//	47, 	//NFC_ESE_PWR_REQ
+//	50, 	//RF_CAP1_NIRQ
+//	51, 	//HW_ID0
+//	55, 	//FP_SPI_CS_N
+//	56, 	//NFC_ESE_SPI_MISO
+//	59, 	//NFC_ESE_SPI_CS_N
+//	60, 	//NFC_I2C_SDA
+//	63, 	//NFC_CLK_REQ
+//	67, 	//HW_ID1
+//	71, 	//HST_BT_UART_RX
+//	75, 	//VREG_PMOLED_EN_COLOR
+//	79, 	//PMOLED_SPI_CS_N
+//	80, 	//NA
+//	81, 	//USB_PHY_PS
+	82, 	//LCD_TE
+//	83, 	//SM8350_GPIO83
+//	84, 	//PX_READY_PX8568
+//	85, 	//GRIP_WAKE
+//	86, 	//NFC_DWL_REQ
+//	87, 	//NFC_IRQ
+//	88, 	//CODEC_RST
+//	89, 	//ALSP_INT_N_1
+//	90, 	//CS35L45_RCV_INT
+//	91, 	//RFCAP2_INT
+//	92, 	//PX_WAKEUP
+//	95, 	//PCIE0_CLK_REQ_W
+//	96, 	//PCIE0_WAKE_N
+//	98, 	//HUB_RESET_N
+//	99, 	//HUB_INT_N
+//	115,	//PJ_ID2
+//	116,	//VIB_RSTN_P
+//	117,	//CAM_5M_RST_N
+//	118,	//CC_LOGIC_INT_N
+//	119,	//HALL_INT_N_BUMP
+//	130,	//HST_BT_WLAN_SLIMBUS_DATA
+//	136,	//UIM2_PRESENT
+//	140,	//UIM1_PRESENT
+	151,	//WLAN_COEX_UART1_RX
+//	153,	//HST_SW_CTRL
+//	155,	//FT_TRIG1
+//	156,	//NA
+//	157,	//NA
+//	159,	//QLINK0_REQ
+	162, 	//TS_BACK_INT_N
+//	165,	//FT_INT1
+//	169,	//CODEC_ADC_I2S_WS
+//	172,	//NA
+//	174,	//DMIC13_CLK
+//	175,	//DMIC13_DATA
+//	177,	//DMIC24_DATA
+//	179,	//MI2S0_WS
+//	180,	//MI2S0_DATA0
+//	183,	//NA
+//	185,	//NA
+//	187,	//SSC_SPI_MISO
+//	190,	//SSC_SPI_CS_N
+//	198,	//NA
+//	200,	//HST_BLE_UART_RX
+	202, 	//HST_WLAN_UART_RX
+};
 
 static void lahaina_pinctrl_config_mpm_wake_disable_gpios(void)
 {

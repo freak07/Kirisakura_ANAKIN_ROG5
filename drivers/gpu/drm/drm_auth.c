@@ -185,6 +185,7 @@ int drm_setmaster_ioctl(struct drm_device *dev, void *data,
 	int ret = 0;
 
 	mutex_lock(&dev->master_mutex);
+	printk("drm: dsi+, fp=%x\n", file_priv);
 	if (drm_is_current_master(file_priv))
 		goto out_unlock;
 
@@ -211,6 +212,8 @@ int drm_setmaster_ioctl(struct drm_device *dev, void *data,
 
 	ret = drm_set_master(dev, file_priv, false);
 out_unlock:
+	if (file_priv)
+		printk("drm: dsi-, im=%d\n", file_priv->is_master);
 	mutex_unlock(&dev->master_mutex);
 	return ret;
 }
@@ -256,10 +259,13 @@ int drm_master_open(struct drm_file *file_priv)
 	/* if there is no current master make this fd it, but do not create
 	 * any master object for render clients */
 	mutex_lock(&dev->master_mutex);
+	//printk("drm: dmo+, fp=%x\n", file_priv);
 	if (!dev->master)
 		ret = drm_new_set_master(dev, file_priv);
 	else
 		file_priv->master = drm_master_get(dev->master);
+	//if (file_priv)
+		//printk("drm: dmo-, im=%d\n", file_priv->is_master);
 	mutex_unlock(&dev->master_mutex);
 
 	return ret;

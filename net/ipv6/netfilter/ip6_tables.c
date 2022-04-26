@@ -982,6 +982,7 @@ static int get_info(struct net *net, void __user *user,
 	if (!IS_ERR(t)) {
 		struct ip6t_getinfo info;
 		const struct xt_table_info *private = t->private;
+
 #ifdef CONFIG_COMPAT
 		struct xt_table_info tmp;
 
@@ -1094,7 +1095,6 @@ __do_replace(struct net *net, const char *name, unsigned int valid_hooks,
 		module_put(t->me);
 
 	xt_table_unlock(t);
-
 	get_old_counters(oldinfo, counters);
 
 	/* Decrease module usage counts and free resource */
@@ -1192,6 +1192,7 @@ do_add_counters(struct net *net, const void __user *user, unsigned int len,
 
 	local_bh_disable();
 	private = t->private;
+
 	if (private->number != tmp.num_counters) {
 		ret = -EINVAL;
 		goto unlock_up_free;

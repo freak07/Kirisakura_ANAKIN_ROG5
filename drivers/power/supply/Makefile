@@ -92,6 +92,17 @@ obj-$(CONFIG_FUEL_GAUGE_SC27XX)	+= sc27xx_fuel_gauge.o
 obj-$(CONFIG_CHARGER_UCS1002)	+= ucs1002_power.o
 obj-$(CONFIG_CHARGER_BD70528)	+= bd70528-charger.o
 obj-$(CONFIG_CHARGER_WILCO)	+= wilco-charger.o
+ifeq ($(CONFIG_MACH_ASUS_SAKE),y)
+obj-$(CONFIG_QTI_BATTERY_CHARGER)	+= qti_battery_charger.o qti_battery_charge_notify.o asus_battery_charger_ZF8.o
+else ifeq ($(CONFIG_MACH_ASUS_VODKA),y)
+obj-$(CONFIG_QTI_BATTERY_CHARGER)	+= qti_battery_charger.o qti_battery_charge_notify.o asus_battery_charger_ZF8.o
+else ifeq ($(CONFIG_MACH_ASUS_ZS673KS),y)
+obj-$(CONFIG_QTI_BATTERY_CHARGER)	+= qti_battery_charger_main.o
+qti_battery_charger_main-y += qti_battery_charger_2.o asus_battery_charger.o qti_battery_charge_notify.o qti_typec_class.o
+#obj-$(CONFIG_QTI_BATTERY_CHARGER)	+= qti_battery_charger_main.o
+#qti_battery_charger_main-y += qti_battery_charger_2.o asus_battery_charger.o qti_battery_charge_notify.o qti_typec_class.o
+else
 obj-$(CONFIG_QTI_BATTERY_CHARGER)	+= qti_battery_charger_main.o
 qti_battery_charger_main-y += qti_battery_charger.o qti_typec_class.o
+endif
 obj-$(CONFIG_QCOM_POWER_SUPPLY)		+= qcom/

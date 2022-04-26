@@ -28,4 +28,12 @@ obj-$(CONFIG_INPUT_MISC)	+= misc/
 
 obj-$(CONFIG_INPUT_APMPOWER)	+= apm-power.o
 
+obj-$(CONFIG_INPUT_HALLSENSOR)	+= lid.o
+obj-$(CONFIG_INPUT_HALLSENSOR2)	+= lid_2.o
+
 obj-$(CONFIG_RMI4_CORE)		+= rmi4/
+
+obj-$(CONFIG_GOODIX_FINGERPRINT) += fingerprint/
+
+obj-$(CONFIG_GOODIX_FINGERPRINT_2ND) += fingerprint2nd/
+

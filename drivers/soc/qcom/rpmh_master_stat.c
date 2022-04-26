@@ -91,6 +91,50 @@ static void __iomem *rpmh_unit_base;
 
 static DEFINE_MUTEX(rpmh_stats_mutex);
 
+//[PM_debug +++]
+void msm_rpmh_master_stats_print(void)
+{
+	bool voting_sleep = false;
+    int i = 0;
+	struct msm_rpmh_master_stats *record = NULL;
+    char buf[200];
+    ssize_t length;
+
+	mutex_lock(&rpmh_stats_mutex);
+
+	/* First Read APSS master stats */
+    record = &apss_master_stats;
+    if (record->last_entered > record->last_exited)
+        voting_sleep = true;
+    else
+        voting_sleep = false;
+    //printk("[PM]%s:%s:0x%x",
+    length = scnprintf(buf, PAGE_SIZE, "{%s:%s:%d}",
+            "APSS", voting_sleep ? "s":"w", record->counts);
+
+	/* Read SMEM data written by other masters */
+    record = NULL;
+	//Because qcom_smem_get(QCOM_SMEM_HOST_ANY(-1),...) get warning message, read from PID_MPSS
+    for (i = 1; i < ARRAY_SIZE(rpmh_masters); i++) {
+        //printk("[PM_debug]%s:(%d/%d)check pid=%d, smem_id=%d", __func__,i,ARRAY_SIZE(rpmh_masters),rpmh_masters[i].pid,rpmh_masters[i].smem_id);
+        record = (struct msm_rpmh_master_stats *) qcom_smem_get(
+                    rpmh_masters[i].pid,
+                    rpmh_masters[i].smem_id, NULL);
+        if (!IS_ERR_OR_NULL(record) && (PAGE_SIZE - length > 0)){
+            if (record->last_entered > record->last_exited)
+                voting_sleep = true;
+            else
+                voting_sleep = false;
+            //printk("[PM]%s:%s:0x%x",
+            length += scnprintf(buf + length, PAGE_SIZE - length, "{%s:%s:%d}",
+                    rpmh_masters[i].master_name, voting_sleep ? "s":"w", record->counts);
+        }
+	}
+    printk("[PM]%s", buf);
+	mutex_unlock(&rpmh_stats_mutex);
+}
+EXPORT_SYMBOL(msm_rpmh_master_stats_print);
+//[PM_debug ---]
 static ssize_t msm_rpmh_master_stats_print_data(char *prvbuf, ssize_t length,
 				struct msm_rpmh_master_stats *record,
 				const char *name)
@@ -137,10 +181,10 @@ static ssize_t msm_rpmh_master_stats_show(struct kobject *kobj,
 	}
 	/* Read SMEM data written by other masters */
 
+	//read from PID_MPSS
 	for (i = 0; i < ARRAY_SIZE(rpmh_masters); i++) {
 		if (skip_apss && i == 0)
 			continue;
-
 		record = (struct msm_rpmh_master_stats *) qcom_smem_get(
 					rpmh_masters[i].pid,
 					rpmh_masters[i].smem_id, NULL);
@@ -195,6 +239,9 @@ void msm_rpmh_master_stats_update(void)
 					GET_ADDR(REG_DATA_HI, i)) << 32);
 	}
 	msm_rpmh_apss_master_stats_update(profile_unit);
+    //[PM_debug +++]
+    //msm_rpmh_master_stats_print();
+    //[PM_debug ---]
 }
 EXPORT_SYMBOL(msm_rpmh_master_stats_update);
 

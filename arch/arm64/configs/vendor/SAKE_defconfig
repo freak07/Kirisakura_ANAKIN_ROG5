@@ -1,0 +1,19 @@
+###############################################################################################
+#
+# Reverse the order of the configs for the override to work properly
+# Correct order is : 
+#1.base_defconfig : kernel/msm-5.4/arch/arm64/configs/gki_defconfig 
+#2.GKI.config : /kernel/msm-5.4/arch/arm64/configs/vendor/lahaina_GKI.config (GKI.config)
+#3.QGKI.config : /kernel/msm-5.4/arch/arm64/configs/vendor/lahaina_QGKI.config  (QGKI.config)
+#4.Consolidate.config : /kernel/msm-5.4/arch/arm64/configs/vendor/lahaina_consolidate.config
+#5.debug.config : kernel/msm-5.4/arch/arm64/configs/vendor/lahaina_debug.config  (debug.config)
+#6.asus_defconfig : kernel/msm-5.4/arch/arm64/configs/vendor/SAKE_defconfig
+#
+###############################################################################################
+CONFIG_LOCALVERSION="-qgki-debug"
+CONFIG_MACH_ASUS_SAKE=y
+CONFIG_TOUCHSCREEN_FTS=m
+GOODIX_FINGERPRINT_2ND=m
+CONFIG_SLA_STAIC_COLLECT=y
+CONFIG_SLA=m
+CONFIG_NETFILTER_XT_TARGET_LOG=y

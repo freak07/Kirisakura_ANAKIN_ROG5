@@ -72,6 +72,7 @@ struct suspend_stats {
 };
 
 extern struct suspend_stats suspend_stats;
+extern bool suspend_happened;
 
 static inline void dpm_save_failed_dev(const char *name)
 {

@@ -1051,6 +1051,15 @@ static int a6xx_power_off(struct adreno_device *adreno_dev)
 	if (!test_bit(RGMU_PRIV_GPU_STARTED, &rgmu->flags))
 		return 0;
 
+	/*
+	* If this config is enabled, the smmu driver keeps the cx gdsc always
+	* ON. So it is better if we don't turn off the GPU unless we are
+	* really desperate like in the case of gpu recovery. In that case, the
+	* power off is handled by a different path.
+	*/
+	if (IS_ENABLED(CONFIG_ARM_SMMU_POWER_ALWAYS_ON))
+		return 0;
+
 	trace_kgsl_pwr_request_state(device, KGSL_STATE_SLUMBER);
 
 	adreno_suspend_context(device);

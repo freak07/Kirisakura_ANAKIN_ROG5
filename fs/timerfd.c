@@ -27,6 +27,13 @@
 #include <linux/compat.h>
 #include <linux/rcupdate.h>
 
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+//[PM_debug+++]
+extern int alarm_debug_count;
+extern int alarm_debug;
+//[PM_debug---]
+#endif
+
 struct timerfd_ctx {
 	union {
 		struct hrtimer tmr;
@@ -238,6 +245,19 @@ static __poll_t timerfd_poll(struct file *file, poll_table *wait)
 	spin_lock_irqsave(&ctx->wqh.lock, flags);
 	if (ctx->ticks)
 		events |= EPOLLIN;
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT	
+    //[PM_debug+++]
+    if(alarm_debug && alarm_debug_count){
+        //printk("[PM_debug]%s +++", __func__);
+        if (ctx->expired && isalarm(ctx))
+            pr_info("[PM_debug]%s: comm:%s pid:%d exp:%llu type:%d\n", __func__,
+            current->comm, current->pid,
+            ktime_to_ms(ctx->t.alarm.node.expires),
+            ctx->t.alarm.type);    
+        //printk("[PM_debug]%s ---", __func__);
+    }
+    //[PM_debug---]
+ #endif 
 	spin_unlock_irqrestore(&ctx->wqh.lock, flags);
 
 	return events;
@@ -424,8 +444,20 @@ SYSCALL_DEFINE2(timerfd_create, int, clockid, int, flags)
 
 	ctx->moffs = ktime_mono_to_real(0);
 
-	ufd = anon_inode_getfd("[timerfd]", &timerfd_fops, ctx,
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+    //[PM_debug+++]
+    {
+    char full_timerfd_name[64];
+    snprintf(full_timerfd_name, 64, "[timerfd-%s-%d]",
+            current->comm, current->pid);
+	ufd = anon_inode_getfd(full_timerfd_name, &timerfd_fops, ctx,
 			       O_RDWR | (flags & TFD_SHARED_FCNTL_FLAGS));
+    }
+    //[PM_debug---]
+#else
+	ufd = anon_inode_getfd("[timerfd-%s-%d]", &timerfd_fops, ctx,
+			       O_RDWR | (flags & TFD_SHARED_FCNTL_FLAGS));
+#endif                   
 	if (ufd < 0)
 		kfree(ctx);
 

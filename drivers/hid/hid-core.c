@@ -2279,6 +2279,7 @@ static int hid_device_probe(struct device *dev)
 		/* reset the quirks that has been previously set */
 		hdev->quirks = hid_lookup_quirk(hdev);
 		hdev->driver = hdrv;
+		pr_info("[USB] hid_device_probe, driver name=%s\n",hdev->driver->name);
 		if (hdrv->probe) {
 			ret = hdrv->probe(hdev, id);
 		} else { /* default probe */

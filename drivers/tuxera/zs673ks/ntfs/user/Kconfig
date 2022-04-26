@@ -1,0 +1,9 @@
+config NTFS_FS
+	tristate "Tuxera NTFS file system support"
+	select NLS
+	help
+	  NTFS is the file system of Microsoft Windows NT and later.
+
+	  To compile this file system support as a module, choose M here: the
+	  module will be called tntfs.
+

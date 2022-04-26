@@ -739,6 +739,7 @@ int drm_mode_revoke_lease_ioctl(struct drm_device *dev,
 
 	/* Lease is not held by lessor */
 	if (lessee->lessor != lessor) {
+		printk("drm:: revoke_lease_ioctl");
 		ret = -EACCES;
 		goto fail;
 	}

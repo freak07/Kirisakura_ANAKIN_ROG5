@@ -19,6 +19,217 @@
 #include <uapi/linux/kernel.h>
 #include <asm/div64.h>
 
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+#include <linux/asusdebug.h>
+#endif
+
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT || defined ASUS_SAKE_PROJECT || defined ASUS_VODKA_PROJECT
+
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+enum DEVICE_HWID
+{
+       HW_REV_INVALID 	         = -1,
+       HW_REV_EVB    		 =  0,
+       HW_REV_EVB2   		 =  1,
+       HW_REV_SR     		 =  2,
+       HW_REV_ER     		 =  3,
+       HW_REV_ER2    		 =  4,
+       HW_REV_PR     		 =  5,
+       HW_REV_PR2    		 =  6,
+       HW_REV_MP     		 =  7,
+       HW_REV_MP3    		 =  8,
+       HW_REV_MP4    		 =  9,
+       HW_REV_MP5    		 = 10,
+       HW_REV_MP6    		 = 11,
+       HW_REV_MP7    		 = 12,
+       HW_REV_MP8    		 = 13,
+       HW_REV_MP9    		 = 14,
+       HW_REV_MP10   		 = 15,
+       HW_REV_ANAKIN2_ER         = 20,
+       HW_REV_ANAKIN2_PR         = 21,
+       HW_REV_ANAKIN2_MP         = 22
+};
+extern enum DEVICE_HWID g_ASUS_hwID;
+
+enum DEVICE_PROJID
+{
+       PROJECT_INVALID           = -1,
+       PROJECT_ANAKIN_ENTRY      =  0,
+       PROJECT_ANAKIN_ELITE      =  1,
+       PROJECT_PICASSO	         =  2,
+       PROJECT_ANAKIN2_ERC_ARUA  =  9,
+       PROJECT_ANAKIN2_ERC_POMLED= 10,
+       PROJECT_ANAKIN2_ERA       = 11,
+       PROJECT_ANAKIN2_ARUA      = 12,
+       PROJECT_ANAKIN2_POMLED    = 13,
+       PROJECT_ANAKIN2_PX_ARUA   = 14,
+       PROJECT_ANAKIN2_PX_POMLED = 15
+};
+extern enum DEVICE_PROJID g_ASUS_prjID;
+
+enum DEVICE_SKUID
+{
+       SKU_ID_INVALID = -1,
+       SKU_ID_0  = 0,
+       SKU_ID_1  = 1,
+       SKU_ID_2  = 2,
+       SKU_ID_3  = 3,
+       SKU_ID_4  = 4,
+       SKU_ID_5  = 5,
+       SKU_ID_6  = 6,
+       SKU_ID_7  = 7
+};
+extern enum DEVICE_SKUID g_ASUS_skuID;
+
+/*
+enum DEVICE_RFSKU
+{
+        RF_SKU_UNKNOWN = -1,
+        CN_SKU 		= 0,
+        WW_SKU 		= 1,
+        CN_SKU_LOW 	= 2,
+        WW_SKU_LOW	= 3,
+};
+extern enum DEVICE_RFSKU g_ASUS_rfSKU;
+
+
+enum DEVICE_LCMID
+{
+        LCM_VENDOR_INVALID = -1,
+        LCM_VENDOR1 = 0,
+        LCM_VENDOR2 = 1
+};
+extern enum DEVICE_LCMID g_ASUS_lcmID;
+*/
+enum DEVICE_FPID
+{
+        FP_VENDOR_INVALID = -1,
+        FP_VENDOR1 = 0,
+        FP_VENDOR2 = 1
+};
+extern enum DEVICE_FPID g_ASUS_fpID;
+
+enum DEVICE_NFCID
+{
+        NFC_VENDOR_INVALID = -1,
+        NFC_NOT_SUPPORT = 0,
+        NFC_SUPPORT = 1
+};
+extern enum DEVICE_NFCID g_ASUS_nfcID;
+
+enum DEVICE_DDRID
+{
+        DDR_VENDOR_INVALID = -1,
+        DDR_6400 = 0,
+        DDR_5500 = 1
+};
+extern enum DEVICE_DDRID g_ASUS_ddrID;
+#else
+#if defined ASUS_SAKE_PROJECT || defined ASUS_VODKA_PROJECT
+enum DEVICE_HWID
+{
+       HW_REV_INVALID 	= -1,
+       HW_REV_EVB    		= 0,
+       HW_REV_EVB2   		= 1,
+       HW_REV_SR     		= 2,
+       HW_REV_ER     		= 3,
+       HW_REV_ER2    		= 4,
+       HW_REV_PR     		= 5,
+       HW_REV_PR2    		= 6,
+       HW_REV_MP     		= 7
+};
+extern enum DEVICE_HWID g_ASUS_hwID;
+
+enum DEVICE_PROJID
+{
+       PROJECT_INVALID = -1,
+       PROJECT_SAKE = 4,
+       PROJECT_VODKA = 5,
+       PROJECT_SAKE_PLUS = 6,
+       PROJECT_VODKA_PLUS = 7
+
+};
+extern enum DEVICE_PROJID g_ASUS_prjID;
+
+enum DEVICE_SKUID
+{
+       SKU_ID_INVALID = -1,
+       SKU_ID_0  = 0,
+       SKU_ID_1  = 1,
+       SKU_ID_2  = 2,
+       SKU_ID_3  = 3,
+       SKU_ID_4  = 4,
+       SKU_ID_5  = 5,
+       SKU_ID_6  = 6,
+       SKU_ID_7  = 7
+};
+extern enum DEVICE_SKUID g_ASUS_skuID;
+
+/*
+enum DEVICE_RFSKU
+{
+        RF_SKU_UNKNOWN = -1,
+        CN_SKU 		= 0,
+        WW_SKU 		= 1,
+        CN_SKU_LOW 	= 2,
+        WW_SKU_LOW	= 3,
+};
+extern enum DEVICE_RFSKU g_ASUS_rfSKU;
+
+
+enum DEVICE_LCMID
+{
+        LCM_VENDOR_INVALID = -1,
+        LCM_VENDOR1 = 0,
+        LCM_VENDOR2 = 1
+};
+extern enum DEVICE_LCMID g_ASUS_lcmID;
+*/
+enum DEVICE_FPID
+{
+        FP_VENDOR_INVALID = -1,
+        FP_VENDOR1 = 0,
+        FP_VENDOR2 = 1
+};
+extern enum DEVICE_FPID g_ASUS_fpID;
+
+enum DEVICE_NFCID
+{
+        NFC_VENDOR_INVALID = -1,
+        NFC_NOT_SUPPORT = 0,
+        NFC_SUPPORT = 1
+};
+extern enum DEVICE_NFCID g_ASUS_nfcID;
+
+enum DEVICE_DDRID
+{
+        DDR_VENDOR_INVALID = -1,
+        DDR_6400 = 0,
+        DDR_5500 = 1
+};
+extern enum DEVICE_DDRID g_ASUS_ddrID;
+#endif //ASUS_SAKE_PROJECT
+#endif //ASUS_ZS673KS_PROJECT
+
+#ifdef ASUS_ZS673KS_PROJECT
+enum DEVICE_BCID
+{
+        BC_ID_INVALID    = -1,
+        BC_ID_AURA_Light =  0,
+        BC_ID_PMOLED     =  1
+};
+extern enum DEVICE_BCID g_ASUS_bcID;
+
+enum DEVICE_SECDISPID
+{
+        SEC_DISP_ID_INVALID = -1,
+        SEC_DISP_ID_MONO    =  0,
+        SEC_DISP_ID_COLOR   =  1
+};
+extern enum DEVICE_SECDISPID g_ASUS_secdispID;
+#endif
+
+#endif
 #define STACK_MAGIC	0xdeadbeef
 
 /**

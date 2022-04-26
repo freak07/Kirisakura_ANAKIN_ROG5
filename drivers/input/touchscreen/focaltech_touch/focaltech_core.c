@@ -2168,6 +2168,15 @@ static int fts_power_source_ctrl(struct fts_ts_data *ts_data, int enable)
 			FTS_DEBUG("regulator enable !");
 			gpio_direction_output(ts_data->pdata->reset_gpio, 0);
 			msleep(1);
+			if (!IS_ERR_OR_NULL(ts_data->vcc_i2c)) {
+				ret = regulator_enable(ts_data->vcc_i2c);
+				if (ret) {
+					FTS_ERROR("enable vcc_i2c regulator failed,ret=%d", ret);
+				}
+			}
+			gpio_direction_output(ts_data->pdata->vddio, 1);
+	    
+			msleep(1);
 			ret = fts_ts_enable_reg(ts_data, true);
 			if (ret)
 				FTS_ERROR("Touch reg enable failed\n");
@@ -2177,7 +2186,16 @@ static int fts_power_source_ctrl(struct fts_ts_data *ts_data, int enable)
 		if (!ts_data->power_disabled) {
 			FTS_DEBUG("regulator disable !");
 			gpio_direction_output(ts_data->pdata->reset_gpio, 0);
+			msleep(10);
+			gpio_direction_output(ts_data->pdata->vddio, 0);
 			msleep(1);
+			if (!IS_ERR_OR_NULL(ts_data->vcc_i2c)) {
+				ret = regulator_disable(ts_data->vcc_i2c);
+				if (ret) {
+					FTS_ERROR("disable vcc_i2c regulator failed,ret=%d", ret);
+				}
+			}
+
 			ret = fts_ts_enable_reg(ts_data, false);
 			if (ret)
 				FTS_ERROR("Touch reg disable failed");
@@ -2460,6 +2478,12 @@ static int fts_parse_dt(struct device *dev, struct fts_ts_platform_data *pdata)
 	if (pdata->irq_gpio < 0)
 		FTS_ERROR("Unable to get irq_gpio");
 
+	pdata->vddio = of_get_named_gpio_flags(np, "focaltech,vddio",
+                      0, &pdata->vddio_flags);
+	
+	if (pdata->vddio < 0)
+	    FTS_ERROR("Unable to get vddio");
+	
 	ret = of_property_read_u32(np, "focaltech,max-touch-number", &temp_val);
 	if (ret < 0) {
 		FTS_ERROR("Unable to get max-touch-number, please check dts");
@@ -2473,8 +2497,8 @@ static int fts_parse_dt(struct device *dev, struct fts_ts_platform_data *pdata)
 			pdata->max_touch_number = temp_val;
 	}
 
-	FTS_INFO("max touch number:%d, irq gpio:%d, reset gpio:%d",
-		pdata->max_touch_number, pdata->irq_gpio, pdata->reset_gpio);
+	FTS_INFO("max touch number:%d, irq gpio:%d, reset gpio:%d vddio:%d",
+		pdata->max_touch_number, pdata->irq_gpio, pdata->reset_gpio, pdata->reset_gpio,pdata->vddio);
 
 	pdata->power_always_on =
 			of_property_read_bool(np, "focaltech,power-always-on");
@@ -3134,8 +3158,8 @@ static const struct i2c_device_id fts_ts_i2c_id[] = {
 	{},
 };
 static const struct of_device_id fts_dt_match[] = {
-	{.compatible = "focaltech,fts_ts", },
-	{},
+    {.compatible = "focaltech,fts", },
+    {},
 };
 MODULE_DEVICE_TABLE(of, fts_dt_match);
 

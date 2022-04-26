@@ -7959,14 +7959,20 @@ static void __setup_per_zone_wmarks(void)
 			unsigned long min_pages;
 
 			min_pages = zone_managed_pages(zone) / 1024;
+                        printk("min_pages = %lu,SWAP_CLUSTER_MAX = %lu\n",
+                                       min_pages, SWAP_CLUSTER_MAX);
 			min_pages = clamp(min_pages, SWAP_CLUSTER_MAX, 128UL);
 			zone->_watermark[WMARK_MIN] = min_pages;
+                       printk("zone->watermark[WMARK_MIN]1 = %d\n",
+                                       (unsigned int)zone->_watermark[WMARK_MIN]);
 		} else {
 			/*
 			 * If it's a lowmem zone, reserve a number of pages
 			 * proportionate to the zone's size.
 			 */
 			zone->_watermark[WMARK_MIN] = tmp;
+                        printk("zone->watermark[WMARK_MIN]2 = %d\n",
+                                       (unsigned int)zone->_watermark[WMARK_MIN]);
 		}
 
 		/*
@@ -7984,6 +7990,10 @@ static void __setup_per_zone_wmarks(void)
 		zone->_watermark[WMARK_HIGH] = min_wmark_pages(zone) +
 					low + tmp * 2;
 
+               printk("zone->watermark[WMARK_LOW] = %d\n",
+                               (unsigned int)zone->_watermark[WMARK_LOW]);
+               printk("zone->watermark[WMARK_HIGH] = %d\n",
+                               (unsigned int)zone->_watermark[WMARK_HIGH]);
 		spin_unlock_irqrestore(&zone->lock, flags);
 	}
 

@@ -1015,6 +1015,7 @@ gen_headers_out_arm = [
     "camera/media/cam_tfe.h",
     "display/drm/msm_drm_pp.h",
     "display/drm/sde_drm.h",
+    "display/drm/msm_drm_iris.h",
     "display/media/mmm_color_fmt.h",
     "display/media/msm_sde_rotator.h",
     "display/hdcp/msm_hdmi_hdcp_mgr.h",
