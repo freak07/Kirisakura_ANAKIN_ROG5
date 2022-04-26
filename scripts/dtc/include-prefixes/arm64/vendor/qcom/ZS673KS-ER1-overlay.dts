@@ -1,0 +1,417 @@
+/dts-v1/;
+/plugin/;
+
+#include "ZS673KS-SR1-overlay.dts"
+#include <dt-bindings/clock/qcom,rpmh.h>
+
+/ {
+	model = "Qualcomm Technologies, Inc. ASUS ER1";
+	compatible = "qcom,lahaina-mtp", "qcom,lahaina", "qcom,mtp";
+	qcom,board-id = <60 0>;
+};
+
+/*   ====================================
+*    overlay for display - start
+*    ====================================
+*/
+&dsi_ams678_fhd_plus_dsc_cmd {
+	qcom,platform-px-reset-gpio = <&tlmm 93 0>;
+};
+
+&sde_dsi_active {
+	mux {
+		pins = "gpio24", "gpio93";
+	};
+
+	config {
+		pins = "gpio24", "gpio93";
+	};
+};
+
+&sde_dsi_suspend {
+	mux {
+		pins = "gpio24", "gpio93";
+	};
+
+	config {
+		pins = "gpio24", "gpio93";
+	};
+};
+
+&sde_dp {
+	qcom,aux-en-gpio = <&tlmm 167 0>;
+	qcom,pcie-mux-en-gpio;
+};
+
+&sde_dp_aux_active {
+	mux {
+		pins = "gpio167";
+	};
+
+	config {
+		pins = "gpio167";
+	};
+};
+
+&sde_dp_aux_suspend {
+	mux {
+		pins = "gpio167";
+	};
+
+	config {
+		pins = "gpio167";
+	};
+};
+
+&pxlw_iris {
+	qcom,iris-wakeup-gpio = <&tlmm 92 0>;
+};
+
+&iris_wakeup_active {
+	mux {
+		pins = "gpio92";
+	};
+
+	config {
+		pins = "gpio92";
+	};
+};
+
+&iris_wakeup_suspend {
+	mux {
+		pins = "gpio92";
+	};
+
+	config {
+		pins = "gpio92";
+	};
+};
+/*   ====================================
+*    overlay for display - end
+*    ====================================
+*/
+
+/*    ====================================
+ *    overlay for lahainap-v2.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahainap-v2.dtsi - end
+ *    ====================================
+ */
+
+
+
+/*    ====================================
+ *    overlay for lahainap.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahainap.dtsi - end
+ *    ====================================
+ */
+
+
+
+/*    ====================================
+ *    overlay for lahaina-mtp.dtsi - start
+ *    ====================================
+ */
+
+//ASUS_BSP PMOLED +++
+&qupv3_se19_spi {
+	ssd1362@0 {
+		futaba,vci-gpio = <&tlmm 74 0>;
+	};
+};
+
+&futaba_active {
+    mux {
+        pins = "gpio74", "gpio75", "gpio120", "gpio121", "gpio122";
+        function = "gpio";
+    };
+	config {
+		pins = "gpio74", "gpio75", "gpio120", "gpio121", "gpio122";
+		drive-strength = <8>;
+		bias-pull-up;
+	};
+};
+
+&futaba_suspend {
+    mux {
+        pins = "gpio74", "gpio75", "gpio120", "gpio121", "gpio122";
+		function = "gpio";
+	};
+	config {
+		pins = "gpio74", "gpio75", "gpio120", "gpio121", "gpio122";
+		drive-strength = <2>;
+		bias-pull-down;
+	};
+};
+//ASUS_BSP PMOLED ---
+
+//[+++] ASUS_BSP : Add for battery_charger
+&battery_charger {
+	POGO_OTG_EN = <&tlmm 3 0x0>;
+};
+//[---] ASUS_BSP : Add for battery_charger
+
+//ASUS_BSP Clay +++ grip sensor gpio change
+&qupv3_se1_i2c {
+	snt8100fsr-i2c@2c {
+		rst_gpios = <&tlmm 164 GPIO_ACTIVE_HIGH>;
+		alsps_v2000 = <&tlmm 172 GPIO_ACTIVE_LOW>;
+	};
+};
+
+//ASUS_BSP: haptic vibrator+++
+//ASUS_BSP: aw haptic +++
+&qupv3_se6_i2c {
+	status = "ok";
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	//+++for 400kHz i2c clock
+	qcom,clk-freq-out = <1000000>;
+	//---
+
+	aw8697_haptic@5B {
+		compatible = "awinic,aw8697_haptic";
+		reg = <0x5B>;
+		status = "disabled";
+	};
+
+	aw8697_haptic@5A {
+		compatible = "awinic,aw8697_haptic";
+		reg = <0x5A>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <44 0>; // set type in driver IRQ_TYPE_NONE
+		irq-gpio = <&tlmm 44 0>; // set type in driver IRQ_TYPE_NONE
+		reset-gpio = <&tlmm 116 0>;
+		vib_mode = < 0 >;   /*mode:   RAM mode->0; CONT mode -> 1*/
+		vib_f0_pre = < 1500 >; // 150Hz
+		vib_f0_cali_percen = < 7 >;
+		vib_cont_drv_lev = < 100 >; // 2*1.414*255/6.1
+		vib_cont_drv_lvl_ov = < 100 >;
+		vib_cont_td = < 0x006c >;
+		vib_cont_zc_thr = < 0x0ff1 >;
+		vib_cont_num_brk = < 3 >;
+		vib_f0_coeff = < 260 >; /*Don't modify it    2.604167*/
+		vib_f0_trace_parameter = < 0x05 0x03 0x02 0x0f >;
+		vib_bemf_config = < 0x10 0x08 0x03 0xf8 >;
+		vib_sw_brake = < 0x2c >;
+		vib_tset = < 0x12 >;
+		vib_r_spare = < 0x68 >;
+		vib_bstdbg = < 0x30 0xeb 0xd4 0 0 0 >;
+		pinctrl-names = "default";
+		pinctrl-states = "default";
+		pinctrl-0 = <&vib_irq_default>;
+		status = "okay";
+	};
+};
+//ASUS_BSP: aw haptic ---
+//ASUS_BSP: haptic vibrator---
+
+//ASUS_BSP: NFC +++
+&qupv3_se15_i2c{
+	nq@28{
+	    status = "ok";
+	};
+};
+//ASUS_BSP: NFC ---
+
+//ASUS_BSP: usb hub +++
+&qupv3_se13_i2c {
+	status = "ok";
+	usb3803@29 {
+		compatible = "hub,usb3803";
+		reg = <0x29>;
+
+		clock-names = "bb_clk3";
+		clocks = <&clock_rpmh RPMH_LN_BB_CLK3>;
+
+		HUB_BYPASS = <&tlmm 97 0x0>;
+		HUB_RESET = <&tlmm 98 0x0>;
+		HUB_CONNECT = <&tlmm 173 0x0>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&usb3803_int>;
+	};
+};
+//ASUS_BSP: usb hub ---
+
+&soc {
+	wlaner: qcom,cnss-qca6490@b0000000 {
+		wlan-ant-switch-supply = <&L7E>;
+		qcom,wlan-ant-switch-config = <2800000 2800000 0 0 0>;
+	};
+};
+
+/*    ====================================
+ *    overlay for lahaina-mtp.dtsi - end
+ *    ====================================
+ */
+
+
+/*    ====================================
+ *    overlay for lahaina-pm.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahaina-pm.dtsi - end
+ *    ====================================
+ */
+
+
+
+/*    ====================================
+ *    overlay for lahaina-pinctrl.dtsi - start
+ *    ====================================
+ */
+
+//ASUS_BSP: usb hub +++
+&pcie1 {
+status = "disabled";
+};
+
+&tlmm{
+	usb3803_int: usb3803_int {
+		mux {
+			pins = "gpio99";
+			function = "gpio";
+		};
+		config {
+			pins = "gpio99";
+			bias-disable;
+			drive-strength = <2>;
+		};
+	};
+};
+//ASUS_BSP: usb hub ---
+
+/*    ====================================
+ *    overlay for lahaina-pinctrl.dtsi - end
+ *    ====================================
+ */
+
+
+
+/*    ====================================
+ *    overlay for lahaina-pmic-overlay.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahaina-pmic-overlay.dtsi - end
+ *    ====================================
+ */
+
+
+/*    ====================================
+ *    overlay for pm8350.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for pm8350.dtsi - end
+ *    ====================================
+ */
+
+
+/*    ====================================
+ *    overlay for pmk8350.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for pmk8350.dtsi - end
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for pm8350b.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for pm8350b.dtsi - end
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for pm8350c.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for pm8350c.dtsi - end
+ *    ====================================
+ */
+
+
+/*    ====================================
+ *    overlay for lahaina-regulators.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahaina-regulators.dtsi - end
+ *    ====================================
+ */
+  
+ 
+/*    ====================================
+ *    overlay for lahaina-audio.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahaina-audio.dtsi - end
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahaina-audio-overlay.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahaina-audio-overlay.dtsi - end
+ *    ====================================
+ */
+
+
+/*    ====================================
+ *    overlay for lahaina-thermal-overlay.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahaina-thermal-overlay.dtsi - end
+ *    ====================================
+ */
+
+ 
+/*    ====================================
+ *    overlay for lahaina-gpu.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahaina-gpu.dtsi - end
+ *    ====================================
+ */
+
+
+/*    ====================================
+ *    overlay for lahaina-usb.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahaina-usb.dtsi - end
+ *    ====================================
+ */

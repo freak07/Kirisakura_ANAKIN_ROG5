@@ -1,0 +1,536 @@
+/dts-v1/;
+/plugin/;
+
+#include "VODKA-EVB2-overlay.dts"
+
+/ {
+	model = "Qualcomm Technologies, Inc. VODKA SR";
+	compatible = "qcom,lahaina-mtp", "qcom,lahaina", "qcom,mtp";
+	qcom,board-id = <50 0>;
+};
+
+/*   ====================================
+*    overlay for display - start
+*    ====================================
+*/
+&qupv3_se4_i2c {
+    focaltech@38{
+        panel = <&dsi_samsung_fhd_cmd>;
+    };
+};
+
+/*   ====================================
+*    overlay for display - end
+*    ====================================
+*/
+
+/*    ====================================
+ *    overlay for lahainap-v2.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahainap-v2.dtsi - end
+ *    ====================================
+ */
+
+
+
+/*    ====================================
+ *    overlay for lahainap.dtsi - start
+ *    ====================================
+ */
+
+//Vodka Hall_sensor +++
+&soc {
+
+	hall_sensor {
+		compatible = "qcom,hall";
+		pinctrl-names = "hall_gpio_high","hall_gpio_low";
+		vdd-supply = <&L8C>;
+		pinctrl-0 = <&gpio_hall_active>;
+		pinctrl-1 = <&gpio_hall_suspend>;
+		qcom,hall-gpio = <&tlmm 50 0x0>;
+	};
+};
+//Vodka Hall_sensor ---
+
+//ASUS BSP Latch sensor +++
+&qupv3_se15_i2c {
+	status = "ok";
+	qcom,clk-freq-out = <400000>;
+	latch_sensor@0d {
+		compatible = "qcom,latch";
+		reg=<0x0d>;
+		pinctrl-names = "latch_gpio_high","latch_gpio_low";
+		pinctrl-0 = <&gpio_latch_active>;
+		pinctrl-1 = <&gpio_latch_suspend>;
+		latch,int-gpio = <&tlmm 79 0x0>;
+		latch,reset_gpio= <&tlmm 78 0x0>;
+		vdd-supply = <&L8C>;
+	};
+};
+//ASUS BSP Latch sensor ---
+
+
+&qupv3_se0_i2c {
+	Semtech_sx932x@28 {
+		compatible = "Semtech,sx932x";
+		reg = <0x28>;
+		//interrupt-parent = <&msm_gpio>;
+		//interrupts = <34 0>;
+		pinctrl-names = "sx932x_active";
+		pinctrl-0 = <&sx932x_active>;
+		Semtech,nirq-gpio = <&tlmm 91 0x00>;
+		status = "ok";	/**/
+		Semtech,reg-num = <46>; /* total registers number to initialize*/
+        Semtech,reg-init  = /bits/ 8 < 0x10 0x16
+                                0x20 0x00
+                                0x23 0x00
+                                0x24 0x44
+                                0x26 0x01
+                                0x27 0x44
+                                0x28 0x01 /*PH0 to CS0 input*/
+                                0x29 0x10
+                                0x2A 0x19 /*PH2 CS2-input,CS1-dync,CS0-HZ*/
+                                0x2B 0x00
+                                0x2C 0x12
+                                0x2D 0x08
+                                0x30 0x09
+                                0x31 0x09
+                                0x32 0x08
+                                0x33 0x20
+                                0x34 0x0C
+                                0x35 0x00
+                                0x36 0x1B
+                                0x37 0x1B
+                                0x40 0x00
+                                0x41 0x00
+                                0x42 0x00
+                                0x43 0x00
+                                0x44 0x00
+                                0x45 0x05
+                                0x46 0x00
+                                0x47 0x00
+                                0x48 0x00
+                                0x49 0x80
+                                0x4A 0x00
+                                0x4B 0x00
+                                0x4C 0x00
+                                0x4D 0x00
+                                0x4E 0x80
+                                0x4F 0x0C
+                                0x50 0x00
+                                0x51 0x70
+                                0x52 0x20
+                                0x53 0xE1
+                                0x54 0xF0
+                                0x05 0x70
+                                0x06 0x00
+                                0x07 0x00
+                                0x08 0x00
+								0x11 0x24>;
+
+	};
+};
+
+/*    ====================================
+ *    overlay for lahainap.dtsi - end
+ *    ====================================
+ */
+
+
+
+/*    ====================================
+ *    overlay for lahaina-mtp.dtsi - start
+ *    ====================================
+ */
+ &extcon_usb1 {
+	status = "disable";
+};
+ 
+/*    ====================================
+ *    overlay for lahaina-mtp.dtsi - end
+ *    ====================================
+ */
+
+
+/*    ====================================
+ *    overlay for lahaina-pm.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahaina-pm.dtsi - end
+ *    ====================================
+ */
+
+
+
+/*    ====================================
+ *    overlay for lahaina-pinctrl.dtsi - start
+ *    ====================================
+ */
+
+&tlmm{
+		//Vodka Latch_sensor +++
+		latch_int_pin {
+			gpio_latch_active: gpio_latch_active {
+				mux {
+					pins = "gpio79";
+					function = "gpio";
+				};
+
+				config {
+					pins = "gpio79";
+					drive-strength = <2>;
+					bias-pull-up;
+				};
+			};
+			gpio_latch_suspend: gpio_latch_suspend {
+				mux {
+					pins = "gpio79";
+					function = "gpio";
+				};
+
+				config {
+					pins = "gpio79";
+					drive-strength = <2>;
+					bias-no-pull;
+				};
+			};
+		};
+		//Vodka Latch_sensor ---
+
+		//Vodka Hall_sensor +++
+		hall_int_pin {
+
+			gpio_hall_active: gpio_hall_active {
+				mux {
+					pins = "gpio50";
+					function = "gpio";
+				};
+
+				config {
+					pins = "gpio50";
+					drive-strength = <2>;
+					bias-pull-down;
+				};
+			};
+			gpio_hall_suspend: gpio_hall_suspend {
+				mux {
+					pins = "gpio50";
+					function = "gpio";
+				};
+
+				config {
+					pins = "gpio50";
+					drive-strength = <2>;
+					bias-pull-down;
+				};
+			};
+		};
+		//Vodka Hall_sensor ---
+};
+
+&tlmm{
+	sx932x_active {
+		sx932x_active: sx932x_active {
+			mux {
+				pins = "gpio91";
+				function = "gpio";
+			};
+			config {
+				pins = "gpio91";
+				bias-pull-up;
+				drive-strength = <6>;
+			};
+		};
+	};
+};
+
+/*    ====================================
+ *    overlay for lahaina-pinctrl.dtsi - end
+ *    ====================================
+ */
+
+
+
+/*    ====================================
+ *    overlay for lahaina-pmic-overlay.dtsi - start
+ *    ====================================
+ */
+
+//[+++] ASUS_BSP : Add for battery_charger
+&battery_charger {
+    panel = <&dsi_samsung_fhd_cmd>;
+};
+//[---] ASUS_BSP : Add for battery_charger
+
+/*    ====================================
+ *    overlay for lahaina-pmic-overlay.dtsi - end
+ *    ====================================
+ */
+
+
+/*    ====================================
+ *    overlay for pm8350.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for pm8350.dtsi - end
+ *    ====================================
+ */
+
+
+/*    ====================================
+ *    overlay for pmk8350.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for pmk8350.dtsi - end
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for pm8350b.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for pm8350b.dtsi - end
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for pm8350c.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for pm8350c.dtsi - end
+ *    ====================================
+ */
+
+
+/*    ====================================
+ *    overlay for lahaina-regulators.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahaina-regulators.dtsi - end
+ *    ====================================
+ */
+  
+
+ 
+/*    ====================================
+ *    overlay for lahaina-audio.dtsi - start
+ *    ====================================
+ */
+&cdc_dmic45_gpios {
+	status = "ok";
+};
+
+&lahaina_snd {
+	qcom,msm-mi2s-master = <1>, <1>, <1>, <1>, <1>, <1>;
+	qcom,wcd-disabled = <1>;
+	qcom,pri-mi2s-gpios = <&pri_mi2s_gpios>;
+	qcom,audio-routing =
+		"TX DMIC0", "Digital Mic0",
+		"TX DMIC1", "Digital Mic1",
+		"TX DMIC2", "Digital Mic2",
+		"TX DMIC3", "Digital Mic3",
+		"TX DMIC4", "Digital Mic4",
+		"TX DMIC5", "Digital Mic5",
+		"Digital Mic0", "TX MIC BIAS1",
+		"Digital Mic1", "TX MIC BIAS1",
+		"Digital Mic2", "TX MIC BIAS1",
+		"Digital Mic3", "TX MIC BIAS1",
+		"Digital Mic4", "TX MIC BIAS1",
+		"Digital Mic5", "TX MIC BIAS1",
+		"RX_TX DEC0_INP", "TX DEC0 MUX",
+		"RX_TX DEC1_INP", "TX DEC1 MUX",
+		"RX_TX DEC2_INP", "TX DEC2 MUX",
+		"RX_TX DEC3_INP", "TX DEC3 MUX",
+		"VA SWR_INPUT", "VA_SWR_CLK",
+		"VA_AIF1 CAP", "VA_SWR_CLK",
+		"VA_AIF2 CAP", "VA_SWR_CLK",
+		"VA_AIF3 CAP", "VA_SWR_CLK",
+		"VA DMIC0", "Digital Mic0",
+		"VA DMIC1", "Digital Mic1",
+		"VA DMIC2", "Digital Mic2",
+		"VA DMIC3", "Digital Mic3",
+		"VA DMIC4", "Digital Mic4",
+		"VA DMIC5", "Digital Mic5",
+		"Digital Mic0", "VA MIC BIAS1",
+		"Digital Mic1", "VA MIC BIAS1",
+		"Digital Mic2", "VA MIC BIAS1",
+		"Digital Mic3", "VA MIC BIAS1",
+		"Digital Mic4", "VA MIC BIAS1",
+		"Digital Mic5", "VA MIC BIAS1";
+	qcom,msm-mbhc-hphl-swh;
+	qcom,msm-mbhc-gnd-swh;
+	qcom,cdc-dmic01-gpios = <&cdc_dmic01_gpios>;
+	qcom,cdc-dmic23-gpios = <&cdc_dmic23_gpios>;
+	qcom,cdc-dmic45-gpios = <&cdc_dmic45_gpios>;
+	asoc-codec  = <&stub_codec>, <&bolero>,
+		      <&ext_disp_audio_codec>;
+	asoc-codec-names = "msm-stub-codec.1", "bolero_codec",
+			   "msm-ext-disp-audio-codec-rx";
+	qcom,wsa-max-devs;
+};
+
+&va_macro {
+	va-vdd-micb-supply = <&L2C>;
+};
+
+&tx_macro {
+	tx-vdd-micb-supply = <&L2C>;
+	qcom,tx-vdd-micb-voltage = <1800000 1800000>;
+	qcom,tx-vdd-micb-current = <11200>;
+	qcom,tx-dmic-sample-rate = <2400000>;
+};
+
+&wsa_macro {
+	status = "disabled";
+};
+
+&bolero {
+	qcom,num-macros = <3>;
+	bolero-clk-rsc-mngr {
+		clock-names = "tx_core_clk", "tx_npl_clk", "rx_core_clk", "rx_npl_clk",
+			 "va_core_clk", "va_npl_clk";
+		clocks = <&clock_audio_tx_1 0>, <&clock_audio_tx_2 0>,
+			<&clock_audio_rx_1 0>, <&clock_audio_rx_2 0>,
+			<&clock_audio_va_1 0>, <&clock_audio_va_2 0>;
+	};
+};
+
+&clock_audio_wsa_1 {
+	status = "disabled";
+};
+
+&clock_audio_wsa_2 {
+	status = "disabled";
+};
+
+&q6core {
+    pri_mi2s_gpios: pri_mi2s_pinctrl {
+        compatible = "qcom,msm-cdc-pinctrl";
+        pinctrl-names = "aud_active", "aud_sleep";
+        pinctrl-0 = <&pri_aux_pcm_clk_active &pri_aux_pcm_din_active &pri_aux_pcm_dout_active &pri_aux_pcm_sync_active>;
+        pinctrl-1 = <&pri_aux_pcm_clk_sleep &pri_aux_pcm_din_sleep &pri_aux_pcm_dout_sleep &pri_aux_pcm_sync_sleep>;
+        #gpio-cells = <0>;
+    };
+};
+
+&qupv3_se8_i2c {
+       status = "ok";
+       tfa98xx@34 {
+               compatible = "nxp,tfa98xx";
+               reg = <0x34>;
+               reset-gpio = <&tlmm 104 0>;
+               irq-gpio = <&tlmm 90 0>;
+       };
+       tfa98xx@35 {
+               compatible = "nxp,tfa98xx";
+               reg = <0x35>;
+               reset-gpio = <&tlmm 105 0>;
+               irq-gpio = <&tlmm 2 0>;
+        };
+};
+
+&dai_mi2s0_rx {
+    qcom,msm-mi2s-lines = <2>;
+};
+
+&dai_mi2s0_tx {
+    qcom,msm-mi2s-lines = <1>;
+};
+
+/*    ====================================
+ *    overlay for lahaina-audio.dtsi - end
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahaina-audio-overlay.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahaina-audio-overlay.dtsi - end
+ *    ====================================
+ */
+
+
+/*    ====================================
+ *    overlay for lahaina-thermal-overlay.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahaina-thermal-overlay.dtsi - end
+ *    ====================================
+ */
+
+ 
+/*    ====================================
+ *    overlay for lahaina-gpu.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahaina-gpu.dtsi - end
+ *    ====================================
+ */
+
+
+/*    ====================================
+ *    overlay for lahaina-usb.dtsi - start
+ *    ====================================
+ */
+
+&usb2_phy0 {
+	qcom,param-override-seq = <0x67 0x6c	/* override_x0 */
+				   0x0c 0x70	/* override_x1 */
+				   0x17 0x74	/* override_x2 */
+				   0x03 0x78>;	/* override_x3 */
+};
+
+//disable USB1 SSPHY +++
+&usb0 {
+	dwc3@a600000 {
+		usb-phy = <&usb2_phy0>, <&usb_nop_phy>;
+		maximum-speed = "high-speed";
+	};
+};
+
+&usb_qmp_dp_phy {
+	status = "disabled";
+};
+//disable USB1 SSPHY ---
+
+//disable USB2 +++
+&usb1 {
+	status = "disabled";
+};
+
+&usb2_phy1 {
+	status = "disabled";
+};
+
+&usb_qmp_phy {
+	status = "disabled";
+};
+//disable USB2 ---
+
+/*    ====================================
+ *    overlay for lahaina-usb.dtsi - end
+ *    ====================================
+ */
+ 

@@ -1,0 +1,416 @@
+/dts-v1/;
+/plugin/;
+
+#include "SAKE-EVB2-overlay.dts"
+#include "camera/zs590ks-camera-sensor-mtp.dtsi"
+
+/ {
+	model = "Qualcomm Technologies, Inc. SAKE SR";
+	compatible = "qcom,lahaina-mtp", "qcom,lahaina", "qcom,mtp";
+	qcom,board-id = <59 0>;
+};
+
+/*   ====================================
+*    overlay for display - start
+*    ====================================
+*/
+&qupv3_se4_i2c {
+    focaltech@38{
+        panel = <&dsi_samsung_fhd_cmd>;
+    };
+};
+
+/*   ====================================
+*    overlay for display - end
+*    ====================================
+*/
+
+/*    ====================================
+ *    overlay for lahainap-v2.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahainap-v2.dtsi - end
+ *    ====================================
+ */
+
+
+
+/*    ====================================
+ *    overlay for lahainap.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahainap.dtsi - end
+ *    ====================================
+ */
+
+
+
+/*    ====================================
+ *    overlay for lahaina-mtp.dtsi - start
+ *    ====================================
+ */
+ 
+&qupv3_se15_i2c{
+	status = "ok";
+	qcom,clk-freq-out = <400000>;
+
+	nq@28 {
+		compatible = "nxp,pn544";
+		reg = <0x28>;
+		nxp,pn544-irq = <&tlmm 87 0x00>;
+		nxp,pn544-ven = <&tlmm 3 0x00>;
+		nxp,pn544-fw-dwnld = <&tlmm 86 0x00>;
+		qcom,sn-clkreq = <&tlmm 63 0x00>;
+		nxp,pn544-ese-pwr = <&tlmm 47 0x00>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <87 0>;
+		interrupt-names = "nfc_irq";
+		pinctrl-names = "nfc_active", "nfc_suspend";
+		pinctrl-0 = <&nfc_int_active &nfc_enable_active
+				&nfc_clk_req_active &nfc_fwdl_active>;
+		pinctrl-1 = <&nfc_int_suspend &nfc_enable_suspend
+				&nfc_clk_req_suspend &nfc_fwdl_suspend>;
+	};
+};
+
+/* NFC eSE */
+&qupv3_se14_spi {
+	status = "ok";
+	p61@0 {
+		compatible = "nxp,p61";
+		reg = <0x0>;
+		spi-max-frequency = <20000000>;
+	};
+};
+
+&extcon_usb1 {
+	status = "disable";
+};
+
+/* ASUS_BSP +++ icm20690 */
+&qupv3_se19_i2c {
+        status = "ok";
+        icm206xx_i2c@68 {
+                compatible = "invn,icm20690-i2c";
+                reg = <0x68>;
+                invn,gpio-int = <&tlmm 7 1>;
+                invn,use-interrupt;
+                invn,place = "Portrait Down Back Side";
+                icm206xx-supply = <&pm8008j_l7>;
+                icm206xx-vdd-supply = <&pm8008j_l5>;
+                pinctrl-names = "cam_default", "cam_suspend";
+                pinctrl-0 = <&cam_icm_active>;
+                pinctrl-1 = <&cam_icm_suspend>;
+        };
+};
+/* ASUS_BSP --- icm20690 */
+
+&qupv3_se0_i2c {
+	Semtech_sx932x@28 {
+		compatible = "Semtech,sx932x";
+		reg = <0x28>;
+		//interrupt-parent = <&msm_gpio>;
+		//interrupts = <34 0>;
+		pinctrl-names = "sx932x_active";
+		pinctrl-0 = <&sx932x_active>;
+		Semtech,nirq-gpio = <&tlmm 91 0x00>;
+		status = "ok";	/**/
+		Semtech,reg-num = <46>; /* total registers number to initialize*/
+        Semtech,reg-init  = /bits/ 8 < 0x10 0x16
+                                0x20 0x00
+                                0x23 0x00
+                                0x24 0x44
+                                0x26 0x01
+                                0x27 0x44
+                                0x28 0x01 /*PH0 to CS0 input*/
+                                0x29 0x10
+                                0x2A 0x19 /*PH2 CS2-input,CS1-dync,CS0-HZ*/
+                                0x2B 0x00
+                                0x2C 0x12
+                                0x2D 0x08
+                                0x30 0x09
+                                0x31 0x09
+                                0x32 0x08
+                                0x33 0x20
+                                0x34 0x0C
+                                0x35 0x00
+                                0x36 0x1B
+                                0x37 0x1B
+                                0x40 0x00
+                                0x41 0x00
+                                0x42 0x00
+                                0x43 0x00
+                                0x44 0x00
+                                0x45 0x05
+                                0x46 0x00
+                                0x47 0x00
+                                0x48 0x00
+                                0x49 0x80
+                                0x4A 0x00
+                                0x4B 0x00
+                                0x4C 0x00
+                                0x4D 0x00
+                                0x4E 0x80
+                                0x4F 0x0C
+                                0x50 0x00
+                                0x51 0x70
+                                0x52 0x20
+                                0x53 0xE1
+                                0x54 0xF0
+                                0x05 0x70
+                                0x06 0x00
+                                0x07 0x00
+                                0x08 0x00
+								0x11 0x24>;
+
+	};
+		
+};
+
+/*    ====================================
+ *    overlay for lahaina-mtp.dtsi - end
+ *    ====================================
+ */
+
+
+/*    ====================================
+ *    overlay for lahaina-pm.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahaina-pm.dtsi - end
+ *    ====================================
+ */
+
+
+
+/*    ====================================
+ *    overlay for lahaina-pinctrl.dtsi - start
+ *    ====================================
+ */
+
+&tlmm {
+	/* ASUS_BSP +++ icm20690 */
+	cam_icm_active: cam_icm_active {
+		mux {
+			pins = "gpio124";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio124";
+			bias-pull-up;
+			drive-strength = <8>;
+		};
+	};
+
+	cam_icm_suspend: cam_icm_suspend {
+		mux {
+			pins = "gpio124";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio124";
+			bias-pull-down;
+			drive-strength = <2>; 
+		};
+	};
+	/* ASUS_BSP --- icm20690 */
+};
+
+&tlmm{
+	sx932x_active {
+		sx932x_active: sx932x_active {
+			mux {
+				pins = "gpio91";
+				function = "gpio";
+			};
+			config {
+				pins = "gpio91";
+				bias-pull-up;
+				drive-strength = <6>;
+			};
+		};
+	};
+};
+
+/*    ====================================
+ *    overlay for lahaina-pinctrl.dtsi - end
+ *    ====================================
+ */
+
+
+
+/*    ====================================
+ *    overlay for lahaina-pmic-overlay.dtsi - start
+ *    ====================================
+ */
+	&L2I {
+		regulator-max-microvolt = <1204000>;
+	};
+
+	&L5J {
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1952000>;
+		qcom,min-dropout-voltage = <0>;
+	};
+
+//[+++] ASUS_BSP : Add for battery_charger
+&battery_charger {
+    panel = <&dsi_samsung_fhd_cmd>;
+};
+//[---] ASUS_BSP : Add for battery_charger
+
+/*    ====================================
+ *    overlay for lahaina-pmic-overlay.dtsi - end
+ *    ====================================
+ */
+
+
+/*    ====================================
+ *    overlay for pm8350.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for pm8350.dtsi - end
+ *    ====================================
+ */
+
+
+/*    ====================================
+ *    overlay for pmk8350.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for pmk8350.dtsi - end
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for pm8350b.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for pm8350b.dtsi - end
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for pm8350c.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for pm8350c.dtsi - end
+ *    ====================================
+ */
+
+
+/*    ====================================
+ *    overlay for lahaina-regulators.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahaina-regulators.dtsi - end
+ *    ====================================
+ */
+  
+
+ 
+/*    ====================================
+ *    overlay for lahaina-audio.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahaina-audio.dtsi - end
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahaina-audio-overlay.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahaina-audio-overlay.dtsi - end
+ *    ====================================
+ */
+
+
+/*    ====================================
+ *    overlay for lahaina-thermal-overlay.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahaina-thermal-overlay.dtsi - end
+ *    ====================================
+ */
+
+ 
+/*    ====================================
+ *    overlay for lahaina-gpu.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahaina-gpu.dtsi - end
+ *    ====================================
+ */
+
+
+/*    ====================================
+ *    overlay for lahaina-usb.dtsi - start
+ *    ====================================
+ */
+
+&usb2_phy0 {
+	qcom,param-override-seq = <0x67 0x6c	/* override_x0 */
+				   0x0e 0x70	/* override_x1 */
+				   0x17 0x74	/* override_x2 */
+				   0x03 0x78>;	/* override_x3 */
+};
+
+//disable USB1 SSPHY +++
+&usb0 {
+	dwc3@a600000 {
+		usb-phy = <&usb2_phy0>, <&usb_nop_phy>;
+		maximum-speed = "high-speed";
+	};
+};
+
+&usb_qmp_dp_phy {
+	status = "disabled";
+};
+//disable USB1 SSPHY ---
+
+//disable USB2 +++
+&usb1 {
+	status = "disabled";
+};
+
+&usb2_phy1 {
+	status = "disabled";
+};
+
+&usb_qmp_phy {
+	status = "disabled";
+};
+//disable USB2 ---
+
+/*    ====================================
+ *    overlay for lahaina-usb.dtsi - end
+ *    ====================================
+ */
+ 

@@ -1,0 +1,39 @@
+//for fingerprint;asus_bsp++;
+
+&soc{
+
+   qcom,qbt_handler {
+       status = "disabled";
+   };
+
+   goodix_gf9608@0{
+		compatible = "goodix,fingerprint";
+		spi-qup-id = <14>;
+        
+		fp-gpio-irq = <&tlmm 38 0x00>;
+		fp-gpio-reset = <&tlmm 39 0x00>;
+        goodix,gpio_vendor_id = <&pm8350c_gpios 8 0x0>;
+		goodix,gpio_ldo = <&tlmm 15 0x00>;
+		status = "okay";
+	};
+};
+
+
+&tlmm {
+		/*add pin configuration for fingerprint*/
+
+		 goodix_ldo: goodix_ldo {
+		      mux {
+				pins = "gpio131";
+				function = "gpio";
+			  };
+			   config {
+				   pins = "gpio131";
+				   drive-strength = <2>;
+			       output-low;
+				   bias-disable;
+		       };
+		 };
+
+	 /*add pin configuration for fingerprint*/
+};

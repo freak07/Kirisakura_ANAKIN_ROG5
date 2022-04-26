@@ -1,0 +1,1182 @@
+/dts-v1/;
+/plugin/;
+
+#include "lahaina-mtp.dtsi"
+#include "dsi-panel-samsung-fhd-cmd.dtsi"
+#include "dsi-panel-boe-2k-video.dtsi"
+#include <dt-bindings/regulator/qcom,rpmh-regulator-levels.h>
+#include "vodka-goodix-fp.dtsi"
+
+/*ASUS Camera +++*/
+#include "camera/zs672ks-camera-sensor-mtp.dtsi"
+
+/ {
+	model = "Qualcomm Technologies, Inc. VODKA EVB";
+	compatible = "qcom,lahaina-mtp", "qcom,lahaina", "qcom,mtp";
+	qcom,board-id = <30 0>;
+};
+
+/*   ====================================
+*    overlay for display - start
+*    ====================================
+*/
+
+&soc {
+	dsi_panel_pwr_supply_vci_no_labibb: dsi_panel_pwr_supply_vci_no_labibb {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		qcom,panel-supply-entry@0 {
+			reg = <0>;
+			qcom,supply-name = "vddio";
+			qcom,supply-min-voltage = <1800000>;
+			qcom,supply-max-voltage = <1800000>;
+			qcom,supply-enable-load = <60700>;
+			qcom,supply-disable-load = <80>;
+		};
+
+		qcom,panel-supply-entry@1 {
+			reg = <1>;
+			qcom,supply-name = "vdd";
+			qcom,supply-min-voltage = <3000000>;
+			qcom,supply-max-voltage = <3000000>;
+			qcom,supply-enable-load = <10000>;
+			qcom,supply-disable-load = <0>;
+			qcom,supply-post-on-sleep = <0>;
+		};
+	};
+
+};
+
+&pm8350b_haptics {
+	qcom,vmax-mv = <2700>;
+	qcom,lra-period-us = <4878>;
+	status = "ok";
+
+	effect_0 {
+		/* CLICK */
+		qcom,effect-id = <0>;
+		qcom,wf-vmax-mv = <5000>;
+		qcom,wf-pattern-data =  <0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA  0>,
+					<0x12f  S_PERIOD_T_LRA  0>,
+					<0x15f  S_PERIOD_T_LRA  0>;
+		qcom,wf-pattern-period-us = <4878>;
+		qcom,wf-brake-pattern = /bits/ 8 <0x0 0x0 0x0>;
+		qcom,wf-pattern-preload;
+		qcom,wf-auto-res-disable;
+	};
+	effect_1 {
+		/* DOUBLE_CLICK */
+		qcom,effect-id = <1>;
+		qcom,wf-vmax-mv = <5000>;
+		qcom,wf-pattern-data =  <0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA  0>,
+					<0x12f  S_PERIOD_T_LRA  0>,
+					<0x15f  S_PERIOD_T_LRA  0>;
+		qcom,wf-pattern-period-us = <4878>;
+		qcom,wf-brake-pattern = /bits/ 8 <0x0 0x0 0x0>;
+		qcom,wf-auto-res-disable;
+	};
+	effect_2 {
+		/* TICK */
+		qcom,effect-id = <2>;
+		qcom,wf-vmax-mv = <5000>;
+		qcom,wf-pattern-data =  <0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA  0>,
+					<0x12f  S_PERIOD_T_LRA  0>,
+					<0x15f  S_PERIOD_T_LRA  0>;
+		qcom,wf-pattern-period-us = <4878>;
+		qcom,wf-brake-pattern = /bits/ 8 <0x0 0x0 0x0>;
+		qcom,wf-auto-res-disable;
+	};
+	effect_3 {
+		/* THUD */
+		qcom,effect-id = <3>;
+		qcom,wf-vmax-mv = <5000>;
+		qcom,wf-pattern-data =  <0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA  0>,
+					<0x12f  S_PERIOD_T_LRA  0>,
+					<0x15f  S_PERIOD_T_LRA  0>;
+		qcom,wf-pattern-period-us = <4878>;
+		qcom,wf-brake-pattern = /bits/ 8 <0x0 0x0 0x0>;
+		qcom,wf-auto-res-disable;
+	};
+	effect_4 {
+		/* POP */
+		qcom,effect-id = <4>;
+		qcom,wf-vmax-mv = <5000>;
+		qcom,wf-pattern-data =  <0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA  0>,
+					<0x12f  S_PERIOD_T_LRA  0>,
+					<0x15f  S_PERIOD_T_LRA  0>;
+		qcom,wf-pattern-period-us = <4878>;
+		qcom,wf-brake-pattern = /bits/ 8 <0x0 0x0 0x0>;
+		qcom,wf-auto-res-disable;
+	};
+	effect_5 {
+		/* HEAVY CLICK */
+		qcom,effect-id = <5>;
+		qcom,wf-vmax-mv = <5000>;
+		qcom,wf-pattern-data =  <0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA  0>,
+					<0x0ff  S_PERIOD_T_LRA  0>,
+					<0x12f  S_PERIOD_T_LRA  0>,
+					<0x15f  S_PERIOD_T_LRA  0>;
+		qcom,wf-pattern-period-us = <4878>;
+		qcom,wf-brake-pattern = /bits/ 8 <0x0 0x0 0x0>;
+		qcom,wf-auto-res-disable;
+	};
+};
+
+&sde_dsi {
+	/delete-property/ avdd-supply;
+	qcom,dsi-default-panel = <&dsi_samsung_fhd_cmd>;
+
+};
+
+&dsi_samsung_fhd_cmd {
+	qcom,panel-supply-entries = <&dsi_panel_pwr_supply_vci_no_labibb>;
+	qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_dcs";
+	qcom,mdss-dsi-bl-min-level = <1>;
+	qcom,mdss-dsi-bl-max-level = <1023>;
+
+	qcom,platform-te-gpio = <&tlmm 82 0>; // default is 82
+	qcom,platform-reset-gpio = <&tlmm 24 0>;
+	qcom,platform-en-gpio = <&tlmm 14 0>;
+
+	qcom,ulps-enabled;
+	qcom,dsi-select-clocks = "mux_byte_clk0", "mux_pixel_clk0";
+	qcom,mdss-dsi-display-timings {
+		timing@0 {
+			qcom,mdss-dsi-panel-phy-timings = [00 19 06 06 15 20 07
+				06 07 02 04 00 16 0B];
+			qcom,display-topology = <1 1 1>;
+			qcom,default-topology-index = <0>;
+		};
+
+		timing@1 {
+			qcom,mdss-dsi-panel-phy-timings = [00 19 06 06 15 20 07
+				06 07 02 04 00 16 0B];
+			qcom,display-topology = <1 1 1>;
+			qcom,default-topology-index = <0>;
+		};
+	};
+};
+
+&dsi_boe_2k_vid {
+	qcom,panel-supply-entries = <&dsi_panel_pwr_supply_vci_no_labibb>;
+	qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_dcs";
+	qcom,mdss-dsi-bl-min-level = <1>;
+	qcom,mdss-dsi-bl-max-level = <4095>;
+	qcom,mdss-dsi-mode-sel-gpio-state = "single_port";
+	qcom,platform-te-gpio = <&tlmm 82 0>; // default is 82
+	qcom,platform-reset-gpio = <&tlmm 24 0>;
+
+	qcom,mdss-dsi-display-timings {
+		timing@0 {
+			qcom,mdss-dsi-panel-phy-timings = [00 22 09 09 25 24 09
+				09 06 02 04 00 1C 19];
+			qcom,display-topology = <1 0 1>;
+			qcom,default-topology-index = <0>;
+		};
+	};
+};
+
+&mdss_mdp {
+	qcom,sde-mixer-display-pref = "primary", "none", "none",
+				"none", "none", "none";
+};
+
+&sde_dp {
+	/delete-property/ qcom,dp-aux-switch;
+	qcom,dp-gpio-aux-switch;
+
+	qcom,aux-en-gpio = <&tlmm 93 0>;
+	qcom,aux-sel-gpio = <&pm8350c_gpios 1 0x0>;
+
+
+	pinctrl-names = "mdss_dp_active", "mdss_dp_sleep";
+	pinctrl-0 = <&sde_dp_aux_active >;
+	pinctrl-1 = <&sde_dp_aux_suspend>;
+};
+
+&tlmm {
+	/delete-property/ display_panel_avdd_default;
+
+	sde_dp_aux_active: sde_dp_aux_active {
+		mux {
+			pins = "gpio93";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio93";
+			bias-disable = <0>; /* no pull */
+			drive-strength = <8>;
+		};
+	};
+
+	sde_dp_aux_suspend: sde_dp_aux_suspend {
+		mux {
+			pins = "gpio93";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio93";
+			bias-disable = <0>; /* no pull */
+			drive-strength = <2>;
+		};
+	};
+};
+
+&qupv3_se13_i2c {
+	fsa4480: fsa4480@42 {
+		status = "disable";
+	};
+};
+
+// Touch_BSP FT3518U +++
+&qupv3_se4_i2c {
+	status = "ok";
+//	/delete-property/ qcom,i2c-touch-active;
+
+	st_fts@49 {
+		status = "disable";
+	};
+
+	focaltech@38{
+		compatible = "focaltech,fts";
+		reg = <0x38>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <23 0x2008>;
+		focaltech,reset-gpio = <&tlmm 22 0x01>;
+		focaltech,irq-gpio = <&tlmm 23 0x2008>;
+		//focaltech,vddio = <&tlmm 131 0x00>;
+		focaltech,max-touch-number = <10>;
+		focaltech,display-coords = <0 0 1080 2400>;
+
+		vdd-supply = <&L3C>;
+		focaltech,regulator_dvdd = "vdd";
+		vcc_i2c-supply = <&L8C>;
+		focaltech,regulator_dvcc_i2c = "vcc_i2c";
+
+		pinctrl-names = "pmx_ts_active", "pmx_ts_suspend","pmx_ts_release";
+		pinctrl-0 = <&ts_active>;
+		pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
+		pinctrl-2 = <&ts_release>;
+	};
+};
+
+// Touch_BSP FT3518U ---
+
+/*   ====================================
+*    overlay for display - end
+*    ====================================
+*/
+
+/*    ====================================
+ *    overlay for lahainap-v2.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahainap-v2.dtsi - end
+ *    ====================================
+ */
+
+
+
+/*    ====================================
+ *    overlay for lahainap.dtsi - start
+ *    ====================================
+ */
+
+//VODKA Camera moto, start.
+&qupv3_se2_i2c {
+        status = "ok";
+        MSP430FR2311@48 {
+			compatible = "MCU,MSP430FR2311";
+			reg = <0x48>;
+			//vcc_s4a_1p8-supply = <&pm8150_s4>;
+			vcc_l10a_3p3-supply = <&pm8350c_l11>;
+			pinctrl-names = "mcu_active", "mcu_suspend";
+			pinctrl-0 = <&mcu_pin_active &mcu_pin_test_enable &mcu_pin_wakeup_enable &mcu_pin_int_enable &mcu_power_enable>;
+			pinctrl-1 = <&mcu_pin_suspend &mcu_pin_test_disable &mcu_pin_wakeup_disable &mcu_pin_int_disable &mcu_power_disable>;
+			gpios = <&tlmm 83 0>,<&tlmm 85 0>, <&tlmm 97 0> , <&tlmm 98 0>, <&tlmm 6 0>;
+
+			MCU,mcureset-gpios = <&tlmm 83 0x00>;
+			MCU,mcutest-gpios = <&tlmm 97 0x00>;
+			MCU,mcuwakeup-gpios = <&tlmm 85 0x00>;
+			MCU,mcuint-gpios = <&tlmm 98 0x00>;
+			MCU,power-gpios = <&tlmm 6 0x00>;
+			MCU,slave_address = <0x48>;
+        };
+};
+//VODKA Camera moto, end.
+
+/* [ABSP] Add for MCU UART logs*/
+&qupv3_se17_2uart {
+	status = "ok";
+};
+
+//Disable GPIO98 second function for MCU INT.
+&pcie1 {
+	status = "disabled";
+};
+
+/*    ====================================
+ *    overlay for lahainap.dtsi - end
+ *    ====================================
+ */
+
+
+
+/*    ====================================
+ *    overlay for lahaina-mtp.dtsi - start
+ *    ====================================
+ */
+
+//[+++] ASUS_BSP : Add for charger
+ &battery_charger {
+ 	io-channels = <&pmk8350_vadc PM8350B_ADC7_AMUX_THM4_100K_PU>;
+ 	io-channel-names ="pm8350b_amux_thm4";
+};
+//[---] ASUS_BSP : Add for charger
+
+&qupv3_se15_i2c{
+	status = "ok";
+	qcom,clk-freq-out = <400000>;
+
+	nq@28 {
+		compatible = "nxp,pn544";
+		reg = <0x28>;
+		nxp,pn544-irq = <&tlmm 87 0x00>;
+		nxp,pn544-ven = <&tlmm 62 0x00>;
+		nxp,pn544-fw-dwnld = <&tlmm 86 0x00>;
+		qcom,sn-clkreq = <&tlmm 63 0x00>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <87 0>;
+		interrupt-names = "nfc_irq";
+		pinctrl-names = "nfc_active", "nfc_suspend";
+		pinctrl-0 = <&nfc_int_active &nfc_enable_active
+				&nfc_clk_req_active &nfc_fwdl_active>;
+		pinctrl-1 = <&nfc_int_suspend &nfc_enable_suspend
+				&nfc_clk_req_suspend &nfc_fwdl_suspend>;
+	};
+};
+
+//BSP add for sdcard+++
+&sdhc_2 {
+	cd-gpios = <&tlmm 92 GPIO_ACTIVE_HIGH>;
+};
+//BSP add for sdcard---
+
+//ASUS_BSP UFS PHY Power Off enable+++
+&ufsphy_mem {
+	/delete-node/ vdda-phy-always-on;
+};
+//ASUS_BSP UFS PHY Power Off enable+++
+
+// ASUS_BSP +++ ClayWang vcnl36866 & ams
+&qupv3_se0_i2c {
+        status = "ok";
+        vcnl36866@60 {
+			compatible = "qcom,vcnl36866";
+			reg = <0x60>;
+			pinctrl-names = "alsps_gpio_high","alsps_gpio_low";
+			pinctrl-0 = <&vcnl36866_default>;
+			pinctrl-1 = <&vcnl36866_sleep>;
+			qcom,alsps-gpio = <&tlmm 89 0x0>;
+			vcc_psensor-supply = <&pm8350c_l7>;
+			
+		};
+};
+&qupv3_se19_i2c {
+        status = "ok";
+            vcnl36866@60 {
+			compatible = "qcom,vcnl36866_2nd";
+			reg = <0x60>;
+			pinctrl-names = "alsps_gpio_high_2nd","alsps_gpio_low_2nd";
+			pinctrl-0 = <&vcnl36866_default_2nd>;
+			pinctrl-1 = <&vcnl36866_sleep_2nd>;
+			qcom,alsps-gpio_2nd = <&tlmm 119 0x0>;
+			vcc_psensor-supply = <&pm8350c_l7>;
+		};
+};
+
+&apps_rsc {
+	// ASUS BSP +++ Clay vcnl36866 & ams
+	rpmh-regulator-ldoc8 {
+		L8C: pm8350c_l8: regulator-pm8350c-l8 {
+			regulator-always-on;	/* ASUS BSP Always Enable 1.8V for I2C & Sensors */
+		};
+	};
+
+	rpmh-regulator-ldoc7 {
+		L7C: pm8350c_l7: regulator-pm8350c-l7 {
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			//qcom,init-voltage = <3300000>;
+		};
+	};
+	// ASUS BSP --- Clay vcnl36866	& ams
+};
+
+&tlmm {	
+	// ASUS_BSP +++ ClayWang vcnl36866 & ams
+	vcnl36866_int_pin {
+		vcnl36866_default: vcnl36866_default {
+			mux {
+				pins = "gpio89";
+				function = "gpio";
+			};
+				config {
+				pins = "gpio89";
+				bias-pull-up;
+				drive-strength = <6>;
+			};
+		};
+		vcnl36866_sleep: vcnl36866_sleep {
+			mux {
+				pins = "gpio89";
+				function = "gpio";
+			};
+				config {
+				pins = "gpio89";
+				bias-pull-up;
+				drive-strength = <6>;
+			};
+		};
+		vcnl36866_int_pin_2nd {
+			vcnl36866_default_2nd: vcnl36866_default_2nd {
+				mux {
+					pins = "gpio119";
+					function = "gpio";
+				};
+
+				config {
+					pins = "gpio119";
+					bias-pull-up;
+					drive-strength = <6>;
+				};
+			};
+
+			vcnl36866_sleep_2nd: vcnl36866_sleep_2nd {
+				mux {
+					pins = "gpio119";
+					function = "gpio";
+				};
+
+				config {
+					pins = "gpio119";
+					bias-pull-up;
+					drive-strength = <6>;
+				};
+			};
+		};
+	};
+	// ASUS_BSP --- ClayWang vcnl36866 & ams
+};
+
+/* ASUS_BSP +++ icm20690 */
+&qupv3_se1_spi {
+	status = "ok";
+        icm206xx_spi@0 {
+                spi-max-frequency = <10000000>;
+                compatible = "invn,icm20690";
+                reg = <0x0>;
+                invn,gpio-int = <&tlmm 7 1>;
+                invn,use-interrupt;
+                invn,place = "Portrait Down Back Side";
+                icm206xx-supply = <&pm8008j_l7>;
+                icm206xx-vdd-supply = <&pm8008j_l5>;
+                pinctrl-names = "cam_default", "cam_suspend";
+                pinctrl-0 = <&cam_icm_active>;
+                pinctrl-1 = <&cam_icm_suspend>;
+        };
+};
+/* ASUS_BSP --- icm20690 */
+
+/*    ====================================
+ *    overlay for lahaina-mtp.dtsi - end
+ *    ====================================
+ */
+
+
+/*    ====================================
+ *    overlay for lahaina-pm.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahaina-pm.dtsi - end
+ *    ====================================
+ */
+
+
+
+/*    ====================================
+ *    overlay for lahaina-pinctrl.dtsi - start
+ *    ====================================
+ */
+&tlmm{
+
+	//VODKA, camera moto related gpio, start.
+	mcu_pin_active: mcu_pin_active {
+		mux {
+			pins = "gpio83";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio83";
+			bias-pull-up; /* PULL UP */
+			drive-strength = <2>; /* 2 MA */
+		};
+	};
+
+	mcu_pin_suspend: mcu_pin_suspend {
+		mux {
+			pins = "gpio83";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio83";
+			bias-pull-up; /* PULL UP */
+			drive-strength = <2>; /* 2 MA */
+		};
+	};
+
+	mcu_pin_test_enable: mcu_pin_test_enable {
+		mux {
+			pins = "gpio97";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio97";
+			bias-pull-down; /* PULL UP */
+			drive-strength = <2>; /* 2 MA */
+		};
+	};
+
+	mcu_pin_test_disable: mcu_pin_test_disable {
+		mux {
+			pins = "gpio97";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio97";
+			bias-pull-down; /* PULL UP */
+			drive-strength = <2>; /* 2 MA */
+		};
+	};
+
+	mcu_pin_wakeup_enable: mcu_pin_wakeup_enable {
+		mux {
+			pins = "gpio85";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio85";
+			bias-pull-up; 
+			drive-strength = <2>; /* 2 MA */
+		};
+	};
+
+	mcu_pin_wakeup_disable: mcu_pin_wakeup_disable {
+		mux {
+			pins = "gpio85";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio85";
+			bias-pull-down; 
+			drive-strength = <2>; /* 2 MA */
+		};
+	};
+
+	mcu_pin_int_enable: mcu_pin_int_enable {
+		mux {
+			pins = "gpio98";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio98";
+			bias-pull-up; 
+			drive-strength = <2>; /* 2 MA */
+			input-enable;
+		};
+	};
+
+	mcu_pin_int_disable: mcu_pin_int_disable {
+		mux {
+			pins = "gpio98";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio98";
+			bias-pull-down; 
+			drive-strength = <2>; /* 2 MA */
+			input-enable;
+		};
+	};
+
+	mcu_power_enable: mcu_power_enable {
+		mux {
+			pins = "gpio6";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio6";
+			bias-pull-up; 
+			drive-strength = <2>; /* 2 MA */
+		};
+	};
+
+	mcu_power_disable: mcu_power_disable {
+		mux {
+			pins = "gpio6";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio6";
+			bias-pull-down; 
+			drive-strength = <2>; /* 2 MA */
+		};
+	};	
+	//VODKA, camera moto related gpio, end.
+	/* ASUS_BSP +++ icm20690 */
+	cam_icm_active: cam_icm_active {
+		mux {
+			pins = "gpio124";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio124";
+			bias-pull-up;
+			drive-strength = <8>;
+		};
+	};
+
+	cam_icm_suspend: cam_icm_suspend {
+		mux {
+			pins = "gpio124";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio124";
+			bias-pull-down;
+			drive-strength = <2>; 
+		};
+	};
+	/* ASUS_BSP --- icm20690 */
+
+};
+/*    ====================================
+ *    overlay for lahaina-pinctrl.dtsi - end
+ *    ====================================
+ */
+
+
+
+/*    ====================================
+ *    overlay for lahaina-pmic-overlay.dtsi - start
+ *    ====================================
+ */
+
+//ASUS_BSP +++: Camera pm8008 setting
+&L7I {
+        regulator-max-microvolt = <3100000>;
+        qcom,min-dropout-voltage = <0>;
+};
+&L2I {
+        regulator-max-microvolt = <1352000>;
+};
+&L5I {
+        regulator-max-microvolt = <3300000>;
+        qcom,min-dropout-voltage = <0>;
+};
+&L6I {
+        regulator-max-microvolt = <1952000>;
+        qcom,min-dropout-voltage = <0>;
+};
+
+//ASUS_BSP ---: Camera pm8008 setting
+
+//[+++] ASUS_BSP : frank_tao
+
+&pm8350_gpios {
+
+	/delete-node/ pm8350_rear_tof_therm;	
+
+};
+
+&pmr735a_gpios {
+	pmr735a_wifi_pa_therm3 {
+		pmr735a_wifi_pa_therm3_default: pmr735a_wifi_pa_therm3_default {
+			pins = "gpio1";
+			function = "normal";
+			bias-high-impedance;
+		};
+	};
+
+	pmr735a_pa_therm1 {
+		pmr735a_pa_therm1_default: pmr735a_pa_therm1_default {
+			pins = "gpio2";
+			function = "normal";
+			bias-high-impedance;
+		};
+	};
+
+	pmr735a_pa_therm2 {
+		pmr735a_pa_therm2_default: pmr735a_pa_therm2_default {
+			pins = "gpio3";
+			function = "normal";
+			bias-high-impedance;
+		};
+	};
+};
+
+&pmk8350_vadc {
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pmr735a_wifi_pa_therm3_default &pmr735a_pa_therm1_default &pmr735a_pa_therm2_default >;
+
+	/delete-node/ pm8350_rear_tof_therm;
+
+	pmr735a_wifi_pa_therm3 {
+		reg = <PMR735A_ADC7_GPIO1_100K_PU>;
+		label = "pmr735a_wifi_pa_therm3";
+		qcom,ratiometric;
+		qcom,hw-settle-time = <200>;
+		qcom,pre-scaling = <1 1>;
+	};
+	
+	pmr735a_pa_therm1 {
+		reg = <PMR735A_ADC7_GPIO2_100K_PU>;
+		label = "pmr735a_pa_therm1";
+		qcom,ratiometric;
+
+		qcom,hw-settle-time = <200>;
+		qcom,pre-scaling = <1 1>;
+	};	
+	pmr735a_pa_therm2 {
+		reg = <PMR735A_ADC7_GPIO3_100K_PU>;
+		label = "pmr735a_pa_therm2";
+	
+		qcom,ratiometric;
+		qcom,hw-settle-time = <200>;
+		qcom,pre-scaling = <1 1>;
+	};	
+};
+&pmk8350_adc_tm {
+
+	io-channels =	<&pmk8350_vadc PM8350_ADC7_AMUX_THM1_100K_PU>,
+			<&pmk8350_vadc PM8350_ADC7_AMUX_THM2_100K_PU>,
+			<&pmk8350_vadc PM8350_ADC7_AMUX_THM3_100K_PU>,
+			<&pmk8350_vadc PM8350_ADC7_AMUX_THM4_100K_PU>,
+			<&pmk8350_vadc PM8350B_ADC7_GPIO2_100K_PU>,
+			<&pmk8350_vadc PMR735A_ADC7_GPIO1_100K_PU>,
+			<&pmk8350_vadc PMR735A_ADC7_GPIO2_100K_PU>,
+			<&pmk8350_vadc PMR735A_ADC7_GPIO3_100K_PU>;
+
+	/delete-node/ pm8350_rear_tof_therm;
+	/delete-node/ pmk8350_xo_therm;
+	/delete-node/ pm8350b_usb_conn_therm;
+
+	pmr735a_wifi_pa_therm3 {
+		reg = <PMR735A_ADC7_GPIO1_100K_PU>;
+		qcom,ratiometric;
+		qcom,hw-settle-time = <200>;
+	};
+
+	pmr735a_pa_therm1 {
+		reg = <PMR735A_ADC7_GPIO2_100K_PU>;
+		qcom,ratiometric;
+		qcom,hw-settle-time = <200>;
+	};
+		
+	pmr735a_pa_therm2 {
+		reg = <PMR735A_ADC7_GPIO3_100K_PU>;
+		qcom,ratiometric;
+		qcom,hw-settle-time = <200>;
+	};
+};
+
+&thermal_zones {
+	/delete-node/ tof-therm-usr;
+	/delete-node/ xo-therm-usr;
+	/delete-node/ conn-therm-usr;
+
+	rear-cam-therm-usr {
+		polling-delay = <1000>;
+	};
+
+	wifi-pa-therm3-usr {
+		polling-delay-passive = <0>;
+		polling-delay = <1000>;
+		thermal-governor = "user_space";
+		thermal-sensors = <&pmk8350_adc_tm PMR735A_ADC7_GPIO1_100K_PU>;
+		wake-capable-sensor;
+		trips {
+			active-config0 {
+				temperature = <125000>;
+				hysteresis = <1000>;
+				type = "passive";
+			};
+		};
+	};
+
+	pa-therm1-usr {
+		polling-delay-passive = <0>;
+		polling-delay = <0>;
+		thermal-governor = "user_space";
+		thermal-sensors = <&pmk8350_adc_tm PMR735A_ADC7_GPIO2_100K_PU>;
+		wake-capable-sensor;
+		trips {
+			active-config0 {
+				temperature = <125000>;
+				hysteresis = <1000>;
+				type = "passive";
+			};
+		};
+	};
+	
+	pa-therm2-usr {
+		polling-delay-passive = <0>;
+		polling-delay = <0>;
+		thermal-governor = "user_space";
+		thermal-sensors = <&pmk8350_adc_tm PMR735A_ADC7_GPIO3_100K_PU>;
+		wake-capable-sensor;
+		trips {
+			active-config0 {
+				temperature = <125000>;
+				hysteresis = <1000>;
+				type = "passive";
+			};
+		};
+	};
+	
+	virtual-therm {
+		polling-delay-passive = <0>;
+		polling-delay = <0>;
+		thermal-governor = "user_space";
+		thermal-sensors = <&pmk8350_adc_tm PM8350_ADC7_AMUX_THM4_100K_PU>;
+		wake-capable-sensor;
+		trips {
+			active-config0 {
+				temperature = <125000>;
+				hysteresis = <1000>;
+				type = "passive";
+			};
+		};
+	};
+};
+
+//[--] ASUS_BSP : frank_tao
+/*    ====================================
+ *    overlay for lahaina-pmic-overlay.dtsi - end
+ *    ====================================
+ */
+
+
+/*    ====================================
+ *    overlay for pm8350.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for pm8350.dtsi - end
+ *    ====================================
+ */
+
+
+/*    ====================================
+ *    overlay for pmk8350.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for pmk8350.dtsi - end
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for pm8350b.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for pm8350b.dtsi - end
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for pm8350c.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for pm8350c.dtsi - end
+ *    ====================================
+ */
+
+
+/*    ====================================
+ *    overlay for lahaina-regulators.dtsi - start
+ *    ====================================
+ */
+&apps_rsc {
+	rpmh-regulator-ldoe7 {
+		compatible = "qcom,rpmh-vrm-regulator";
+		qcom,resource-name = "ldoe7";
+		qcom,regulator-type = "pmic5-ldo";
+		qcom,supported-modes =
+			<RPMH_REGULATOR_MODE_LPM
+			 RPMH_REGULATOR_MODE_HPM>;
+		qcom,mode-threshold-currents = <0 10000>;
+		L7E: pmr735a_l7: regulator-pmr735a-l7 {
+			regulator-name = "pmr735a_l7";
+			qcom,set = <RPMH_REGULATOR_SET_ALL>;
+			regulator-min-microvolt = <2800000>;
+			regulator-max-microvolt = <2800000>;
+			qcom,init-voltage = <2800000>;
+			qcom,init-mode = <RPMH_REGULATOR_MODE_HPM>;
+			regulator-always-on;
+		};
+	};
+};
+/*    ====================================
+ *    overlay for lahaina-regulators.dtsi - end
+ *    ====================================
+ */
+  
+
+ 
+/*    ====================================
+ *    overlay for lahaina-audio.dtsi - start
+ *    ====================================
+ */
+
+&tx_macro {
+	qcom,is-used-swr-gpio = <0>;
+	qcom,tx-swr-gpios;
+};
+
+&swr2 {
+	status = "disabled";
+};
+
+&wcd938x_tx_slave {
+	status = "disabled";
+};
+
+&swr_dmic_01 {
+	status = "disabled";
+};
+
+&swr_dmic_02 {
+	status = "disabled";
+};
+
+&swr_dmic_03 {
+	status = "disabled";
+};
+
+&swr_dmic_04 {
+	status = "disabled";
+};
+
+&rx_macro {
+	qcom,is-used-swr-gpio = <0>;
+	qcom,rx-swr-gpios;
+};
+
+&swr1 {
+	status = "disabled";
+};
+
+&swr_haptics {
+	status = "disabled";
+};
+
+&wcd938x_rx_slave {
+	status = "disabled";
+};
+
+&wsa_macro {
+	qcom,is-used-swr-gpio = <0>;
+	qcom,wsa-swr-gpios;
+};
+
+&swr0 {
+	status = "disabled";
+};
+
+&wsa883x_0221 {
+	status = "disabled";
+};
+
+&wsa883x_0222 {
+	status = "disabled";
+};
+
+&wcd938x_codec {
+	status = "disabled";
+};
+
+&lahaina_snd {
+	qcom,msm-mi2s-master = <0>, <1>, <1>, <0>, <1>, <1>;
+	qcom,wcd-disabled = <1>;
+	qcom,audio-routing =
+		"TX DMIC0", "Digital Mic0",
+		"TX DMIC1", "Digital Mic1",
+		"TX DMIC2", "Digital Mic2",
+		"TX DMIC3", "Digital Mic3",
+		"TX DMIC4", "Digital Mic4",
+		"TX DMIC5", "Digital Mic5",
+		"WSA SRC0_INP", "SRC0",
+		"WSA_TX DEC0_INP", "TX DEC0 MUX",
+		"WSA_TX DEC1_INP", "TX DEC1 MUX",
+		"RX_TX DEC0_INP", "TX DEC0 MUX",
+		"RX_TX DEC1_INP", "TX DEC1 MUX",
+		"RX_TX DEC2_INP", "TX DEC2 MUX",
+		"RX_TX DEC3_INP", "TX DEC3 MUX",
+		"VA SWR_INPUT", "VA_SWR_CLK",
+		"VA_AIF1 CAP", "VA_SWR_CLK",
+		"VA_AIF2 CAP", "VA_SWR_CLK",
+		"VA_AIF3 CAP", "VA_SWR_CLK",
+		"VA DMIC0", "Digital Mic0",
+		"VA DMIC1", "Digital Mic1",
+		"VA DMIC2", "Digital Mic2",
+		"VA DMIC3", "Digital Mic3",
+		"VA DMIC4", "Digital Mic4",
+		"VA DMIC5", "Digital Mic5",
+		"Digital Mic0", "VA MIC BIAS1",
+		"Digital Mic1", "VA MIC BIAS1",
+		"Digital Mic2", "VA MIC BIAS1",
+		"Digital Mic3", "VA MIC BIAS1",
+		"Digital Mic4", "VA MIC BIAS1",
+		"Digital Mic5", "VA MIC BIAS1";
+	qcom,msm-mbhc-hphl-swh;
+	qcom,msm-mbhc-gnd-swh;
+	qcom,cdc-dmic45-gpios;
+	asoc-codec  = <&stub_codec>, <&bolero>,
+		      <&ext_disp_audio_codec>;
+	asoc-codec-names = "msm-stub-codec.1", "bolero_codec",
+			   "msm-ext-disp-audio-codec-rx";
+	qcom,wsa-max-devs;
+};
+
+&wsa_swr_gpios {
+	status = "disabled";
+};
+
+&rx_swr_gpios {
+	status = "disabled";
+};
+
+&tx_swr_gpios {
+	status = "disabled";
+};
+
+&cdc_dmic45_gpios {
+	status = "disabled";
+};
+
+&wsa_spkr_en1 {
+	status = "disabled";
+};
+
+&wsa_spkr_en2 {
+	status = "disabled";
+};
+
+&wcd938x_rst_gpio {
+	status = "disabled";
+};
+
+/*    ====================================
+ *    overlay for lahaina-audio.dtsi - end
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahaina-audio-overlay.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahaina-audio-overlay.dtsi - end
+ *    ====================================
+ */
+
+
+/*    ====================================
+ *    overlay for lahaina-thermal-overlay.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahaina-thermal-overlay.dtsi - end
+ *    ====================================
+ */
+
+ 
+/*    ====================================
+ *    overlay for lahaina-gpu.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahaina-gpu.dtsi - end
+ *    ====================================
+ */
+
+
+/*    ====================================
+ *    overlay for lahaina-usb.dtsi - start
+ *    ====================================
+ */
+
+/*    ====================================
+ *    overlay for lahaina-usb.dtsi - end
+ *    ====================================
+ */
+ 
