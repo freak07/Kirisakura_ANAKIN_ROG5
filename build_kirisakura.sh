@@ -49,6 +49,7 @@ export HOST_CC=$CLANG_CC
 export LD=$CLANG_LD
 
 export ASUS_BUILD_PROJECT=ZS673KS
+export ASUS_ZS673KS_PROJECT
 
 #export LLVM=1
 
