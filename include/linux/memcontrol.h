@@ -47,6 +47,12 @@ enum memcg_memory_event {
 	MEMCG_NR_MEMORY_EVENTS,
 };
 
+enum mem_cgroup_protection {
+	MEMCG_PROT_NONE,
+	MEMCG_PROT_LOW,
+	MEMCG_PROT_MIN,
+};
+
 struct mem_cgroup_reclaim_cookie {
 	pg_data_t *pgdat;
 	int priority;
@@ -394,36 +400,8 @@ static inline void mem_cgroup_protection(struct mem_cgroup *root,
 	*low = READ_ONCE(memcg->memory.elow);
 }
 
-void mem_cgroup_calculate_protection(struct mem_cgroup *root,
-				     struct mem_cgroup *memcg);
-
-static inline bool mem_cgroup_supports_protection(struct mem_cgroup *memcg)
-{
-	/*
-	 * The root memcg doesn't account charges, and doesn't support
-	 * protection.
-	 */
-	return !mem_cgroup_disabled() && !mem_cgroup_is_root(memcg);
-
-}
-
-static inline bool mem_cgroup_below_low(struct mem_cgroup *memcg)
-{
-	if (!mem_cgroup_supports_protection(memcg))
-		return false;
-
-	return READ_ONCE(memcg->memory.elow) >=
-		page_counter_read(&memcg->memory);
-}
-
-static inline bool mem_cgroup_below_min(struct mem_cgroup *memcg)
-{
-	if (!mem_cgroup_supports_protection(memcg))
-		return false;
-
-	return READ_ONCE(memcg->memory.emin) >=
-		page_counter_read(&memcg->memory);
-}
+enum mem_cgroup_protection mem_cgroup_protected(struct mem_cgroup *root,
+						struct mem_cgroup *memcg);
 
 int mem_cgroup_charge(struct page *page, struct mm_struct *mm, gfp_t gfp_mask);
 
@@ -903,19 +881,10 @@ static inline void mem_cgroup_protection(struct mem_cgroup *root,
 	*min = *low = 0;
 }
 
-static inline void mem_cgroup_calculate_protection(struct mem_cgroup *root,
-						   struct mem_cgroup *memcg)
+static inline enum mem_cgroup_protection mem_cgroup_protected(
+	struct mem_cgroup *root, struct mem_cgroup *memcg)
 {
-}
-
-static inline bool mem_cgroup_below_low(struct mem_cgroup *memcg)
-{
-	return false;
-}
-
-static inline bool mem_cgroup_below_min(struct mem_cgroup *memcg)
-{
-	return false;
+	return MEMCG_PROT_NONE;
 }
 
 static inline int mem_cgroup_charge(struct page *page, struct mm_struct *mm,
