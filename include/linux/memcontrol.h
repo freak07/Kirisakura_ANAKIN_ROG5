@@ -403,7 +403,8 @@ static inline void mem_cgroup_protection(struct mem_cgroup *root,
 enum mem_cgroup_protection mem_cgroup_protected(struct mem_cgroup *root,
 						struct mem_cgroup *memcg);
 
-int mem_cgroup_charge(struct page *page, struct mm_struct *mm, gfp_t gfp_mask);
+int mem_cgroup_charge(struct page *page, struct mm_struct *mm, gfp_t gfp_mask,
+		      bool lrucare);
 
 void mem_cgroup_uncharge(struct page *page);
 void mem_cgroup_uncharge_list(struct list_head *page_list);
@@ -888,7 +889,7 @@ static inline enum mem_cgroup_protection mem_cgroup_protected(
 }
 
 static inline int mem_cgroup_charge(struct page *page, struct mm_struct *mm,
-				    gfp_t gfp_mask)
+				    gfp_t gfp_mask, bool lrucare)
 {
 	return 0;
 }
