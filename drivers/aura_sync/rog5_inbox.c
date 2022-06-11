@@ -1597,12 +1597,22 @@ static int fan_enable(unsigned char enable)
 	return ret;
 }
 
+static bool fan_overdrive = true;
+module_param(fan_overdrive, bool, 0644);
+static int fan_overdrive_value = 255;
+module_param(fan_overdrive_value, int, 0644);
+
 static int fan_rpm(unsigned char rpm)
 {
 	int ret = 0;
 	unsigned char data[3] = {0};
 
 	printk("[ROG5_INBOX] fan_rpm: %d\n", rpm);
+
+	if ((fan_overdrive == true) && (rpm == 171))
+		{
+		rpm = fan_overdrive_value;
+		}
 
 	if (rpm < 0 || rpm > 255) {
 		printk("[ROG5_INBOX] fan_rpm: input value error: %d (0 ~ 255)\n", rpm);
