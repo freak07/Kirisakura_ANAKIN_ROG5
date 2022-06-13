@@ -46,6 +46,7 @@ struct ADSP_ChargerPD_Info {
 	int cell2_voltage;
 	int TFCC;
 	int TRM;
+	u32    launchedtime;
 };
 
 struct evtlog_context_resp_msg3 {
@@ -1783,6 +1784,27 @@ static ssize_t boot_completed_show(struct class *c,
 static CLASS_ATTR_RW(boot_completed);
 EXPORT_SYMBOL(g_IsBootComplete);
 
+bool fix_time = false;
+	
+static ssize_t launchedtime_store(struct class *c,
+                    struct class_attribute *attr,
+                    const char *buf, size_t count)	
+{
+    u32 tmp;
+    tmp = simple_strtol(buf, NULL, 10);
+    ChgPD_Info.launchedtime = tmp/1000;
+    fix_time = true;
+    CHG_DBG("%s. set launched time : %d sec", __func__, ChgPD_Info.launchedtime);
+	
+    return count;	
+}
+static ssize_t launchedtime_show(struct class *c,
+					struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%ld\n", ChgPD_Info.launchedtime);
+}
+static CLASS_ATTR_RW(launchedtime);
+
 static struct attribute *asuslib_class_attrs[] = {
 	&class_attr_BTM_OTG_EN1.attr,
 	&class_attr_pmi_mux_en.attr,
@@ -1817,6 +1839,7 @@ static struct attribute *asuslib_class_attrs[] = {
 	&class_attr_cn_demo_app.attr,
 	&class_attr_bypass_stop_charging.attr,
 	&class_attr_boot_completed.attr,
+	&class_attr_launchedtime.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(asuslib_class);

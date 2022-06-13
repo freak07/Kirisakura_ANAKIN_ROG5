@@ -802,6 +802,37 @@ void save_phone_hang_log(int delta)
 		g_phonehang_log[0] = 0;
 }
 EXPORT_SYMBOL(save_phone_hang_log);
+
+
+void save_last_logcat_kmsg(){
+	
+	char *last_logcat_buffer = (char *)LOGCAT_BUFFER;
+	char *last_shutdown_log = (char *)PRINTK_BUFFER_VA;
+	int fd_kmsg, fd_logcat;
+	initKernelEnv();
+	
+	fd_kmsg = ksys_open("/asdf/last_kmsg", O_CREAT | O_RDWR | O_SYNC,S_IWUGO | S_IRUGO);
+	if (!IS_ERR((const void *)(ulong)fd_kmsg)) {
+		ksys_write(fd_kmsg, (unsigned char *)last_shutdown_log, PRINTK_BUFFER_SLOT_SIZE);
+		ksys_close(fd_kmsg);
+	} else {
+		printk("[ASDF] failed to save last shutdown log to last_kmsg [%d]\n",fd_kmsg);
+	}
+
+	fd_logcat = ksys_open("/asdf/last_logcat", O_CREAT | O_RDWR | O_SYNC, S_IWUGO | S_IRUGO);
+	if (!IS_ERR((const void *)(ulong)fd_logcat)) {
+		printk("[ASDF] to save last logcat to last_logcat [%d]\n",fd_logcat);
+		ksys_write(fd_logcat, (unsigned char *)last_logcat_buffer, LOGCAT_BUFFER_SIZE);
+		ksys_close(fd_logcat);
+	} else {
+		printk("[ASDF] failed to save last logcat to last_logcat [%d]\n",fd_logcat);
+	}
+
+	ksys_sync();
+	deinitKernelEnv();
+}
+EXPORT_SYMBOL(save_last_logcat_kmsg);
+
 void save_last_shutdown_log(char *filename)
 {
 	char *last_shutdown_log;
@@ -815,7 +846,7 @@ void save_last_shutdown_log(char *filename)
 	/* ASUS_BSP Paul +++ */
 	char *last_logcat_buffer;
 	ulong *printk_buffer_slot2_addr = (ulong *)PRINTK_BUFFER_SLOT2;
-	int fd_kmsg, fd_logcat;
+	
 	//ulong printk_buffer_index;
 	/* ASUS_BSP Paul --- */
 
@@ -832,17 +863,6 @@ void save_last_shutdown_log(char *filename)
 
 	initKernelEnv();
 
-	fd_logcat = ksys_open("/asdf/last_logcat", O_CREAT | O_RDWR | O_SYNC, S_IWUGO | S_IRUGO);
-	if (!IS_ERR((const void *)(ulong)fd_logcat)) {
-		printk("[ASDF] qqqfailed to save last logcat to last_logcat [%d]\n",fd_logcat);
-		ksys_write(fd_logcat, (unsigned char *)last_logcat_buffer, LOGCAT_BUFFER_SIZE);
-		ksys_close(fd_logcat);
-	} else {
-		printk("[ASDF] failed to save last logcat to last_logcat [%d]\n",fd_logcat);
-	}
-	
-
-	
 	file_handle = ksys_open(messages, O_CREAT | O_RDWR | O_SYNC, S_IRUGO);
 	if (!IS_ERR((const void *)(ulong)file_handle)) {
 		ksys_write(file_handle, (unsigned char *)last_shutdown_log, PRINTK_BUFFER_SLOT_SIZE);
@@ -862,17 +882,6 @@ void save_last_shutdown_log(char *filename)
 		printk("[ASDF] save_last_shutdown_error: [%d]\n", file_handle);
 	}
 	/* ASUS_BSP Paul +++ */
-
-
-
-		fd_kmsg = ksys_open("/asdf/last_kmsg", O_CREAT | O_RDWR | O_SYNC,S_IWUGO | S_IRUGO);
-		if (!IS_ERR((const void *)(ulong)fd_kmsg)) {
-			ksys_write(fd_kmsg, (unsigned char *)last_shutdown_log, PRINTK_BUFFER_SLOT_SIZE);
-			ksys_close(fd_kmsg);
-		} else {
-			printk("[ASDF] failed to save last shutdown log to last_kmsg\n");
-		}
-	
 
 	/* ASUS_BSP Paul --- */
 	deinitKernelEnv();

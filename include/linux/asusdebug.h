@@ -64,6 +64,7 @@ void save_last_shutdown_log(char *filename);
 void save_rtb_log(void);
 #endif
 void get_last_shutdown_log(void);
+void save_last_logcat_kmsg(void);
 void printk_lcd(const char *fmt, ...);
 void printk_lcd_xy(int xx, int yy, unsigned int color, const char *fmt, ...);
 void ASUSEvtlog(const char *fmt, ...);
