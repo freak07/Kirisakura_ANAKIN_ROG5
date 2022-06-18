@@ -340,6 +340,8 @@ extern int asus_extcon_set_state_sync(struct extcon_dev *edev, int cable_state);
 #define SET_BYPASS_CHG_MODE		0x8
 
 #define SET_18W_WA_MODE			0x20
+//0x40 is used by Chg_Limit_mode_In_Call through init.asus.user.rc
+#define SET_LAUNCHED_TIME_TRIG	0x80
 
 #define AUDIO_REQ_SET_LCM_MODE	0x100
 
@@ -379,6 +381,7 @@ struct delayed_work	asus_set_qc_state_work;
 bool g_ADAPTER_ID = 0;
 extern bool g_Charger_mode;
 bool g_IsBootComplete = 0;
+bool g_launchedtime_flag = 0;
 
 extern struct battery_chg_dev *g_bcdev;
 struct power_supply *qti_phy_usb;
@@ -1784,18 +1787,29 @@ static ssize_t boot_completed_show(struct class *c,
 static CLASS_ATTR_RW(boot_completed);
 EXPORT_SYMBOL(g_IsBootComplete);
 
-bool fix_time = false;
-	
 static ssize_t launchedtime_store(struct class *c,
                     struct class_attribute *attr,
                     const char *buf, size_t count)	
 {
-    u32 tmp;
-    tmp = simple_strtol(buf, NULL, 10);
-    ChgPD_Info.launchedtime = tmp/1000;
-    fix_time = true;
-    CHG_DBG("%s. set launched time : %d sec", __func__, ChgPD_Info.launchedtime);
-	
+	u32 tmp;
+	u32 launcdtime_expired = 365*24;//unit is hour
+	int rc;
+	tmp = simple_strtol(buf, NULL, 10);
+
+	ChgPD_Info.launchedtime = tmp;
+
+	CHG_DBG("%s. Receive launched time : %d hour", __func__, ChgPD_Info.launchedtime);
+
+	if (!g_launchedtime_flag && (ChgPD_Info.launchedtime > launcdtime_expired)) {
+		g_launchedtime_flag = 1;
+		CHG_DBG("%s. set launchedtime flag to ADSP", __func__);
+		rc = asus_set_charger_limit_mode(SET_LAUNCHED_TIME_TRIG, 1);
+		if (rc < 0) {
+			CHG_DBG_E("%s: Failed to set asus_set_charger_limit_mode, rc=%d\n", __func__, rc);
+			g_launchedtime_flag = 0;
+		}
+	}
+
     return count;	
 }
 static ssize_t launchedtime_show(struct class *c,

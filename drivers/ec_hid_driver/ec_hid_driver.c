@@ -304,33 +304,43 @@ static ssize_t sync_state_store(struct device *dev,
 	if (ret)
 		return ret;
 
-	if (val == 0 || val == 23){
-		ASUSEvtlog("[EC_HID] asus_extcon_set_state_sync : %d\n", val);
-		printk("[EC_HID][EXTCON] extcon_dongle->state : %d, val : %d\n", extcon_dongle->state, val);
-		asus_extcon_set_state_sync(extcon_dongle, val);
+	printk("[EC_HID][EXTCON] old state : %d, new state : %d\n", extcon_dongle->state, val);
+	switch(val) {
+		case EXTRA_DOCK_STATE_UNDOCKED:
+			printk("[EC_HID][EXTCON] EXTRA_DOCK_STATE_UNDOCKED\n");
+			asus_extcon_set_state_sync(extcon_dongle, EXTRA_DOCK_STATE_UNDOCKED);
+		break;
+		case EXTRA_DOCK_STATE_ASUS_INBOX:
+			printk("[EC_HID][EXTCON] EXTRA_DOCK_STATE_ASUS_INBOX\n");
+			asus_extcon_set_state_sync(extcon_dongle, EXTRA_DOCK_STATE_ASUS_INBOX);
+		break;
+		case EXTRA_DOCK_STATE_ASUS_STATION:
+			printk("[EC_HID][EXTCON] EXTRA_DOCK_STATE_ASUS_STATION\n");
+			asus_extcon_set_state_sync(extcon_dongle, EXTRA_DOCK_STATE_ASUS_STATION);
+		break;
+		case EXTRA_DOCK_STATE_ASUS_DT:
+			printk("[EC_HID][EXTCON] EXTRA_DOCK_STATE_ASUS_DT\n");
+			asus_extcon_set_state_sync(extcon_dongle, EXTRA_DOCK_STATE_ASUS_DT);
+		break;
+		case EXTRA_DOCK_STATE_BACKGROUND_PAD:
+			printk("[EC_HID][EXTCON] EXTRA_DOCK_STATE_BACKGROUND_PAD\n");
+			asus_extcon_set_state_sync(extcon_dongle, EXTRA_DOCK_STATE_BACKGROUND_PAD);
+		break;
+		case EXTRA_DOCK_STATE_ASUS_2nd_INBOX:
+			printk("[EC_HID][EXTCON] EXTRA_DOCK_STATE_ASUS_2nd_INBOX\n");
+			asus_extcon_set_state_sync(extcon_dongle, EXTRA_DOCK_STATE_ASUS_2nd_INBOX);
+		break;
 
-		pogo_mutex_state = 0;
-		printk("[EC_HID] pogo_sema up!!! %d\n", val);
-		up(&g_hid_data->pogo_sema);
-	}else if ((val > 0 && val <= 4) || val == 7 || (val >= 11 && val <= 15)){
-		ASUSEvtlog("[EC_HID] asus_extcon_set_state_sync : %d\n", val+5);
-		printk("[EC_HID][EXTCON] extcon_dongle->state : %d, val : %d\n", extcon_dongle->state, (val+5));
-		asus_extcon_set_state_sync(extcon_dongle, (val+5));
-
-		pogo_mutex_state = 0;
-
-		if((val != 11)  || (val != 13)) {
-			printk("[EC_HID] pogo_sema up!!! %d\n", val);
-			up(&g_hid_data->pogo_sema);
-		}
-	}else {
-		printk("[EC_HID] Wrong value %d, Do not sync state!!!\n", val);
-
-		pogo_mutex_state = 0;
-		printk("[EC_HID] pogo_sema up!!! %d\n", val);
-		up(&g_hid_data->pogo_sema);
+		case EXTRA_DOCK_STATE_ASUS_OTHER:
+		default:
+			printk("[EC_HID][EXTCON] EXTRA_DOCK_STATE_ASUS_OTHER\n");
+			asus_extcon_set_state_sync(extcon_dongle, EXTRA_DOCK_STATE_ASUS_OTHER);
+		break;
 	}
 
+	pogo_mutex_state = 0;
+	printk("[EC_HID] pogo_sema up!!! %d\n", val);
+	up(&g_hid_data->pogo_sema);
 	return count;
 }
 
@@ -699,6 +709,9 @@ static ssize_t gDongleType_store(struct device *dev,
 		break;
 		case Dongle_BackCover:
 			gDongleType = Dongle_BackCover;
+		break;
+		case Dongle_FANDG6:
+			gDongleType = Dongle_FANDG6;
 		break;
 		case Dongle_ERROR:
 			gDongleType = Dongle_ERROR;
@@ -1127,6 +1140,66 @@ void inbox_connect(void)
 	kobject_uevent(&g_hid_data->dev->kobj, KOBJ_CHANGE);
 }
 EXPORT_SYMBOL_GPL(inbox_connect);
+
+////
+void FANDG_connect(int option)
+{
+	int extcon_val = EXTRA_DOCK_STATE_UNDOCKED;
+
+	switch(option) {
+		case 0:
+			printk("[EC_HID][EXTCON] EXTRA_DOCK_STATE_UNDOCKED, PDID %s\n", (FANDG_PDID_detect == true)?"detect":"not detect");
+			//#ifdef ASUS_AI2201_PROJECT
+			#if 1
+			if (!FANDG_USBID_detect) {
+				gDongleType = Dongle_NO_INSERT;
+				extcon_val = EXTRA_DOCK_STATE_UNDOCKED;
+				// Turn off VPH & HUB Mode
+				//vph_output_side_port(0);	//HW removed
+				//Inbox_role_switch(0);
+				break;
+			}else {
+				printk("[EC_HID][EXTCON] PDID %s, USBID %s, skip!\n", (FANDG_PDID_detect == true)?"detect":"non-detect", (FANDG_USBID_detect == true)?"detect":"non-detect");
+				return;
+			}
+			#else
+			gDongleType = Dongle_NO_INSERT;
+			extcon_val = EXTRA_DOCK_STATE_UNDOCKED;
+			#endif
+		break;
+		case 1:
+			printk("[EC_HID][EXTCON] EXTRA_DOCK_STATE_ASUS_2nd_INBOX, PDID %s\n", (FANDG_PDID_detect == true)?"detect":"not detect");
+			//#ifdef ASUS_AI2201_PROJECT
+			#if 1
+			if (FANDG_USBID_detect) {
+				gDongleType = Dongle_FANDG6;
+				extcon_val = EXTRA_DOCK_STATE_ASUS_2nd_INBOX;
+			}else {
+				printk("[ROG_ACCY][EXTCON] PDID %s, USBID %s, skip!\n", (FANDG_PDID_detect == true)?"detect":"non-detect", (FANDG_USBID_detect == true)?"detect":"non-detect");
+				return;
+			}
+			#else
+			gDongleType = Dongle_FANDG6;
+			extcon_val = EXTRA_DOCK_STATE_ASUS_2nd_INBOX;
+			#endif
+		break;
+		default:
+			printk("[EC_HID][EXTCON] unknow option %d, ignore!!!\n", option);
+			return;
+		break;
+	};
+/*
+	if (extcon_val != extcon_dongle->state){
+		kobject_uevent(&g_hid_data->dev->kobj, KOBJ_CHANGE);
+		msleep(50);
+		asus_extcon_set_state_sync(extcon_dongle, extcon_val);
+	}else
+		printk("[EC_HID][EXTCON] Last state %d, Current State %d, No changed, skip!\n", extcon_dongle->state, extcon_val);
+*/
+	kobject_uevent(&g_hid_data->dev->kobj, KOBJ_CHANGE);
+}
+EXPORT_SYMBOL_GPL(FANDG_connect);
+/////
 
 int drm_parse_dt_panel(struct device_node *node)
 {
