@@ -2887,15 +2887,20 @@ static void Grip_check_K_and_frame(){
 	snt8100fsr_g->frame_rate = 100;
 	Into_DeepSleep_fun();
 	PRINT_INFO("Grip Initial Done! fw_loading_status=%d", snt8100fsr_g->grip_fw_loading_status);
-	if(aw8697_trig_control(1, 1)==0)
+	if(aw8697_trig_control(1, 1)==0){
 		PRINT_INFO("Enable vib trig1");
-	else
+		ASUSEvtlog("[Grip]event.c: Enable vib trig1");
+	}else{
 		PRINT_INFO("Failed to enable vib trig1");
-	
-	if(aw8697_trig_control(2, 1)==0)
+		ASUSEvtlog("[Grip]event.c: failed to enable vib trig1");
+	}
+	if(aw8697_trig_control(2, 1)==0){
 		PRINT_INFO("Enable vib trig2");
-	else
+		ASUSEvtlog("[Grip]event.c: Enable vib trig2");
+	}else{
 		PRINT_INFO("Failed to enable vib trig2");
+		ASUSEvtlog("[Grip]event.c: failed to enable vib trig2");
+	}
 	finish_boot = 1;
 }
 int enable_set_sys_param(struct snt8100fsr *snt8100fsr, int id, int val) {

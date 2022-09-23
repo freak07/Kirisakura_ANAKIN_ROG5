@@ -261,6 +261,21 @@ struct oem_set_Adapter_ID_resp {
 	u32    adapter_id;
 };
 
+struct oem_set_side_vid_resp {
+	struct pmic_glink_hdr	hdr;
+	u32    side_vid;
+};
+
+struct oem_set_side_pid_resp {
+	struct pmic_glink_hdr	hdr;
+	u32    side_pid;
+};
+
+struct oem_set_fw_version_resp {
+	struct pmic_glink_hdr	hdr;
+	unsigned char    fw_version;
+};
+
 //Send cc reset req to rt1715
 struct oem_set_bot_cc_reset_msg {
 	struct pmic_glink_hdr hdr;
@@ -279,6 +294,10 @@ struct extcon_dev	*thermal_extcon;
 struct extcon_dev	*audio_dongle_extcon;
 extern int asus_extcon_set_state_sync(struct extcon_dev *edev, int cable_state);
 //Define the OWNER ID
+
+unsigned char g_fw_version = 0;
+EXPORT_SYMBOL(g_fw_version);
+
 #define PMIC_GLINK_MSG_OWNER_OEM	32782
 #define MSG_OWNER_BC				32778
 
@@ -320,6 +339,9 @@ extern int asus_extcon_set_state_sync(struct extcon_dev *edev, int cable_state);
 
 #define OEM_SET_ADAPTER_ID_CHANGE	0x2119
 #define OEM_GET_SIDEPORT_CC_STATUS_REQ	0x2120
+#define OEM_SET_SIDE_VID_CHANGE		0x2121
+#define OEM_SET_SIDE_PID_CHANGE		0x2122
+#define OEM_SET_FW_VERSION_CHANGE	0x2123
 
 #define OEM_GET_FW_version			0x3001
 #define OEM_GET_Batt_temp			0x3002
@@ -341,7 +363,7 @@ extern int asus_extcon_set_state_sync(struct extcon_dev *edev, int cable_state);
 
 #define SET_18W_WA_MODE			0x20
 //0x40 is used by Chg_Limit_mode_In_Call through init.asus.user.rc
-#define SET_LAUNCHED_TIME_TRIG	0x80
+#define SET_LAUNCHED_TIME_TRIG	0x200
 
 #define AUDIO_REQ_SET_LCM_MODE	0x100
 
@@ -381,7 +403,9 @@ struct delayed_work	asus_set_qc_state_work;
 bool g_ADAPTER_ID = 0;
 extern bool g_Charger_mode;
 bool g_IsBootComplete = 0;
+bool g_asuslib_init = 0;
 bool g_launchedtime_flag = 0;
+bool g_side_port = 0;
 
 extern struct battery_chg_dev *g_bcdev;
 struct power_supply *qti_phy_usb;
@@ -398,6 +422,7 @@ volatile int g_ultra_cos_spec_time = 2880;
 int g_charger_mode_full_time = 0;
 int demo_recharge_delta = 2;
 int factory_recharger_delta = 2;
+bool g_vbus_first = false;
 //[+++] The possible module to set usbin_suspend
 bool smartchg_stop_flag = 0;
 bool bypass_stop_flag = 0;
@@ -430,6 +455,7 @@ int asus_set_vbus_attached_status(int value);
 int asus_thermal_btm(void);
 int asus_thermal_side(void);
 void asus_update_thermal_result(void);
+void get_vbus_status_from_ADSP(void);
 
 //[+++] Add the external function
 extern int battery_chg_write(struct battery_chg_dev *bcdev, void *data, int len);
@@ -438,6 +464,10 @@ extern bool rt_chg_check_asus_vid(void);
 extern void qti_charge_notify_device_charge(void);
 extern void qti_charge_notify_device_not_charge(void);
 extern int rt_chg_get_remote_cc(void);
+#if defined ASUS_ZS673KS_PROJECT
+extern void Inbox_role_switch(int enable);
+#endif
+extern bool FANDG_PDID_detect;
 
 #if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
 typedef void(*dwc3_role_switch_fn)(bool);
@@ -1770,13 +1800,16 @@ static ssize_t boot_completed_store(struct class *c,
 	btm_vid = rt_chg_check_asus_vid();
 
 	g_IsBootComplete = tmp;
-	CHG_DBG("%s: g_IsBootComplete : %d, g_ADAPTER_ID : %d btm_vid : %d\n", __func__, g_IsBootComplete, g_ADAPTER_ID, btm_vid);
+	CHG_DBG("%s: g_IsBootComplete : %d, g_SWITCH_LEVEL : %d, g_ADAPTER_ID : %d btm_vid : %d, g_side_port : %d\n", __func__, g_IsBootComplete, g_SWITCH_LEVEL, g_ADAPTER_ID, btm_vid, g_side_port);
 	msleep(10);
 	if (g_ADAPTER_ID == true)
 		asus_extcon_set_state_sync(quickchg_extcon, Side_Port_Asus_VID);
+	else if (g_side_port == true)
+		asus_extcon_set_state_sync(quickchg_extcon, Side_Port_Not_Asus_VID_or_No_charger);
 	else if (btm_vid == true)
 		asus_extcon_set_state_sync(quickchg_extcon, Bottom_Port_Asus_VID);
 
+	asus_extcon_set_state_sync(quickchg_extcon, g_SWITCH_LEVEL);
 	return count;
 }
 static ssize_t boot_completed_show(struct class *c,
@@ -1905,11 +1938,16 @@ static void handle_notification(struct battery_chg_dev *bcdev, void *data,
 	struct oem_set_Charger_Type_resp *Update_charger_type_msg;
 	struct oem_evt_adsp_to_hlos_req *evt_adsp_to_hlos_msg;
 	struct oem_set_Adapter_ID_resp *Update_adapter_id_msg;
+	struct oem_set_side_vid_resp *Update_side_vid_msg;
+	struct oem_set_side_pid_resp *Update_side_pid_msg;
+	struct oem_set_fw_version_resp *Update_fw_version_msg;
 	struct oem_set_bot_cc_reset_msg *bot_cc_reset_msg;
 	struct pmic_glink_hdr *hdr = data;
 	int rc;
 	static int pre_chg_type = 0;
 	static u32 pre_adapter_id = 0;
+	static u32 pre_side_vid = 0;
+	static u32 side_pid = 0;
 
     switch(hdr->opcode) {
     case OEM_ASUS_EVTLOG_PRINT_IND:
@@ -1986,6 +2024,7 @@ static void handle_notification(struct battery_chg_dev *bcdev, void *data,
                 switch (Update_charger_type_msg->charger_type) {
                 case ASUS_CHARGER_TYPE_LEVEL0:
                     g_SWITCH_LEVEL = SWITCH_LEVEL0_DEFAULT;
+					g_side_port = false;
                 break;
                 case ASUS_CHARGER_TYPE_LEVEL1:
                     g_SWITCH_LEVEL = SWITCH_LEVEL2_QUICK_CHARGING;
@@ -2004,6 +2043,7 @@ static void handle_notification(struct battery_chg_dev *bcdev, void *data,
                 break;
 				default:
 					g_SWITCH_LEVEL = SWITCH_LEVEL0_DEFAULT;
+					g_side_port = false;
 				break;
                 }
                 if (IS_ENABLED(CONFIG_QTI_PMIC_GLINK_CLIENT_DEBUG) && qti_phy_bat)
@@ -2033,7 +2073,7 @@ static void handle_notification(struct battery_chg_dev *bcdev, void *data,
             Update_adapter_id_msg = data;
             CHG_DBG("%s OEM_SET_ADAPTER_ID_CHANGE. new type : 0x%x, old type : 0x%x\n", __func__, Update_adapter_id_msg->adapter_id, pre_adapter_id);
             if (Update_adapter_id_msg->adapter_id != pre_adapter_id) {
-                if (Update_adapter_id_msg->adapter_id == 0x0b05) {
+                if (Update_adapter_id_msg->adapter_id == 0x0b05 || (pre_side_vid==0x040b && side_pid==0x0b05)) {
                     CHG_DBG("%s. Set VID quickchg_extcon state: 103\n", __func__);
                     if (g_IsBootComplete == 1)
                         asus_extcon_set_state_sync(quickchg_extcon, Side_Port_Asus_VID);
@@ -2043,6 +2083,7 @@ static void handle_notification(struct battery_chg_dev *bcdev, void *data,
                     if (g_IsBootComplete == 1)
                         asus_extcon_set_state_sync(quickchg_extcon, Side_Port_Not_Asus_VID_or_No_charger);
                     g_ADAPTER_ID = false;
+					g_side_port = true;
                 }
 
                 if (IS_ENABLED(CONFIG_QTI_PMIC_GLINK_CLIENT_DEBUG) && qti_phy_bat)
@@ -2051,6 +2092,55 @@ static void handle_notification(struct battery_chg_dev *bcdev, void *data,
             pre_adapter_id = Update_adapter_id_msg->adapter_id;
         } else {
 			pr_err("Incorrect response length %zu for OEM_SET_ADAPTER_ID_CHANGE\n",
+                len);
+        }
+        break;
+		case OEM_SET_SIDE_VID_CHANGE:
+        if (len == sizeof(*Update_side_vid_msg)) {
+            Update_side_vid_msg = data;
+            CHG_DBG("%s OEM_SET_SIDE_VID_CHANGE. new type : 0x%x, old type : 0x%x\n", __func__, Update_side_vid_msg->side_vid, pre_side_vid);
+            if (Update_side_vid_msg->side_vid != pre_side_vid) {
+                if (Update_side_vid_msg->side_vid == 0x040B && !FANDG_PDID_detect) {
+					//TODO: FAN DONGLE. VPH enable by GPIO_173 INBOX_DET
+					#if defined ASUS_ZS673KS_PROJECT
+					Inbox_role_switch(1);
+					#endif
+					CHG_DBG("%s OEM_SET_SIDE_VID_CHANGE. FANDG_PDID_detect = true\n", __func__);
+					FANDG_PDID_detect = true;
+                } else if (FANDG_PDID_detect){
+					//TODO: Not FAN DONGLE
+					#if defined ASUS_ZS673KS_PROJECT
+					Inbox_role_switch(0);
+					#endif
+					FANDG_PDID_detect = false;
+					CHG_DBG("%s OEM_SET_SIDE_VID_CHANGE. FANDG_PDID_detect = false\n", __func__);
+                }
+                if (IS_ENABLED(CONFIG_QTI_PMIC_GLINK_CLIENT_DEBUG) && qti_phy_bat)
+                    power_supply_changed(qti_phy_bat);
+            }
+            pre_side_vid = Update_side_vid_msg->side_vid;
+        } else {
+			pr_err("Incorrect response length %zu for OEM_SET_SIDE_VID_CHANGE\n",
+                len);
+        }
+        break;
+		case OEM_SET_SIDE_PID_CHANGE:
+        if (len == sizeof(*Update_side_pid_msg)) {
+            Update_side_pid_msg = data;
+            CHG_DBG("%s OEM_SET_SIDE_PID_CHANGE. pid : 0x%x", __func__, Update_side_pid_msg->side_pid);
+            side_pid = Update_side_pid_msg->side_pid;
+        } else {
+			pr_err("Incorrect response length %zu for OEM_SET_SIDE_PID_CHANGE\n",
+                len);
+        }
+        break;
+	case OEM_SET_FW_VERSION_CHANGE:
+        if (len == sizeof(*Update_fw_version_msg)) {
+            Update_fw_version_msg = data;
+            CHG_DBG("%s OEM_SET_FW_VERSION_CHANGE. fw_version : %d", __func__, Update_fw_version_msg->fw_version);
+            g_fw_version = Update_fw_version_msg->fw_version;
+        } else {
+			pr_err("Incorrect response length %zu for OEM_SET_FW_VERSION_CHANGE\n",
                 len);
         }
         break;
@@ -2477,6 +2567,7 @@ int asus_set_vbus_attached_status(int value) {
 	bool bBtmCC_sts = 0;
 	if (value) {
 		g_vbus_plug = 1;
+		g_vbus_first = true;
 		ASUSEvtlog("[BAT][Ser]Cable Plug-in");
 		qti_charge_notify_device_charge();
 		schedule_delayed_work(&asus_min_check_work, 0);
@@ -2487,6 +2578,7 @@ int asus_set_vbus_attached_status(int value) {
 		//[---]Cancel the wakelock and delayed for recheck_cc workaround
 	} else {
 		g_vbus_plug = 0;
+		g_vbus_first = false;
 		ASUSEvtlog("[BAT][Ser]Cable Plug-out");
 		qti_charge_notify_device_not_charge();
 		//[+++]Reset the parameter for limiting the charging
@@ -2794,6 +2886,21 @@ void asus_min_check_worker(struct work_struct *work)
 		return;
 	}
 
+	//ASUS_BSP Jimmy +++ send Side or BTM Plug-in extcon to framework cherry-pick from dallas
+	if(g_vbus_first && g_IsBootComplete){
+		get_vbus_status_from_ADSP();
+		if(ChgPD_Info.VBUS_SRC == 2){
+			CHG_DBG("%s Side Plug-in\n", __func__);
+			asus_extcon_set_state_sync(quickchg_extcon, Side_Port_Not_Asus_VID_or_No_charger);
+			g_side_port = true;
+		}else if (ChgPD_Info.VBUS_SRC == 1){
+			CHG_DBG("%s BTM Plug-in\n", __func__);
+			asus_extcon_set_state_sync(quickchg_extcon, Bottom_Port_Not_Asus_VID_or_No_charger);
+		}
+		g_vbus_first = false;
+	}
+	//ASUS_BSP Jimmy --- send Side or BTM Plug-in extcon to framework
+
 	//[+++]Update the thermal alert status
 	#if 0
 	rc = asus_thermal_side();
@@ -2965,12 +3072,15 @@ int asus_chg_resume(struct device *dev)
 //ASUS BSP : Show "+" on charging icon +++
 void asus_set_qc_state_worker(struct work_struct *work)
 {
-	asus_extcon_set_state_sync(quickchg_extcon, g_SWITCH_LEVEL);
+	if (g_IsBootComplete == 1 || g_Charger_mode == true)
+	{
+		asus_extcon_set_state_sync(quickchg_extcon, g_SWITCH_LEVEL);
+	}
 }
 
 void set_qc_stat(int status)
 {
-	if (quickchg_extcon == NULL) {
+	if (quickchg_extcon == NULL || g_asuslib_init == 0 || (g_IsBootComplete == 0 && g_Charger_mode == false)) {
 		CHG_DBG("%s: quickchg_extcon not Ready\n", __func__);
 		return;
 	}
@@ -2978,6 +3088,7 @@ void set_qc_stat(int status)
 	if (!g_vbus_plug) {
 		cancel_delayed_work(&asus_set_qc_state_work);
 		asus_extcon_set_state_sync(quickchg_extcon, SWITCH_LEVEL0_DEFAULT);
+		g_side_port = false;
 		CHG_DBG("%s: status: %d, switch: %d\n", __func__, status, SWITCH_LEVEL0_DEFAULT);
 		return;
 	}
@@ -3478,6 +3589,7 @@ int asuslib_init(void) {
 	else
 		ASUSEvtlog("[BAT][CHG] Enter MOS");
 
+	g_asuslib_init = 1;
 	CHG_DBG_E("Load the asuslib_init Succesfully\n");
 	return rc;
 }

@@ -61,6 +61,7 @@ struct usb3803 {
 };
 
 int current_hub_mode;
+EXPORT_SYMBOL(current_hub_mode);
 int current_clk;
 struct i2c_client *hub_client;
 struct gpio_control *hub_gpio_ctrl;

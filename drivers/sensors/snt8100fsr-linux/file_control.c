@@ -2192,15 +2192,20 @@ void Power_Control(int en){
 		msleep(50);
 	}else if(en == 1){
 		//disable vibrator trig pin
-		if(aw8697_trig_control(1, 0)==0)
+		if(aw8697_trig_control(1, 0)==0){
 			PRINT_INFO("Disable vib trig1");
-		else
+			ASUSEvtlog("[Grip] Disable vib trig1");
+		}else{
 			PRINT_INFO("Failed to disable vib trig1");
-		if(aw8697_trig_control(2, 0)==0)
+			ASUSEvtlog("[Grip] Failed to disable vib trig1");
+		}
+		if(aw8697_trig_control(2, 0)==0){
 			PRINT_INFO("Disable vib trig2");
-		else
+			ASUSEvtlog("[Grip] Disable vib trig2");
+		}else{
 			PRINT_INFO("Failed to disable vib trig2");
-		
+			ASUSEvtlog("[Grip] Failed to disable vib trig2");
+		}
 		PRINT_INFO("Set pinctl: RST down");
 		gpio_request(gpio_req, "snt_rst_gpio");
 		gpio_direction_output(gpio_req, 0); //output low
@@ -2696,16 +2701,22 @@ static ssize_t Grip_ReadK_proc_write(struct file *filp, const char __user *buff,
 	}
 	val = (int)simple_strtol(messages, NULL, 10);
 	
-	if(aw8697_trig_control(1, 1)==0)
+	if(aw8697_trig_control(1, 1)==0){
 		PRINT_INFO("Enable vib trig1");
-	else
+		ASUSEvtlog("[Grip] Enable vib trig1");
+	}else{
 		PRINT_INFO("Failed to enable vib trig1");
-	
-	if(aw8697_trig_control(2, 1)==0)
+		ASUSEvtlog("[Grip] failed to enable vib trig1");
+	}
+
+	if(aw8697_trig_control(2, 1)==0){
 		PRINT_INFO("Enable vib trig2");
-	else
+		ASUSEvtlog("[Grip] Enable vib trig2");
+	}else{
 		PRINT_INFO("Failed to enable vib trig2");
-	
+		ASUSEvtlog("[Grip] failed to enable vib trig1");
+	}
+
 	MUTEX_LOCK(&snt8100fsr_g->ap_lock);
 	Wait_Wake_For_RegW();
 	//Grip_Chip_IRQ_EN(1);

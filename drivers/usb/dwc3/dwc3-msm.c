@@ -81,12 +81,6 @@ static struct dwc3_msm *context1;
 static struct dwc3_msm *context2;
 int usb2_host_mode;
 
-#ifdef CONFIG_USB_EC_DRIVER
-extern uint8_t gDongleType;
-#else
-static uint8_t gDongleType;
-#endif
-
 struct completion usb_host_complete1;
 EXPORT_SYMBOL(usb_host_complete1);
 struct completion usb_host_complete2;
@@ -107,11 +101,21 @@ static int redriver_eq_n(int val);
 static void redriver_enable(int val);
 static int redriver_init(struct dwc3_msm *mdwc);
 static int current_redriver_vcc;
+
+extern int usb3803_set_mode(int mode);
 extern int current_hub_mode;
+enum usb3803_state{
+	USB_3803_MODE_HUB = 0,
+	USB_3803_MODE_BYPASS = 1,
+	USB_3803_MODE_STANDBY = 2,
+};
+
 static uint8_t cur_mode_POGO=0;
 static uint8_t pre_mode_POGO=0;
-#endif
 
+void Inbox_role_switch(int enable);
+static int Inbox_active = 0;
+#endif
 
 /**
  *  USB QSCRATCH Hardware registers
@@ -3793,7 +3797,10 @@ static void dwc3_ext_event_notify(struct dwc3_msm *mdwc)
 	} else if (mdwc->vbus_active == false && mdwc->id_state == DWC3_ID_GROUND) {
 		dev_info(mdwc->dev, "[USB] %s, host mode\n", __func__);
 		if (!strcmp("a800000.ssusb", dev_name(mdwc->dev))) {
-			if (current_hub_mode != 0) {
+			if (current_hub_mode == USB_3803_MODE_HUB) {
+				dev_info(mdwc->dev, "[USB] %s, usb2 in hub mode, usb2 redriver disable\n", __func__);
+				redriver_enable(0);
+			} else {
 				dev_info(mdwc->dev, "[USB] %s, usb2 not in hub mode, usb2 redriver enable\n", __func__);
 				redriver_enable(1);
 			}
@@ -4373,6 +4380,16 @@ static int dwc3_msm_usb_set_role(struct device *dev, enum usb_role role)
 
 	cur_role = dwc3_msm_usb_get_role(dev);
 
+	dev_info(mdwc->dev, "[USB] %s cur_role:%s new_role:%s\n", __func__, usb_role_string(cur_role),
+						usb_role_string(role));
+
+#if defined ASUS_ZS673KS_PROJECT
+	if(Inbox_active) {//ignore dwc3_msm_usb_set_role if ROG6 FAN connected
+		dev_info(mdwc->dev, "[USB] %s Inbox_active, ignore role switch.\n", __func__);
+		return 0;
+	}
+#endif
+
 	switch (role) {
 	case USB_ROLE_HOST:
 		mdwc->vbus_active = false;
@@ -4390,8 +4407,6 @@ static int dwc3_msm_usb_set_role(struct device *dev, enum usb_role role)
 		break;
 	}
 
-	dev_info(mdwc->dev, "[USB] %s cur_role:%s new_role:%s\n", __func__, usb_role_string(cur_role),
-						usb_role_string(role));
 	dbg_log_string("cur_role:%s new_role:%s\n", usb_role_string(cur_role),
 						usb_role_string(role));
 
@@ -4434,10 +4449,12 @@ void rt1715_dwc3_msm_usb_set_role(enum usb_role role) {
 	struct dwc3 *dwc = platform_get_drvdata(mdwc->dwc3);
 	enum usb_role cur_role = USB_ROLE_NONE;
 
-	if (gDongleType == 1){
-		dev_info(mdwc->dev, "[USB] %s don't set role switch in HUB mode\n", __func__);
+#if defined ASUS_ZS673KS_PROJECT
+	if (current_hub_mode == USB_3803_MODE_HUB){ //gDongleType=1 or Inbox_role_switch(1)
+		dev_info(mdwc->dev, "[USB] %s, usb2 in hub mode, ignore role switch.\n", __func__);
 		return;
 	}
+#endif
 
 	cur_role = dwc3_msm_usb_get_role(mdwc->dev);
 
@@ -4587,12 +4604,11 @@ static ssize_t mode_POGO_store(struct device *dev, struct device_attribute *attr
 		dev_info(mdwc->dev, "[USB] mode_POGO no change (%d), do nothing\n", cur_mode_POGO);
 	} else {
 		dev_info(mdwc->dev, "[USB] mode_POGO change (%d -> %d)\n", pre_mode_POGO, cur_mode_POGO);
-		if (sysfs_streq(buf, "inbox")) { //hub mode, disable redriver, turn on host
+		if (sysfs_streq(buf, "inbox")) { //hub mode, turn on host
 			dev_info(mdwc->dev, "[USB] mode_POGO inbox\n");
-			redriver_enable(0);
 			mdwc->vbus_active = false;
 			mdwc->id_state = DWC3_ID_GROUND;
-		} else if (sysfs_streq(buf, "none")){ //bypass mode, turn off host, redriver follow usb mode
+		} else if (sysfs_streq(buf, "none")){ //bypass mode, turn off host
 			dev_info(mdwc->dev, "[USB] mode_POGO none\n");
 			mdwc->vbus_active = false;
 			mdwc->id_state = DWC3_ID_FLOAT;
@@ -4604,6 +4620,32 @@ static ssize_t mode_POGO_store(struct device *dev, struct device_attribute *attr
 	return count;
 }
 static DEVICE_ATTR_RW(mode_POGO);
+
+static ssize_t Inbox_enable_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	if(Inbox_active==1)
+		return sprintf(buf, "%s", "1\n");
+	else
+		return sprintf(buf, "%s", "0\n");
+}
+
+static ssize_t Inbox_enable_store(
+	struct device *dev, struct device_attribute *attr,
+	const char *buf, size_t size)
+{
+	struct dwc3_msm *mdwc = dev_get_drvdata(dev);
+
+	dev_info(mdwc->dev, "[USB] %s: %s\n", __func__, buf);
+	if (!strncmp(buf, "1", 1)) {
+		Inbox_role_switch(1);
+	} else if (!strncmp(buf, "0", 1)) {
+		Inbox_role_switch(0);
+	}
+
+	return size;
+}
+static DEVICE_ATTR_RW(Inbox_enable);
 #endif
 
 static void msm_dwc3_perf_vote_work(struct work_struct *w);
@@ -4885,6 +4927,12 @@ void battery_role_switch(bool on)
 		pr_err("%s dwc3 prode not completed\n");
 
 	dev_info(mdwc->dev, "[USB] %s %d\n", __func__, on);
+
+	if (current_hub_mode == USB_3803_MODE_HUB){ //gDongleType=1 or Inbox_role_switch(1)
+		dev_info(mdwc->dev, "[USB] %s, usb2 in hub mode, ignore role switch.\n", __func__);
+		return;
+	}
+
 	if (on) {
 		mdwc->vbus_active = true;
 		mdwc->id_state = DWC3_ID_FLOAT;
@@ -4895,6 +4943,44 @@ void battery_role_switch(bool on)
 
 	dwc3_ext_event_notify(mdwc);
 }
+
+void Inbox_role_switch(int enable) {
+	struct dwc3_msm *mdwc = context1;
+
+	dev_info(mdwc->dev, "[USB] %s %d\n", __func__, enable);
+
+	Inbox_active = enable;
+	if(enable){
+		dev_info(mdwc->dev, "[USB] ROG6 FAN connect, usb1 turn on host\n");
+		//usb1 turn on host
+		mdwc->vbus_active = false;
+		mdwc->id_state = DWC3_ID_GROUND;
+		dwc3_ext_event_notify(mdwc);
+
+		dev_info(mdwc->dev, "[USB] ROG6 FAN connect, usb2 hub mode\n");
+		//usb2 hub mode, turn on host
+		usb3803_set_mode(USB_3803_MODE_HUB);
+		context2->vbus_active = false;
+		context2->id_state = DWC3_ID_GROUND;
+		dwc3_ext_event_notify(context2);
+	} else {
+		dev_info(mdwc->dev, "[USB] ROG6 FAN disconnect, usb1 turn off host\n");
+		//usb1 turn off host
+		mdwc->vbus_active = false;
+		mdwc->id_state = DWC3_ID_FLOAT;
+		dwc3_ext_event_notify(mdwc);
+
+		dev_info(mdwc->dev, "[USB] ROG6 FAN disconnect, usb2 turn to bypass mode\n");
+		//usb2 bypass mode, turn off host
+		usb3803_set_mode(USB_3803_MODE_BYPASS);
+		context2->vbus_active = false;
+		context2->id_state = DWC3_ID_FLOAT;
+		dwc3_ext_event_notify(context2);
+	}
+
+	return;
+}
+EXPORT_SYMBOL_GPL(Inbox_role_switch);
 #endif
 
 static int dwc3_msm_interconnect_vote_populate(struct dwc3_msm *mdwc)
@@ -5576,6 +5662,7 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 	device_create_file(&pdev->dev, &dev_attr_redriver_eq);
 	device_create_file(&pdev->dev, &dev_attr_redriver_reset);
 	device_create_file(&pdev->dev, &dev_attr_mode_POGO);
+	device_create_file(&pdev->dev, &dev_attr_Inbox_enable);
 #endif
 
 	return 0;

@@ -2494,7 +2494,9 @@ static void sde_connector_check_status_work(struct work_struct *work)
 	struct sde_connector *conn;
 	int rc = 0;
 	struct device *dev;
-
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+	static bool esd_tirggered = false;
+#endif
 	conn = container_of(to_delayed_work(work),
 			struct sde_connector, status_work);
 	if (!conn) {
@@ -2520,6 +2522,11 @@ static void sde_connector_check_status_work(struct work_struct *work)
 	if(anakin_get_err_fg_irq_state()){
 		DSI_LOG("err fg irq state is on // call panel dead");
 		_sde_connector_report_panel_dead(conn, false);
+		esd_tirggered = true;
+		//backlight_update_status(conn->bl_device);
+	} else if (esd_tirggered) {
+		backlight_update_status(conn->bl_device);
+		esd_tirggered = false;
 	}
 #endif
 

@@ -10,9 +10,9 @@ obj-$(CONFIG_AURALIGHT_MS51_PHONE)		+= ms51_phone.o
 obj-$(CONFIG_AURALIGHT_MS51_BACKCOVER)	+= ms51_backcover.o
 
 obj-y	+= rog5_inbox.o
-ifeq ($(CONFIG_MACH_ASUS_ZS673KS),y)
+#ifeq ($(CONFIG_MACH_ASUS_ZS673KS),y)
 	obj-y	+= rog6_nuc1261_ms51_inbox.o
-endif
+#endif
 
 #obj-y		+= sky81298.o
 #obj-m  		+= ml51fb9ae_inbox.o

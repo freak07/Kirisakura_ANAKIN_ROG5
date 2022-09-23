@@ -33,7 +33,6 @@
 #include <linux/notifier.h>
 #include <linux/fb.h>
 
-
 extern int32_t adc_tm7_channel_measure(struct adc_tm_chip *chip,struct adc_tm_param *param);
 extern struct adc_tm_chip *get_adc_tm(struct device *dev,const char *name);
 void ec_hid_uevent(void);
@@ -304,7 +303,9 @@ static ssize_t sync_state_store(struct device *dev,
 	if (ret)
 		return ret;
 
-	printk("[EC_HID][EXTCON] old state : %d, new state : %d\n", extcon_dongle->state, val);
+	//printk("[EC_HID][EXTCON] Last State : %d, Current State : %d\n", extcon_dongle->state, val);
+	ASUSEvtlog("[EC_HID][EXTCON] Last State %d, Current State %d, Dongle Type %d\n", extcon_dongle->state, val, gDongleType);
+
 	switch(val) {
 		case EXTRA_DOCK_STATE_UNDOCKED:
 			printk("[EC_HID][EXTCON] EXTRA_DOCK_STATE_UNDOCKED\n");
@@ -417,7 +418,7 @@ void ec_hid_uevent(void){
 		pogo_mutex_state = 1;
 
 		kobject_uevent(&g_hid_data->dev->kobj, KOBJ_CHANGE);
-		ASUSEvtlog("[EC_HID] gDongleEvent : %d, previous_event %d\n", gDongleEvent, g_hid_data->previous_event);
+		//ASUSEvtlog("[EC_HID] gDongleEvent : %d, previous_event %d\n", gDongleEvent, g_hid_data->previous_event);
 		g_hid_data->previous_event = gDongleEvent;
 	}
 }
@@ -1068,19 +1069,35 @@ const struct attribute_group ec_hid_group = {
 };
 
 extern struct hidraw *rog5_inbox_hidraw;
+extern struct hidraw *rog6_inbox_hidraw;
 void hid_switch_usb_autosuspend(bool flag){
 	struct hid_device *hdev;
 	struct usb_interface *intf;
 
-	if (rog5_inbox_hidraw == NULL || g_hid_data->lock) {
-		printk("[EC_HID] rog5_inbox_hidraw is NULL or lock %d\n", g_hid_data->lock);
+	printk("[EC_HID] hid_swithc_usb_autosuspend %d, gDongleType %d\n", flag, gDongleType);
+
+	if(gDongleType == Dongle_INBOX5) {
+		if (rog5_inbox_hidraw == NULL || g_hid_data->lock) {
+			printk("[EC_HID] rog5_inbox_hidraw is NULL or lock %d\n", g_hid_data->lock);
+			return;
+		}
+
+		hdev = rog5_inbox_hidraw->hid;
+		intf = to_usb_interface(hdev->dev.parent);
+	}else if(gDongleType == Dongle_FANDG6) {
+		if (rog6_inbox_hidraw == NULL || g_hid_data->lock) {
+			printk("[EC_HID] rog6_inbox_hidraw is NULL or lock %d\n", g_hid_data->lock);
+			return;
+		}
+
+		hdev = rog6_inbox_hidraw->hid;
+		intf = to_usb_interface(hdev->dev.parent);
+	}else {
+		printk("[EC_HID] gDongleType Error.\n");
 		return;
 	}
+	
 
-	hdev = rog5_inbox_hidraw->hid;
-	intf = to_usb_interface(hdev->dev.parent);
-
-	printk("[EC_HID] hid_swithc_usb_autosuspend %d\n", flag);
 	if(flag) {
 		usb_enable_autosuspend(interface_to_usbdev(intf));
 	}else {
@@ -1112,7 +1129,7 @@ int ec_hid_display_notifier_call(struct notifier_block *self, unsigned long even
 			printk("[EC_HID] DRM_PANEL_BLANK_UNBLANK,Display off");
 			g_screen_on = false;
 
-			if (gDongleType == 1)
+			if((gDongleType == Dongle_INBOX5) || (gDongleType == Dongle_FANDG6))
 				hid_switch_usb_autosuspend(true);
 		break;
 
@@ -1121,7 +1138,7 @@ int ec_hid_display_notifier_call(struct notifier_block *self, unsigned long even
 			printk("[EC_HID] DRM_PANEL_BLANK_UNBLANK,Display on");
 			g_screen_on = true;
 
-			if (gDongleType == 1)
+			if((gDongleType == Dongle_INBOX5) || (gDongleType == Dongle_FANDG6))
 				hid_switch_usb_autosuspend(false);
 		break;
 

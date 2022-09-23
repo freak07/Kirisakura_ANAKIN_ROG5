@@ -49,6 +49,7 @@ extern int asus_set_invalid_audio_dongle(int src, int set);
 extern int get_net_status(void);
 extern int get_prodock_state (void);
 extern int aura_screen_on;
+extern int current_hub_mode;
 bool g_hpd = false;
 EXPORT_SYMBOL(g_hpd);
 #ifdef CONFIG_USB_EC_DRIVER
@@ -69,6 +70,7 @@ static int gamevice_active = 0;
 static int gamepad_active = 0;
 static int btm_vid=0, btm_pid=0;
 static int lastcall = 0;
+static int usb_curr_role = 0;
 uint16_t vid=0;
 struct notifier_block	host_nb;
 struct delayed_work rdo_work;
@@ -132,6 +134,12 @@ struct rt1715_rdo_resp_msg {
 	u32 request_voltage_mv;
 	u32 request_current_ma;
 	u32 bPPSSelected;
+};
+
+enum usb3803_mode{
+	USB_3803_MODE_HUB = 0,
+	USB_3803_MODE_BYPASS = 1,
+	USB_3803_MODE_STANDBY = 2,
 };
 
 /*
@@ -537,8 +545,10 @@ static int chg_tcp_notifer_call(struct notifier_block *nb,
 			pr_info("%s tcpc_pd_state = PD_CONNECT_PE_READY_SNK/PD3.0, USB_COMM = %d\n", __func__, info->peer_usb_comm);
 			rt1715_pdo_notify();
 			rt1715_vid_notify();
-			if (info->peer_usb_comm && tcpc_pre_typec_state == TYPEC_UNATTACHED)
+			if (info->peer_usb_comm && tcpc_pre_typec_state == TYPEC_UNATTACHED) {
+				usb_curr_role = USB_ROLE_DEVICE;
 				rt1715_dwc3_msm_usb_set_role(USB_ROLE_DEVICE);
+			}
 			break;
 		case PD_CONNECT_PE_READY_SRC:
 		case PD_CONNECT_PE_READY_SRC_PD30:
@@ -596,17 +606,17 @@ static int chg_tcp_notifer_call(struct notifier_block *nb,
 		pr_info("%s TCP_NOTIFY_SOURCE_VCONN\n", __func__);
 		break;
 	case TCP_NOTIFY_DR_SWAP:
-		pr_info("%s TCP_NOTIFY_DR_SWAP\n", __func__);
 		tcpc_swap_state = tcp_noti->swap_state.new_role;
-		if (tcpc_swap_state==0){
+		pr_info("%s TCP_NOTIFY_DR_SWAP, tcpc_swap_state = %d, usb_curr_role = %d\n", __func__, tcpc_swap_state, usb_curr_role);
+		if (tcpc_swap_state==0 && usb_curr_role==USB_ROLE_HOST){
 		    pr_info("%s TCP_NOTIFY_DR_SWAP: PD_ROLE_UFP\n", __func__);
-		    if (info->peer_usb_comm)
-				rt1715_dwc3_msm_usb_set_role(USB_ROLE_DEVICE);
+		    usb_curr_role = USB_ROLE_DEVICE;
+			rt1715_dwc3_msm_usb_set_role(USB_ROLE_DEVICE);
 		}
-		if (tcpc_swap_state==1){
+		if (tcpc_swap_state==1 && usb_curr_role==USB_ROLE_DEVICE){
 		    pr_info("%s TCP_NOTIFY_DR_SWAP: PD_ROLE_DFP\n", __func__);
-		    if (info->peer_usb_comm) 
-				rt1715_dwc3_msm_usb_set_role(USB_ROLE_HOST);
+		    usb_curr_role = USB_ROLE_HOST;
+			rt1715_dwc3_msm_usb_set_role(USB_ROLE_HOST);
 		}
 		break;
 	case TCP_NOTIFY_TYPEC_STATE:
@@ -620,12 +630,16 @@ static int chg_tcp_notifer_call(struct notifier_block *nb,
 		if (tcpc_typec_state == TYPEC_ATTACHED_SRC) {
 			pr_info("%s tcpc_typec_state = TYPEC_ATTACHED_SRC\n", __func__);
 			pr_info("%s OTG Plug in\n", __func__);
-			if (tcpc_pre_typec_state != TYPEC_ATTACHED_SNK)
+			if (tcpc_pre_typec_state != TYPEC_ATTACHED_SNK){
+				usb_curr_role = USB_ROLE_HOST;
 				rt1715_dwc3_msm_usb_set_role(USB_ROLE_HOST);
+			}
 		}
 		if (tcpc_typec_state == TYPEC_UNATTACHED) {
 			pr_info("%s tcpc_typec_state = TYPEC_UNATTACHED\n", __func__);
 			pr_info("%s OTG Plug out\n", __func__);
+
+			usb_curr_role = USB_ROLE_NONE;
 			rt1715_dwc3_msm_usb_set_role(USB_ROLE_NONE);
 			if (gamepad_active) {
 				gamepad_active = 0;
@@ -922,6 +936,7 @@ static void close5v_by_suspend(struct work_struct *work) {
 
 	if((gamepad_active && !aura_screen_on) || gamevice_active || (pro_dock_active_bottom && (get_net_status() == 0) && (get_prodock_state() ==1))){
 		pr_info("[PD] rt_drm_notifier, panel power off -- stop btm power\n");
+		usb_curr_role = USB_ROLE_NONE;
 		rt1715_dwc3_msm_usb_set_role(USB_ROLE_NONE);
 		asus_request_BTM_otg_en(0);
 		usb2_stopPower_screen = 1;
@@ -978,22 +993,25 @@ static int rt_host_notifier(struct notifier_block *nb,
 				if (event == USB_BUS_ADD){
 					usb2_active = 1;
 					lastcall = 2;
-					usb2_stopPower = 0;
-					usb2_stopPower_screen = 0;
+					if (current_hub_mode != USB_3803_MODE_HUB){
+						usb2_stopPower = 0;
+						usb2_stopPower_screen = 0;
+					}
 				}
 				else if (event == USB_BUS_REMOVE){
 					usb2_active = 0;
 					btm_vid = 0;
 					btm_pid = 0;
 				}
-				pr_info("rt_host_notifier,  usb1_active = %d, usb2_active = %d, event = %lu\n", usb1_active, usb2_active, event);
 			}
+			pr_info("rt_host_notifier,  usb1_active = %d, usb2_active = %d, event = %lu\n", usb1_active, usb2_active, event);
 		}
 	}
 
-	if (usb1_active && usb2_active && (event == USB_DEVICE_ADD) && (gDongleType == 0)){
+	if (usb1_active && usb2_active && (event == USB_DEVICE_ADD) && (gDongleType == 0) && (current_hub_mode != USB_3803_MODE_HUB)){
 		if(!isKeep5v(btm_vid, btm_pid)){
 			usb2_stopPower = 1;
+			usb_curr_role = USB_ROLE_NONE;
 			rt1715_dwc3_msm_usb_set_role(USB_ROLE_NONE);
 			asus_request_BTM_otg_en(0);
 			pr_info("rt_host_notifier,  close bottom 5v\n");
@@ -1007,6 +1025,13 @@ static int rt_host_notifier(struct notifier_block *nb,
 		typec_disable_function(0);
 		pr_info("rt_host_notifier,  reopen bottom 5v\n");
 	}
+
+	if ((event == USB_DEVICE_ADD) && usb2_stopPower && current_hub_mode == USB_3803_MODE_HUB) {
+		usb2_stopPower = 0;
+		asus_request_BTM_otg_en(1);
+		pr_info("rt_host_notifier,  hub mode reopen bottom 5v\n");
+	}
+
 	return NOTIFY_DONE;
 }
 
