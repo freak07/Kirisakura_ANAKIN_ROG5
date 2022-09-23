@@ -44,6 +44,7 @@
  * the optimal version — two calls, each with their own speculation
  * trap should their return address end up getting used, in a loop.
  */
+#ifdef CONFIG_X86_64
 #define __FILL_RETURN_BUFFER(reg, nr, sp)	\
 	mov	$(nr/2), reg;			\
 771:						\
@@ -61,7 +62,29 @@
 774:						\
 	dec	reg;				\
 	jnz	771b;				\
+	add	$(BITS_PER_LONG/8) * nr, sp;	\
+	/* barrier for jnz misprediction */	\
+	lfence;
+#else
+/*
+ * i386 doesn't unconditionally have LFENCE, as such it can't
+ * do a loop.
+ */
+#define __FILL_RETURN_BUFFER(reg, nr, sp)	\
+	.rept nr;				\
+	call	772f;				\
+	int3;					\
+772:;						\
+	.endr;					\
 	add	$(BITS_PER_LONG/8) * nr, sp;
+#endif
+
+#define __ISSUE_UNBALANCED_RET_GUARD(sp)	\
+	call	881f;				\
+	int3;					\
+881:						\
+	add	$(BITS_PER_LONG/8), sp;		\
+	lfence;
 
 #ifdef __ASSEMBLY__
 
@@ -130,6 +153,14 @@
 #else
 	call	*\reg
 #endif
+.endm
+
+.macro ISSUE_UNBALANCED_RET_GUARD ftr:req
+	ANNOTATE_NOSPEC_ALTERNATIVE
+	ALTERNATIVE "jmp .Lskip_pbrsb_\@",				\
+		__stringify(__ISSUE_UNBALANCED_RET_GUARD(%_ASM_SP))	\
+		\ftr
+.Lskip_pbrsb_\@:
 .endm
 
  /*
