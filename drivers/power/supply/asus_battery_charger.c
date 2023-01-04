@@ -2098,7 +2098,7 @@ static void handle_notification(struct battery_chg_dev *bcdev, void *data,
 		case OEM_SET_SIDE_VID_CHANGE:
         if (len == sizeof(*Update_side_vid_msg)) {
             Update_side_vid_msg = data;
-            CHG_DBG("%s OEM_SET_SIDE_VID_CHANGE. new type : 0x%x, old type : 0x%x\n", __func__, Update_side_vid_msg->side_vid, pre_side_vid);
+            //CHG_DBG("%s OEM_SET_SIDE_VID_CHANGE. new type : 0x%x, old type : 0x%x\n", __func__, Update_side_vid_msg->side_vid, pre_side_vid);
             if (Update_side_vid_msg->side_vid != pre_side_vid) {
                 if (Update_side_vid_msg->side_vid == 0x040B && !FANDG_PDID_detect) {
 					//TODO: FAN DONGLE. VPH enable by GPIO_173 INBOX_DET
@@ -2127,7 +2127,7 @@ static void handle_notification(struct battery_chg_dev *bcdev, void *data,
 		case OEM_SET_SIDE_PID_CHANGE:
         if (len == sizeof(*Update_side_pid_msg)) {
             Update_side_pid_msg = data;
-            CHG_DBG("%s OEM_SET_SIDE_PID_CHANGE. pid : 0x%x", __func__, Update_side_pid_msg->side_pid);
+            //CHG_DBG("%s OEM_SET_SIDE_PID_CHANGE. pid : 0x%x", __func__, Update_side_pid_msg->side_pid);
             side_pid = Update_side_pid_msg->side_pid;
         } else {
 			pr_err("Incorrect response length %zu for OEM_SET_SIDE_PID_CHANGE\n",
@@ -2137,7 +2137,7 @@ static void handle_notification(struct battery_chg_dev *bcdev, void *data,
 	case OEM_SET_FW_VERSION_CHANGE:
         if (len == sizeof(*Update_fw_version_msg)) {
             Update_fw_version_msg = data;
-            CHG_DBG("%s OEM_SET_FW_VERSION_CHANGE. fw_version : %d", __func__, Update_fw_version_msg->fw_version);
+            //CHG_DBG("%s OEM_SET_FW_VERSION_CHANGE. fw_version : %d", __func__, Update_fw_version_msg->fw_version);
             g_fw_version = Update_fw_version_msg->fw_version;
         } else {
 			pr_err("Incorrect response length %zu for OEM_SET_FW_VERSION_CHANGE\n",
@@ -2888,7 +2888,10 @@ void asus_min_check_worker(struct work_struct *work)
 
 	//ASUS_BSP Jimmy +++ send Side or BTM Plug-in extcon to framework cherry-pick from dallas
 	if(g_vbus_first && g_IsBootComplete){
-		get_vbus_status_from_ADSP();
+		if(ChgPD_Info.VBUS_SRC == 0)
+		{
+			get_vbus_status_from_ADSP();
+		}
 		if(ChgPD_Info.VBUS_SRC == 2){
 			CHG_DBG("%s Side Plug-in\n", __func__);
 			asus_extcon_set_state_sync(quickchg_extcon, Side_Port_Not_Asus_VID_or_No_charger);
@@ -3098,7 +3101,7 @@ void set_qc_stat(int status)
 	case POWER_SUPPLY_STATUS_CHARGING:
 	case POWER_SUPPLY_STATUS_NOT_CHARGING:
 	case POWER_SUPPLY_STATUS_FULL:
-		CHG_DBG("%s: status: %d, switch: %d\n", __func__, status, g_SWITCH_LEVEL);
+		//CHG_DBG("%s: status: %d, switch: %d\n", __func__, status, g_SWITCH_LEVEL);
 		cancel_delayed_work(&asus_set_qc_state_work);
 		//if (g_Charger_mode)
 			schedule_delayed_work(&asus_set_qc_state_work, msecs_to_jiffies(70));
