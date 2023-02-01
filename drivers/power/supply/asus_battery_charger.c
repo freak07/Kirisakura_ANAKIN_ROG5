@@ -2289,7 +2289,9 @@ static void handle_message(struct battery_chg_dev *bcdev, void *data,
 			g_vbus_plug = vbus_src_msg->vbus_src;
 			CHG_DBG("%s g_vbus_plug = %d\n", __func__, g_vbus_plug);
 			if (g_vbus_plug == 1)
-				qti_charge_notify_device_charge();
+			{
+				//qti_charge_notify_device_charge();
+			}
 			else
 				qti_charge_notify_device_not_charge();
 		} else {
@@ -2569,7 +2571,7 @@ int asus_set_vbus_attached_status(int value) {
 		g_vbus_plug = 1;
 		g_vbus_first = true;
 		ASUSEvtlog("[BAT][Ser]Cable Plug-in");
-		qti_charge_notify_device_charge();
+		//qti_charge_notify_device_charge();
 		schedule_delayed_work(&asus_min_check_work, 0);
 		schedule_delayed_work(&asus_18W_workaround_work, msecs_to_jiffies(10000));
 		//[+++]Cancel the wakelock and delayed for recheck_cc workaround
@@ -2900,6 +2902,7 @@ void asus_min_check_worker(struct work_struct *work)
 			CHG_DBG("%s BTM Plug-in\n", __func__);
 			asus_extcon_set_state_sync(quickchg_extcon, Bottom_Port_Not_Asus_VID_or_No_charger);
 		}
+		qti_charge_notify_device_charge();
 		g_vbus_first = false;
 	}
 	//ASUS_BSP Jimmy --- send Side or BTM Plug-in extcon to framework

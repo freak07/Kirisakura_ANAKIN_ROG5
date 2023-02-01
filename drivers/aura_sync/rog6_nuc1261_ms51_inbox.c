@@ -95,6 +95,7 @@ static int asus_usb_hid_write_aprom(u8 addr, u8 *cmd, int cmd_len)
 		printk("[ROG6_INBOX][%s] Skip addr 0x%02x, CMD 0x%02x, 0x%02x when aura updating.\n", __func__, addr, cmd[0], cmd[1]);
 		return ret;
 	}
+
 	mutex_lock(&hid_command_lock);
 	buffer = kzalloc(FEATURE_WRITE_COMMAND_SIZE, GFP_KERNEL);
 	memset(buffer,0,FEATURE_WRITE_COMMAND_SIZE);
@@ -121,8 +122,11 @@ static int asus_usb_hid_write_aprom(u8 addr, u8 *cmd, int cmd_len)
 
 	ret = hid_hw_raw_request(hdev, NUC1261_REPORT_ID, buffer, FEATURE_WRITE_COMMAND_SIZE,
 					HID_FEATURE_REPORT, HID_REQ_SET_REPORT);
-	if (ret < 0)
-		printk("[ROG6_INBOX][%s] hid_hw_raw_request[HID_REQ_SET_REPORT] fail: ret = %d\n", __func__, ret);
+	if (ret < 0){
+		err_cnt++;
+		printk("[ROG6_INBOX][%s] hid_hw_raw_request[HID_REQ_SET_REPORT] fail: ret = %d, err_cnt = %d\n", __func__, ret, err_cnt);
+	}else
+		err_cnt = 0;
 
 	hid_hw_power(hdev, PM_HINT_NORMAL);
 	kfree(buffer);
@@ -179,15 +183,21 @@ static int asus_usb_hid_read_aprom(u8 addr, u8 *cmd, int cmd_len, u8 *data)
 
 	ret = hid_hw_raw_request(hdev, NUC1261_REPORT_ID, buffer, FEATURE_WRITE_COMMAND_SIZE,
 					HID_FEATURE_REPORT, HID_REQ_SET_REPORT);
-	if (ret < 0)
-		printk("[ROG6_INBOX][%s] hid_hw_raw_request[HID_REQ_SET_REPORT] fail: ret = %d\n", __func__, ret);
+	if (ret < 0){
+		err_cnt++;
+		printk("[ROG6_INBOX][%s] hid_hw_raw_request[HID_REQ_SET_REPORT] fail: ret = %d, err_cnt = %d\n", __func__, ret, err_cnt);
+	}else
+		err_cnt = 0;
 
 	msleep(NUC1261_CMD_DELAY_WA);
 
 	ret = hid_hw_raw_request(hdev, NUC1261_REPORT_ID, data, FEATURE_READ_COMMAND_SIZE,
 					HID_FEATURE_REPORT, HID_REQ_GET_REPORT);
-	if (ret < 0)
-		printk("[ROG6_INBOX][%s] hid_hw_raw_request[HID_REQ_GET_REPORT] fail: ret = %d\n", __func__, ret);
+	if (ret < 0){
+		err_cnt++;
+		printk("[ROG6_INBOX][%s] hid_hw_raw_request[HID_REQ_GET_REPORT] fail: ret = %d, err_cnt = %d\n", __func__, ret, err_cnt);
+	}else
+		err_cnt = 0;
 
 	hid_hw_power(hdev, PM_HINT_NORMAL);
 
@@ -218,9 +228,9 @@ static int pd_write_cmd(u16 addr, unsigned char *cmd)
 		return -1;
 	}
 
-	buffer = kzalloc(FEATURE_WRITE_COMMAND_SIZE, GFP_KERNEL);
-	memset(buffer,0,FEATURE_WRITE_COMMAND_SIZE);
 	hdev = rog6_inbox_hidraw->hid;
+	hid_hw_power(hdev, PM_HINT_FULLON);
+	buffer = kzalloc(FEATURE_WRITE_COMMAND_SIZE, GFP_KERNEL);
 
 	memset(buffer,0,FEATURE_WRITE_COMMAND_SIZE);
 	buffer[0] = NUC1261_REPORT_ID;
@@ -233,10 +243,8 @@ static int pd_write_cmd(u16 addr, unsigned char *cmd)
 	buffer[7] = 0x08;
 	buffer[8] = 0x0C;
 
-	hid_hw_power(hdev, PM_HINT_FULLON);
 	ret = hid_hw_raw_request(hdev, NUC1261_REPORT_ID, buffer, FEATURE_WRITE_COMMAND_SIZE,
 				HID_FEATURE_REPORT, HID_REQ_SET_REPORT);
-
 	if (ret < 0)
 		printk("[ROG6_INBOX][%s] hid_hw_raw_request fail: ret = %d\n",__func__, ret);
 	msleep(NUC1261_CMD_DELAY_WA);
@@ -252,14 +260,12 @@ static int pd_write_cmd(u16 addr, unsigned char *cmd)
 	buffer[6] = 0x02;
 	buffer[7] = (addr & 0xFF00)>>8;
 
-	hid_hw_power(hdev, PM_HINT_FULLON);
 	ret = hid_hw_raw_request(hdev, NUC1261_REPORT_ID, buffer, FEATURE_WRITE_COMMAND_SIZE,
 					HID_FEATURE_REPORT, HID_REQ_SET_REPORT);
-
 	if (ret < 0)
 		printk("[ROG6_INBOX][%s] hid_hw_raw_request fail: ret = %d\n",__func__, ret);
-
 	msleep(NUC1261_CMD_DELAY_WA);
+
 	//Set the low byte of address and data
 	memset(buffer,255,FEATURE_WRITE_COMMAND_SIZE);
 	buffer[0] = NUC1261_REPORT_ID;
@@ -276,10 +282,9 @@ static int pd_write_cmd(u16 addr, unsigned char *cmd)
 	//}
 	//memcpy(buffer+7, cmd, 4);
 	//printk("[ROG6_INBOX] write data:[%x] %x %x %x %x",addr,buffer[7],buffer[8],buffer[9],buffer[10]);
-	//hid_hw_power(hdev, PM_HINT_FULLON);
+
 	ret = hid_hw_raw_request(hdev, NUC1261_REPORT_ID, buffer, FEATURE_WRITE_COMMAND_SIZE,
 					HID_FEATURE_REPORT, HID_REQ_SET_REPORT);
-
 	if (ret < 0)
 		printk("[ROG6_INBOX][%s] hid_hw_raw_request fail: ret = %d\n",__func__, ret);
 
@@ -288,17 +293,17 @@ static int pd_write_cmd(u16 addr, unsigned char *cmd)
 	do{
 		pd_status = is_pd_busy();
 		if(pd_status & 0x2){
-			printk("[ROF6_INBOX] PD busy..");
+			printk("[ROG6_INBOX][%s] PD busy..\n", __func__);
 			pd_busy_timeout += 100;
 			msleep(100);
 			if(pd_busy_timeout > 3000)
 			{
-				printk("[ROF6_INBOX] PD write addr 0x%04x timeout",addr);
+				printk("[ROG6_INBOX][%s] PD write addr 0x%04x timeout\n", __func__, addr);
 				ret = -EBUSY;
 				break;
 			}
 		}else if(pd_status & 0x1){
-			printk("[ROF6_INBOX] PD write addr 0x%04x failed",addr);
+			printk("[ROG6_INBOX][%s] PD write addr 0x%04x failed\n", __func__, addr);
 			ret = -EBUSY;
 			break;
 		}
@@ -518,12 +523,12 @@ static int WT6639F_firmware_check(struct device *dev)
 	mutex_lock(&pd_lock);
 	usb_autopm_get_interface(to_usb_interface(rog6_inbox_hidraw->hid->dev.parent));
 	hid_hw_power(hdev, PM_HINT_FULLON);
-	printk("[ROG6_INBOX]%s++++",__func__);
+	printk("[ROG6_INBOX][%s] +++\n",__func__);
 
 	//get firmware
 	err = request_firmware(&fw, AURA_INBOX_PD_FILE_NAME, dev);
 	if (err) {
-		printk("[ROG6_INBOX][%s] Error: request_firmware failed!!!",__func__);
+		printk("[ROG6_INBOX][%s] Error: request_firmware failed!!!\n",__func__);
 		ret = err;
 		goto err_free;
 	}
@@ -609,7 +614,7 @@ static int WT6639F_firmware_check(struct device *dev)
 			goto err_free;
 		}
 		else
-			printk("[ROG6_INBOX]%s-read [%04x]%02x, %02x, %02x, .... %02x, %02x, %02x\n", __func__,addr , buffer[1], buffer[2], buffer[3], buffer[62], buffer[63], buffer[64]);
+			printk("[ROG6_INBOX][%s] read [%04x] %02x, %02x, %02x, .... %02x, %02x, %02x\n", __func__,addr , buffer[1], buffer[2], buffer[3], buffer[62], buffer[63], buffer[64]);
 
 		msleep(NUC1261_CMD_DELAY_WA);
 
@@ -617,14 +622,14 @@ static int WT6639F_firmware_check(struct device *dev)
 		if(buffer[0] == 0x0b){	//check report id
 			if(memcmp(buffer+1, fw->data+addr, 64))
 			{
-				printk("[ROG6_INBOX] Err: pd check failed at 0x%04x, retry\n",addr);
+				printk("[ROG6_INBOX] Err: pd check failed at 0x%04x, retry\n", addr);
 				if(check_error_count > 10){
-					printk("[ROG6_INBOX]==============addr 0x%04x=============\n",addr);
+					printk("[ROG6_INBOX]============== addr 0x%04x =============\n", addr);
 					for(idx=0; idx<64; idx++){
 						if(*(buffer+1+idx) != *(fw->data+addr+idx))
-							printk("[ROG6_INBOX]  [0x%04x]   0x%02x   0x%02x\n",addr+idx,*(buffer+1+idx),*(fw->data+addr+idx));
+							printk("[ROG6_INBOX]  [0x%04x]   0x%02x   0x%02x\n", addr+idx, *(buffer+1+idx), *(fw->data+addr+idx));
 					}
-					printk("[ROG6_INBOX]======================================\n",addr);
+					printk("[ROG6_INBOX]======================================\n", addr);
 					ret = -1;
 					break;
 				}else{
@@ -634,7 +639,7 @@ static int WT6639F_firmware_check(struct device *dev)
 				}
 			}
 		} else {
-			printk("[ROG6_INBOX] ERR:report id is invalid, read command failed!");
+			printk("[ROG6_INBOX] ERR:report id is invalid, read command failed!\n");
 		}
 
 		addr += read_len;
@@ -667,7 +672,7 @@ err_free:
 	mutex_unlock(&pd_lock);
 	kfree(buffer);
 	g_pd_fw_updating = 0;
-	printk("[ROG6_INBOX]%s--- last addr =  %d",__func__, addr-FEATURE_WRITE_COMMAND_SIZE);
+	printk("[ROG6_INBOX][%s] --- last addr =  %d",__func__, addr-FEATURE_WRITE_COMMAND_SIZE);
 	return ret;
 }
 
@@ -915,7 +920,6 @@ static int WT6639F_fw_update(const unsigned char *fw_buf,int fwsize)
 	u16 addr = 0;
 	unsigned char buf;
 	int retry=0;
-	u8 err_write_count = 0;
 	bool stop_update = false;
 
 	printk("[ROG6_INBOX] %s+",__func__);
@@ -986,19 +990,19 @@ static int WT6639F_fw_update(const unsigned char *fw_buf,int fwsize)
 	do{
 		//update firmware
 		buf = *(fw_buf+addr);
-		for(retry=1; retry<=3; retry++){
+		for( retry=0; retry<RETRY_TIMES; retry++){
 			err = pd_write_cmd(addr, &buf);
 			if(err < 0){
-				printk("[ROG6_INBOX] %s flash PD failed, count=%d",__func__,err_write_count);
-				err_write_count++;
+				printk("[ROG6_INBOX][%s] write 0x%02x to 0x%04x failed , retry = %d\n",__func__, buf, addr, retry);
+				msleep(50);
 			}else{
-				printk("[ROG6_INBOX] %s write 0x%02x to 0x%04x, retry = %d",__func__,buf,addr,retry);
+				printk("[ROG6_INBOX][%s] write 0x%02x to 0x%04x succeed, retry = %d\n",__func__, buf, addr, retry);
 				break;
 			}
 		}
 
-		if(err_write_count > 30){
-			printk("[ROG6_INBOX] %s fandg maybe disconnected, stop update\n",__func__);
+		if(retry >= RETRY_TIMES){
+			printk("[ROG6_INBOX][%s] Retry %d fail, stop update\n", __func__, retry);
 			stop_update = true;
 		}
 		g_pd_update_progress = addr;
@@ -1387,7 +1391,7 @@ static ssize_t red_pwm_show(struct device *dev, struct device_attribute *attr,ch
 
 	err = asus_usb_hid_read_aprom(i2c_addr_select(IC_switch), cmd, 5, data);
 	if (err < 0)
-		printk("[ROG6_INBOX] asus_usb_hid_read_aprom:err %d\n", err);
+		printk("[ROG6_INBOX][%s] asus_usb_hid_read_aprom:err %d\n", __func__, err);
 
 	//printk("[ROG6_INBOX][%s] %x, %x, %x\n", __func__, data[0], data[1], data[2]);
 
@@ -1467,7 +1471,7 @@ static ssize_t green_pwm_show(struct device *dev, struct device_attribute *attr,
 
 	err = asus_usb_hid_read_aprom(i2c_addr_select(IC_switch), cmd, NUC1261_CMD_LEN, data);
 	if (err < 0)
-		printk("[ROG6_INBOX] asus_usb_hid_read_aprom:err %d\n", err);
+		printk("[ROG6_INBOX][%s] asus_usb_hid_read_aprom:err %d\n", __func__, err);
 
 	//printk("[ROG6_INBOX][%s] %x, %x, %x\n", __func__, data[0], data[1], data[2]);
 
@@ -1550,7 +1554,7 @@ static ssize_t blue_pwm_show(struct device *dev, struct device_attribute *attr,c
 
 	err = asus_usb_hid_read_aprom(i2c_addr_select(IC_switch), cmd, 5, data);
 	if (err < 0)
-		printk("[ROG6_INBOX] asus_usb_hid_read_aprom:err %d\n", err);
+		printk("[ROG6_INBOX][%s] asus_usb_hid_read_aprom:err %d\n", __func__, err);
 
 	//printk("[ROG6_INBOX][%s] %x, %x, %x\n", __func__, data[0], data[1], data[2]);
 
@@ -1602,7 +1606,7 @@ static ssize_t red1_pwm_show(struct device *dev, struct device_attribute *attr,c
 
 	err = asus_usb_hid_read_aprom(i2c_addr_select(IC_switch), cmd, 5, data);
 	if (err < 0)
-		printk("[ROG6_INBOX] asus_usb_hid_read_aprom:err %d\n", err);
+		printk("[ROG6_INBOX][%s] asus_usb_hid_read_aprom:err %d\n", __func__, err);
 
 	//printk("[ROG6_INBOX][%s] %x, %x, %x\n", __func__, data[0], data[1], data[2]);
 
@@ -1655,7 +1659,7 @@ static ssize_t green1_pwm_show(struct device *dev, struct device_attribute *attr
 
 	err = asus_usb_hid_read_aprom(i2c_addr_select(IC_switch), cmd, NUC1261_CMD_LEN, data);
 	if (err < 0)
-		printk("[ROG6_INBOX] asus_usb_hid_read_aprom:err %d\n", err);
+		printk("[ROG6_INBOX][%s] asus_usb_hid_read_aprom:err %d\n", __func__, err);
 
 	//printk("[ROG6_INBOX][%s] %x, %x, %x\n", __func__, data[0], data[1], data[2]);
 
@@ -1707,7 +1711,7 @@ static ssize_t blue1_pwm_show(struct device *dev, struct device_attribute *attr,
 
 	err = asus_usb_hid_read_aprom(i2c_addr_select(IC_switch), cmd, 5, data);
 	if (err < 0)
-		printk("[ROG6_INBOX] asus_usb_hid_read_aprom:err %d\n", err);
+		printk("[ROG6_INBOX][%s] asus_usb_hid_read_aprom:err %d\n", __func__, err);
 
 	//printk("[ROG6_INBOX][%s] %x, %x, %x\n", __func__, data[0], data[1], data[2]);
 
@@ -1769,7 +1773,7 @@ static ssize_t red2_pwm_show(struct device *dev, struct device_attribute *attr,c
 
 	err = asus_usb_hid_read_aprom(i2c_addr_select(IC_switch), cmd, NUC1261_CMD_LEN, data);
 	if (err < 0)
-		printk("[ROG6_INBOX] asus_usb_hid_read_aprom:err %d\n", err);
+		printk("[ROG6_INBOX][%s] asus_usb_hid_read_aprom:err %d\n", __func__, err);
 
 	//printk("[ROG6_INBOX][%s] %x, %x, %x\n", __func__, data[0], data[1], data[2]);
 
@@ -1831,7 +1835,7 @@ static ssize_t green2_pwm_show(struct device *dev, struct device_attribute *attr
 
 	err = asus_usb_hid_read_aprom(i2c_addr_select(IC_switch), cmd, NUC1261_CMD_LEN, data);
 	if (err < 0)
-		printk("[ROG6_INBOX] asus_usb_hid_read_aprom:err %d\n", err);
+		printk("[ROG6_INBOX][%s] asus_usb_hid_read_aprom:err %d\n", __func__, err);
 
 	//printk("[ROG6_INBOX][%s] %x, %x, %x\n", __func__, data[0], data[1], data[2]);
 
@@ -1893,7 +1897,7 @@ static ssize_t blue2_pwm_show(struct device *dev, struct device_attribute *attr,
 
 	err = asus_usb_hid_read_aprom(i2c_addr_select(addr_0x18), cmd, NUC1261_CMD_LEN, data);
 	if (err < 0)
-		printk("[ROG6_INBOX] asus_usb_hid_read_aprom:err %d\n", err);
+		printk("[ROG6_INBOX][%s] asus_usb_hid_read_aprom:err %d\n", __func__, err);
 
 	//printk("[ROG6_INBOX][%s] %x, %x, %x\n", __func__, data[0], data[1], data[2]);
 
@@ -1969,7 +1973,7 @@ static ssize_t mode_show(struct device *dev, struct device_attribute *attr,char 
 
 	ret = asus_usb_hid_read_aprom(i2c_addr_select(IC_switch), cmd, NUC1261_CMD_LEN, data);
 	if (ret < 0)
-		printk("[ROG6_INBOX] asus_usb_hid_read_aprom:err %d\n", ret);
+		printk("[ROG6_INBOX][%s] asus_usb_hid_read_aprom:err %d\n", __func__, ret);
 
 	//printk("[ROG6_INBOX][%s] %x, %x, %x\n", __func__, data[0], data[1], data[2]);
 
@@ -2036,7 +2040,7 @@ static ssize_t get_frame(struct device *dev, struct device_attribute *attr,char 
 
 	ret = asus_usb_hid_read_aprom(i2c_addr_select(IC_switch), cmd, NUC1261_CMD_LEN, data);
 	if (ret < 0)
-		printk("[ROG6_INBOX] asus_usb_hid_read_aprom:err %d\n", ret);
+		printk("[ROG6_INBOX][%s] asus_usb_hid_read_aprom:err %d\n", __func__, ret);
 
 	//printk("[ROG6_INBOX][%s] %x, %x, %x\n", __func__, data[0], data[1], data[2]);
 
@@ -2097,7 +2101,7 @@ static ssize_t get_speed(struct device *dev, struct device_attribute *attr,char 
 
 	ret = asus_usb_hid_read_aprom(i2c_addr_select(IC_switch), cmd, 5, data);
 	if (ret < 0)
-		printk("[ROG6_INBOX] asus_usb_hid_read_aprom:err %d\n", ret);
+		printk("[ROG6_INBOX][%s] asus_usb_hid_read_aprom:err %d\n", __func__, ret);
 
 	//printk("[ROG6_INBOX][%s] %x, %x, %x\n", __func__, data[0], data[1], data[2]);
 
@@ -2194,7 +2198,8 @@ static ssize_t fw_mode_show(struct device *dev, struct device_attribute *attr,ch
 		ret = asus_usb_hid_read_aprom(i2c_addr_select(addr_0x18), cmd, NUC1261_CMD_LEN, data);
 	}
 	if (ret < 0)
-		printk("[ROG6_INBOX] asus_usb_hid_read_aprom:err %d\n", ret);
+		printk("[ROG6_INBOX][%s] asus_usb_hid_read_aprom:err %d\n", __func__, ret);
+
 	//printk("[ROG6_INBOX][%s] %x, %x, %x\n", __func__, data[0], data[1], data[2]);
 
 	val = data[1];
@@ -2220,7 +2225,7 @@ static ssize_t nuc1261_fw_ver_show(struct device *dev, struct device_attribute *
 	do{
 		ret = asus_usb_hid_read_aprom(i2c_addr_select(nuc1261), cmd, NUC1261_CMD_LEN, data);
 		if (ret < 0)
-			printk("[ROG6_INBOX] %s asus_usb_hid_read_aprom:err %d\n",__func__ , ret);
+			printk("[ROG6_INBOX][%s] asus_usb_hid_read_aprom:err %d\n", __func__, ret);
 		retry--;
 	}while(data[1]!=0x1 && retry > 0);
 	//printk("[ROG6_INBOX][%s] %x, %x, %x\n", __func__, data[0], data[1], data[2]);
@@ -2254,7 +2259,7 @@ static int ms51_ldrom_i2c_address_check(void)
 
 	msleep(NUC1261_CMD_DELAY*5);
 
-	for (retry = 10; retry > 0; retry--) {
+	for (retry = RETRY_TIMES; retry > 0; retry--) {
 		//ic switch and check fw mode
 		memset(data, 0, FEATURE_READ_COMMAND_SIZE);
 		memset(cmd, 0, NUC1261_CMD_LEN);
@@ -2264,7 +2269,7 @@ static int ms51_ldrom_i2c_address_check(void)
 
 		err = asus_usb_hid_read_aprom(i2c_addr_select(addr_0x16), cmd, NUC1261_CMD_LEN, data);
 		if (err < 0)
-			printk("[ROG6_INBOX] asus_usb_hid_read_aprom:err %d\n", err);
+			printk("[ROG6_INBOX][%s] asus_usb_hid_read_aprom:err %d\n", __func__, err);
 
 		//printk("[ROG6_INBOX][%s] addr_0x16 %x, %x, %x\n", __func__, data[0], data[1], data[2]);
 		val = data[1];
@@ -2284,7 +2289,7 @@ static int ms51_ldrom_i2c_address_check(void)
 
 		err = asus_usb_hid_read_aprom(i2c_addr_select(addr_0x18), cmd, NUC1261_CMD_LEN, data);
 		if (err < 0)
-			printk("[ROG6_INBOX] asus_usb_hid_read_aprom:err %d\n", err);
+			printk("[ROG6_INBOX][%s] asus_usb_hid_read_aprom:err %d\n", __func__, err);
 
 		//printk("[ROG6_INBOX][%s] addr_0x18 %x, %x, %x\n", __func__, data[0], data[1], data[2]);
 		val = data[1];
@@ -2350,7 +2355,7 @@ static ssize_t ms51_fw_ver_show(struct device *dev, struct device_attribute *att
 	do{
 		ret = asus_usb_hid_read_aprom(i2c_addr_select(addr_0x18), cmd, NUC1261_CMD_LEN, data);
 		if (ret < 0)
-			printk("[ROG6_INBOX] asus_usb_hid_read_aprom:err %d\n", ret);
+			printk("[ROG6_INBOX][%s] asus_usb_hid_read_aprom:err %d\n", __func__, ret);
 		retry--;
 	}while((data[1]!=0x04 && data[1]!=0x05) && (retry > 0));
 	//printk("[ROG6_INBOX][%s] %x, %x, %x\n", __func__, data[0], data[1], data[2]);
@@ -2735,7 +2740,7 @@ static ssize_t door_on_show(struct device *dev, struct device_attribute *attr,ch
 
 	ret = asus_usb_hid_read_aprom(i2c_addr_select(nuc1261), cmd, NUC1261_CMD_LEN, data);
 	if (ret < 0)
-		printk("[ROG6_INBOX] asus_usb_hid_read_aprom:err %d\n", ret);
+		printk("[ROG6_INBOX][%s] asus_usb_hid_read_aprom:err %d\n", __func__, ret);
 
 	//printk("[ROG6_INBOX][%s] %x, %x, %x\n", __func__, data[0], data[1], data[2]);
 
@@ -2785,7 +2790,7 @@ static ssize_t logo_on_show(struct device *dev, struct device_attribute *attr,ch
 
 	ret = asus_usb_hid_read_aprom(i2c_addr_select(nuc1261), cmd, NUC1261_CMD_LEN, data);
 	if (ret < 0)
-		printk("[ROG6_INBOX] asus_usb_hid_read_aprom:err %d\n", ret);
+		printk("[ROG6_INBOX][%s] asus_usb_hid_read_aprom:err %d\n", __func__, ret);
 
 	//printk("[ROG6_INBOX][%s] %x, %x, %x\n", __func__, data[0], data[1], data[2]);
 
@@ -2848,7 +2853,7 @@ static ssize_t key_state_show(struct device *dev, struct device_attribute *attr,
 
 	ret = asus_usb_hid_read_aprom(i2c_addr_select(nuc1261), cmd, NUC1261_CMD_LEN, data);
 	if (ret < 0)
-		printk("[ROG6_INBOX] asus_usb_hid_read_aprom:err %d\n", ret);
+		printk("[ROG6_INBOX][%s] asus_usb_hid_read_aprom:err %d\n", __func__, ret);
 
 	//printk("[ROG6_INBOX][%s] %x, %x, %x\n", __func__, data[0], data[1], data[2]);
 
@@ -3115,7 +3120,7 @@ static ssize_t fan_rpm_store(struct device *dev, struct device_attribute *attr, 
 
 		ret = asus_usb_hid_read_aprom(i2c_addr_select(nuc1261), cmd, 2, data);
 		if (ret < 0)
-			printk("[ROG6_INBOX] asus_usb_hid_read_aprom:err %d\n", ret);
+			printk("[ROG6_INBOX][%s] asus_usb_hid_read_aprom:err %d\n", __func__, ret);
 
 		//printk("[ROG6_INBOX][%s] %x, %x, %x\n", __func__, data[0], data[1], data[2]);
 
@@ -3142,7 +3147,7 @@ static ssize_t fan_rpm_store(struct device *dev, struct device_attribute *attr, 
 	msleep(500);
 	err = asus_usb_hid_read_aprom(i2c_addr_select(nuc1261), cmd, NUC1261_CMD_LEN, data);
 	if (err < 0)
-		printk("[ROG6_INBOX] asus_usb_hid_read_aprom:err %d\n", err);
+		printk("[ROG6_INBOX][%s] asus_usb_hid_read_aprom:err %d\n", __func__, err);
 
 	//printk("[ROG6_INBOX][%s] %02x, %02x, %02x\n", __func__, data[0], data[1], data[2]);
 	raw_data = data[1]*256 + data[2];
@@ -3181,7 +3186,7 @@ static ssize_t fan_rpm_show(struct device *dev, struct device_attribute *attr,ch
 
 	err = asus_usb_hid_read_aprom(i2c_addr_select(nuc1261), cmd, NUC1261_CMD_LEN, data);
 	if (err < 0)
-		printk("[ROG6_INBOX] asus_usb_hid_read_aprom:err %d\n", err);
+		printk("[ROG6_INBOX][%s] asus_usb_hid_read_aprom:err %d\n", __func__, err);
 
 	//printk("[ROG6_INBOX][%s] %02x, %02x, %02x\n", __func__, data[0], data[1], data[2]);
 	raw_data = data[1]*256 + data[2];
@@ -3230,7 +3235,7 @@ static ssize_t fan_pwm_show(struct device *dev, struct device_attribute *attr,ch
 
 	ret = asus_usb_hid_read_aprom(i2c_addr_select(nuc1261), cmd, 2, data);
 	if (ret < 0)
-		printk("[ROG6_INBOX] asus_usb_hid_read_aprom:err %d\n", ret);
+		printk("[ROG6_INBOX][%s] asus_usb_hid_read_aprom:err %d\n", __func__, ret);
 
 	//printk("[ROG6_INBOX][%s] %x, %x, %x\n", __func__, data[0], data[1], data[2]);
 
@@ -3580,7 +3585,7 @@ static ssize_t cooling_en_show(struct device *dev, struct device_attribute *attr
 
 	ret = asus_usb_hid_read_aprom(i2c_addr_select(nuc1261), cmd, NUC1261_CMD_LEN, data);
 	if (ret < 0)
-		printk("[ROG6_INBOX] asus_usb_hid_read_aprom:err %d\n", ret);
+		printk("[ROG6_INBOX][%s] asus_usb_hid_read_aprom:err %d\n", __func__, ret);
 
 	//printk("[ROG6_INBOX][%s] %x, %x, %x\n", __func__, data[0], data[1], data[2]);
 
@@ -3646,7 +3651,7 @@ static ssize_t cooling_stage_show(struct device *dev, struct device_attribute *a
 
 		err = asus_usb_hid_read_aprom(i2c_addr_select(addr_0x75), cmd, NUC1261_CMD_LEN, data);
 		if (err < 0)
-			printk("[ROG6_INBOX] asus_usb_hid_read_aprom:err %d\n", err);
+			printk("[ROG6_INBOX][%s] asus_usb_hid_read_aprom:err %d\n", __func__, err);
 
 		//printk("[ROG6_INBOX] cooling_stage_show : %02x, %02x, %02x\n", data[0], data[1], data[2]);
 		if(data[1] > 127){
@@ -3679,7 +3684,7 @@ static ssize_t RT6160_DEVID_show(struct device *dev, struct device_attribute *at
 
 	err = asus_usb_hid_read_aprom(i2c_addr_select(addr_0x75), cmd, NUC1261_CMD_LEN, data);
 	if (err < 0)
-		printk("[ROG6_INBOX] asus_usb_hid_read_aprom:err %d\n", err);
+		printk("[ROG6_INBOX][%s] asus_usb_hid_read_aprom:err %d\n", __func__, err);
 
 	//printk("[ROG6_INBOX][%s] %02x, %02x, %02x\n", __func__, data[0], data[1], data[2]);
 	printk("[ROG6_INBOX] RT6160 DEVID : 0x%02x\n", data[1]);
@@ -3704,7 +3709,7 @@ static ssize_t HDC2010_MANID_show(struct device *dev, struct device_attribute *a
 
 	err = asus_usb_hid_read_aprom(i2c_addr_select(addr_0x40), cmd, NUC1261_CMD_LEN, data);
 	if (err < 0)
-		printk("[ROG6_INBOX] asus_usb_hid_read_aprom:err %d\n", err);
+		printk("[ROG6_INBOX][%s] asus_usb_hid_read_aprom:err %d\n", __func__, err);
 
 	//printk("[ROG6_INBOX][%s] %02x, %02x, %02x\n", __func__, data[0], data[1], data[2]);
 	printk("[ROG6_INBOX] HDC2010 MANID REG[0xFC]: 0x%02x\n", data[1]);
@@ -3716,7 +3721,7 @@ static ssize_t HDC2010_MANID_show(struct device *dev, struct device_attribute *a
 
 	err = asus_usb_hid_read_aprom(i2c_addr_select(addr_0x40), cmd, NUC1261_CMD_LEN, data);
 	if (err < 0)
-		printk("[ROG6_INBOX] asus_usb_hid_read_aprom:err %d\n", err);
+		printk("[ROG6_INBOX][%s] asus_usb_hid_read_aprom:err %d\n", __func__, err);
 
 	//printk("[ROG6_INBOX][%s] %02x, %02x, %02x\n", __func__, data[0], data[1], data[2]);
 	printk("[ROG6_INBOX] HDC2010 MANID REG[0xFD]: 0x%02x\n", data[1]);
@@ -3740,7 +3745,7 @@ static ssize_t HDC2010_DEVID_show(struct device *dev, struct device_attribute *a
 
 	err = asus_usb_hid_read_aprom(i2c_addr_select(addr_0x40), cmd, NUC1261_CMD_LEN, data);
 	if (err < 0)
-		printk("[ROG6_INBOX] asus_usb_hid_read_aprom:err %d\n", err);
+		printk("[ROG6_INBOX][%s] asus_usb_hid_read_aprom:err %d\n", __func__, err);
 
 	//printk("[ROG6_INBOX][%s] %02x, %02x, %02x\n", __func__, data[0], data[1], data[2]);
 	printk("[ROG6_INBOX] HDC2010 DEVID REG[0xFE]: 0x%02x\n", data[1]);
@@ -3752,7 +3757,7 @@ static ssize_t HDC2010_DEVID_show(struct device *dev, struct device_attribute *a
 
 	err = asus_usb_hid_read_aprom(i2c_addr_select(addr_0x40), cmd, NUC1261_CMD_LEN, data);
 	if (err < 0)
-		printk("[ROG6_INBOX] asus_usb_hid_read_aprom:err %d\n", err);
+		printk("[ROG6_INBOX][%s] asus_usb_hid_read_aprom:err %d\n", __func__, err);
 
 	//printk("[ROG6_INBOX][%s] %02x, %02x, %02x\n", __func__, data[0], data[1], data[2]);
 	printk("[ROG6_INBOX] HDC2010 DEVID REG[0xFF]: 0x%02x\n", data[1]);
@@ -3837,7 +3842,7 @@ static ssize_t temperature_show(struct device *dev, struct device_attribute *att
 		for(retry = 5; retry>0; retry--){
 			err = asus_usb_hid_read_aprom(i2c_addr_select(addr_0x44), cmd, 4, data);
 			if (err < 0)
-				printk("[ROG6_INBOX] asus_usb_hid_read_aprom:err %d\n", err);
+				printk("[ROG6_INBOX][%s] asus_usb_hid_read_aprom:err %d\n", __func__, err);
 			else {
 				if(DEBUG)
 					printk("[ROG6_INBOX][%s] REG[0x%02x] %02x, %02x, %02x, %02x, %02x, %02x, %02x\n", __func__, cmd[0], data[0], data[1], data[2], data[3], data[4], data[5], data[6]);
@@ -3878,7 +3883,7 @@ static ssize_t temperature_show(struct device *dev, struct device_attribute *att
 
 		err = asus_usb_hid_read_aprom(i2c_addr_select(nuc1261), cmd2, NUC1261_CMD_LEN, data2);
 		if (err < 0)
-			printk("[ROG6_INBOX] asus_usb_hid_read_aprom:err %d\n", err);
+			printk("[ROG6_INBOX][%s] asus_usb_hid_read_aprom:err %d\n", __func__, err);
 
 		//printk("[ROG6_INBOX][%s] REG[0x%02x] %02x, %02x, %02x\n", __func__, cmd[0], data2[0], data2[1]);
 		if (*data2 > 0xF0)
@@ -3911,7 +3916,7 @@ static ssize_t temperature_show(struct device *dev, struct device_attribute *att
 			cmd[0] = 0x0;
 			err = asus_usb_hid_read_aprom(i2c_addr_select(addr_0x40), cmd, NUC1261_CMD_LEN, data);
 			if (err < 0)
-				printk("[ROG6_INBOX] asus_usb_hid_read_aprom:err %d\n", err);
+				printk("[ROG6_INBOX][%s] asus_usb_hid_read_aprom:err %d\n", __func__, err);
 
 			LSB = data[1];
 			//printk("[ROG6_INBOX][%s] REG[0x%02x] %02x, %02x, %02x\n", __func__, cmd[0], data[0], data[1], data[2]);
@@ -3921,7 +3926,7 @@ static ssize_t temperature_show(struct device *dev, struct device_attribute *att
 
 			err = asus_usb_hid_read_aprom(i2c_addr_select(addr_0x40), cmd, NUC1261_CMD_LEN, data);
 			if (err < 0)
-			printk("[ROG6_INBOX] asus_usb_hid_read_aprom:err %d\n", err);
+				printk("[ROG6_INBOX][%s] asus_usb_hid_read_aprom:err %d\n", __func__, err);
 
 			MSB = data[1];
 			//printk("[ROG6_INBOX][%s] REG[0x%02x] %02x, %02x, %02x\n", __func__, cmd[0], data[0], data[1], data[2]);
@@ -3960,7 +3965,7 @@ static int humidity_correction(int humidity, int temperature)
 
 		err = asus_usb_hid_read_aprom(i2c_addr_select(nuc1261), cmd, NUC1261_CMD_LEN, raw_ambien);
 		if (err < 0)
-			printk("[ROG6_INBOX] asus_usb_hid_read_aprom:err %d\n", err);
+			printk("[ROG6_INBOX][%s] asus_usb_hid_read_aprom:err %d\n", __func__, err);
 
 		//printk("[ROG6_INBOX][%s] REG[0x%02x] %02x, %02x, %02x\n", __func__, cmd[0], raw_ambien[0], raw_ambien[1]);
 		if (raw_ambien[1] > 0xF0)
@@ -4031,7 +4036,7 @@ static ssize_t humidity_show(struct device *dev, struct device_attribute *attr,c
 		for(retry=5; retry>0; retry--) {
 			err = asus_usb_hid_read_aprom(i2c_addr_select(addr_0x44), cmd, 4, data);
 			if (err < 0)
-				printk("[ROG6_INBOX] asus_usb_hid_read_aprom:err %d\n", err);
+				printk("[ROG6_INBOX][%s] asus_usb_hid_read_aprom:err %d\n", __func__, err);
 			else {
 				if(DEBUG)
 					printk("[ROG6_INBOX][%s] REG[0x%02x] %02x, %02x, %02x, %02x, %02x, %02x, %02x\n", __func__, cmd[0], data[0], data[1], data[2], data[3], data[4], data[5], data[6]);
@@ -4059,7 +4064,7 @@ static ssize_t humidity_show(struct device *dev, struct device_attribute *attr,c
 		for(retry=5; retry>0; retry--) {
 			err = asus_usb_hid_read_aprom(i2c_addr_select(addr_0x40), cmd, NUC1261_CMD_LEN, data);
 			if (err < 0)
-				printk("[ROG6_INBOX] asus_usb_hid_read_aprom:err %d\n", err);
+				printk("[ROG6_INBOX][%s] asus_usb_hid_read_aprom:err %d\n", __func__, err);
 
 			LSB = data[1];
 			//printk("[ROG6_INBOX][%s] REG[0x%02x] %02x, %02x, %02x\n", __func__, cmd[0], data[0], data[1], data[2]);
@@ -4069,7 +4074,7 @@ static ssize_t humidity_show(struct device *dev, struct device_attribute *attr,c
 
 			err = asus_usb_hid_read_aprom(i2c_addr_select(addr_0x40), cmd, NUC1261_CMD_LEN, data);
 			if (err < 0)
-				printk("[ROG6_INBOX] asus_usb_hid_read_aprom:err %d\n", err);
+				printk("[ROG6_INBOX][%s] asus_usb_hid_read_aprom:err %d\n", __func__, err);
 
 			MSB = data[1];
 			//printk("[ROG6_INBOX][%s] REG[0x%02x] %02x, %02x, %02x\n", __func__, cmd[0], data[0], data[1], data[2]);
@@ -4102,7 +4107,7 @@ static ssize_t sensor_id_show(struct device *dev, struct device_attribute *attr,
 
 	ret = asus_usb_hid_read_aprom(i2c_addr_select(nuc1261), cmd, NUC1261_CMD_LEN, data);
 	if (ret < 0)
-		printk("[ROG6_INBOX] asus_usb_hid_read_aprom:err %d\n", ret);
+		printk("[ROG6_INBOX][%s] asus_usb_hid_read_aprom:err %d\n", __func__, ret);
 
 	//printk("[ROG6_INBOX][%s] %x, %x, %x\n", __func__, data[0], data[1], data[2]);
 
@@ -4218,7 +4223,7 @@ static ssize_t ambient_temperature_show(struct device *dev, struct device_attrib
 
 	err = asus_usb_hid_read_aprom(i2c_addr_select(nuc1261), cmd, NUC1261_CMD_LEN, data);
 	if (err < 0)
-		printk("[ROG6_INBOX] asus_usb_hid_read_aprom:err %d\n", err);
+		printk("[ROG6_INBOX][%s] asus_usb_hid_read_aprom:err %d\n", __func__, err);
 
 	//printk("[ROG6_INBOX][%s] REG[0x%02x] %02x, %02x, %02x\n", __func__, cmd[0], data[0], data[1]);
 	if (*data > 0xF0)
@@ -4290,6 +4295,57 @@ static ssize_t aura_lpm_mode_show(struct device *dev, struct device_attribute *a
 	return snprintf(buf, PAGE_SIZE,"%d\n", g_aura_lpm);
 }
 
+static ssize_t ms51_reset_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+{
+	int err = 0;
+	int value = 0;
+	u8 cmd[NUC1261_CMD_LEN] = {0};
+
+	err = kstrtou32(buf, 10, &value);
+	if (err)
+		return count;
+
+	printk("[ROG6_INBOX][%s] set %d",__func__, value);
+
+	cmd[0] = 0x60;
+	cmd[1] = 0xF1;
+	cmd[2] = value;	//LOW:reset HIGH:active
+
+	err = asus_usb_hid_write_aprom(i2c_addr_select(nuc1261), cmd, NUC1261_CMD_LEN);
+	if (err < 0)
+		printk("[ROG6_INBOX][%s] asus_usb_hid_write_aprom:err %d\n", __func__, err);
+	else{
+		printk("[ROG6_INBOX][%s] MS51 Reset %s\n", __func__, (!value)?"LOW":"HIGH");
+	}
+	return count;
+}
+
+static ssize_t ms51_reset_show(struct device *dev, struct device_attribute *attr,char *buf)
+{
+	int ret = 0;
+	u8 *data;
+	u8 cmd[NUC1261_CMD_LEN] = {0};
+	u8 val[FEATURE_READ_COMMAND_SIZE] = {0};
+
+	data = kzalloc(FEATURE_READ_COMMAND_SIZE, GFP_KERNEL);
+	memset(data, 0, FEATURE_READ_COMMAND_SIZE);
+
+	msleep(NUC1261_CMD_DELAY);
+	memset(cmd, 0, NUC1261_CMD_LEN);
+	cmd[0] = 0x60;
+	cmd[1] = 0xF1;
+
+	ret = asus_usb_hid_read_aprom(i2c_addr_select(addr_0x18), cmd, NUC1261_CMD_LEN, data);
+	if (ret < 0)
+		printk("[ROG6_INBOX][%s] asus_usb_hid_read_aprom:err %d\n", __func__, ret);
+
+	memcpy(val, data, FEATURE_READ_COMMAND_SIZE);
+	kfree(data);
+
+	printk("[ROG6_INBOX][%s] MS51 Reset pin 0x%x, %s\n", __func__, val[1], (val[1]==0x0)?"LOW":"HIGH");
+	return snprintf(buf, PAGE_SIZE,"%d\n", (val[1]==0x0)?0:1);
+}
+
 static DEVICE_ATTR(led_test, 0664, NULL, led_test_store);
 static DEVICE_ATTR(red_pwm, 0664, red_pwm_show, red_pwm_store);
 static DEVICE_ATTR(green_pwm, 0664, green_pwm_show, green_pwm_store);
@@ -4343,6 +4399,7 @@ static DEVICE_ATTR(pd_fw_update_progress, 0664, pd_fw_update_progress_show, NULL
 static DEVICE_ATTR(pd_fw_ver, 0664, pd_fw_ver_show, NULL);
 static DEVICE_ATTR(keyboard_mode, 0664, NULL, keyboard_mode_store);
 static DEVICE_ATTR(aura_lpm_mode, 0664, aura_lpm_mode_show, aura_lpm_mode_store);
+static DEVICE_ATTR(MS51_reset, 0664, ms51_reset_show, ms51_reset_store);
 
 static struct attribute *pwm_attrs[] = {
 	&dev_attr_led_test.attr,
@@ -4398,6 +4455,7 @@ static struct attribute *pwm_attrs[] = {
 	&dev_attr_pd_fw_ver.attr,
 	&dev_attr_keyboard_mode.attr,
 	&dev_attr_aura_lpm_mode.attr,
+	&dev_attr_MS51_reset.attr,
 	NULL
 };
 
@@ -4487,13 +4545,15 @@ static int thermometer_check(void)
 	msleep(50);
 	data = kzalloc(FEATURE_READ_COMMAND_SIZE, GFP_KERNEL);
 
-	for (retry = 10; retry > 0; retry--) {
+	for (retry = RETRY_TIMES; retry > 0; retry--) {
 		memset(data, 0, 3);
 		cmd[0] = 0xFE;
 
 		err = asus_usb_hid_read_aprom(i2c_addr_select(addr_0x40), cmd, NUC1261_CMD_LEN, data);
-		if (err < 0)
-		printk("[ROG6_INBOX] asus_usb_hid_read_aprom:err %d\n", err);
+		if (err < 0){
+			printk("[ROG6_INBOX][%s] asus_usb_hid_read_aprom:err %d\n", __func__, err);
+			continue;
+		}
 
 		LSB = data[1];
 		if(DEBUG)
@@ -4506,13 +4566,15 @@ static int thermometer_check(void)
 			break;
 	}
 
-	for (retry = 10; retry > 0; retry--) {
+	for (retry = RETRY_TIMES; retry > 0; retry--) {
 		memset(data, 0, FEATURE_READ_COMMAND_SIZE);
 		cmd[0] = 0xFF;
 
 		err = asus_usb_hid_read_aprom(i2c_addr_select(addr_0x40), cmd, NUC1261_CMD_LEN, data);
-		if (err < 0)
-		printk("[ROG6_INBOX] asus_usb_hid_read_aprom:err %d\n", err);
+		if (err < 0){
+			printk("[ROG6_INBOX][%s] asus_usb_hid_read_aprom:err %d\n", __func__, err);
+			continue;
+		}
 
 		MSB = data[1];
 		if(DEBUG)
@@ -4550,6 +4612,7 @@ static int rog6_inbox_usb_probe(struct hid_device *hdev, const struct hid_device
 
 	// Default point to NUC1261
 	IC_switch = nuc1261;
+	err_cnt = 0; // Reset error count
 
 	printk("[ROG6_INBOX] hid->name : %s\n", hdev->name);
 #if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
@@ -4645,12 +4708,20 @@ static int rog6_inbox_usb_probe(struct hid_device *hdev, const struct hid_device
 
 	DEBUG = false;
 
+	if(err_cnt < 10) {
 #if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
-	FANDG_USBID_detect = true;
-	FANDG_connect(1);
+		FANDG_USBID_detect = true;
+		FANDG_connect(1);
 #endif
-
-	return 0;
+		return 0;
+	}else {
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+		FANDG_USBID_detect = true;
+		FANDG_connect(0);
+#endif
+		printk("[ROG6_INBOX][%s] Fail, because err_cnt %d abnormal.\n", __func__, err_cnt);
+		return 0;
+	}
 
 unregister:
 	aura_sync_unregister(drvdata);

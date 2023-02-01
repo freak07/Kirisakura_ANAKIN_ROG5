@@ -22,6 +22,7 @@
 #define NUC1261_CMD_DELAY_WA 0	//0ms
 #define NUC1261_CMD_DELAY 10	//10ms
 #define AURA_INBOX_PD_FILE_NAME "ASUS_ROG_FAN6_PD.bin"
+#define RETRY_TIMES 10
 
 struct inbox_drvdata {
 	struct led_classdev led;
@@ -63,6 +64,9 @@ static bool DEBUG;
 
 // Key GPIO Select
 static int select_key;
+
+// USB command error count
+static int err_cnt;
 
 enum ic_list
 {
