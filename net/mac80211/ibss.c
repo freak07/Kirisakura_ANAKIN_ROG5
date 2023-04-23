@@ -542,6 +542,10 @@ int ieee80211_ibss_finish_csa(struct ieee80211_sub_if_data *sdata)
 
 	sdata_assert_lock(sdata);
 
+	/* When not connected/joined, sending CSA doesn't make sense. */
+	if (ifibss->state != IEEE80211_IBSS_MLME_JOINED)
+		return -ENOLINK;
+
 	/* update cfg80211 bss information with the new channel */
 	if (!is_zero_ether_addr(ifibss->bssid)) {
 		cbss = cfg80211_get_bss(sdata->local->hw.wiphy,
@@ -1595,7 +1599,7 @@ void ieee80211_rx_mgmt_probe_beacon(struct ieee80211_sub_if_data *sdata,
 				    struct ieee80211_rx_status *rx_status)
 {
 	size_t baselen;
-	struct ieee802_11_elems *elems;
+	struct ieee802_11_elems elems;
 
 	BUILD_BUG_ON(offsetof(typeof(mgmt->u.probe_resp), variable) !=
 		     offsetof(typeof(mgmt->u.beacon), variable));
@@ -1608,14 +1612,10 @@ void ieee80211_rx_mgmt_probe_beacon(struct ieee80211_sub_if_data *sdata,
 	if (baselen > len)
 		return;
 
-	elems = ieee802_11_parse_elems(mgmt->u.probe_resp.variable,
-				       len - baselen, false,
-				       mgmt->bssid, NULL);
+	ieee802_11_parse_elems(mgmt->u.probe_resp.variable, len - baselen,
+			       false, &elems, mgmt->bssid, NULL);
 
-	if (elems) {
-		ieee80211_rx_bss_info(sdata, mgmt, len, rx_status, elems);
-		kfree(elems);
-	}
+	ieee80211_rx_bss_info(sdata, mgmt, len, rx_status, &elems);
 }
 
 void ieee80211_ibss_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
@@ -1624,7 +1624,7 @@ void ieee80211_ibss_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_rx_status *rx_status;
 	struct ieee80211_mgmt *mgmt;
 	u16 fc;
-	struct ieee802_11_elems *elems;
+	struct ieee802_11_elems elems;
 	int ies_len;
 
 	rx_status = IEEE80211_SKB_RXCB(skb);
@@ -1661,16 +1661,15 @@ void ieee80211_ibss_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 			if (ies_len < 0)
 				break;
 
-			elems = ieee802_11_parse_elems(
+			ieee802_11_parse_elems(
 				mgmt->u.action.u.chan_switch.variable,
-				ies_len, true, mgmt->bssid, NULL);
+				ies_len, true, &elems, mgmt->bssid, NULL);
 
-			if (elems && !elems->parse_error)
-				ieee80211_rx_mgmt_spectrum_mgmt(sdata, mgmt,
-								skb->len,
-								rx_status,
-								elems);
-			kfree(elems);
+			if (elems.parse_error)
+				break;
+
+			ieee80211_rx_mgmt_spectrum_mgmt(sdata, mgmt, skb->len,
+							rx_status, &elems);
 			break;
 		}
 	}

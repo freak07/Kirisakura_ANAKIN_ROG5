@@ -1519,6 +1519,8 @@ struct ieee802_11_elems {
 	u8 country_elem_len;
 	u8 bssid_index_len;
 
+	void *nontx_profile;
+
 	/* whether a parse error occurred while retrieving these elements */
 	bool parse_error;
 
@@ -1978,18 +1980,18 @@ static inline void ieee80211_tx_skb(struct ieee80211_sub_if_data *sdata,
 	ieee80211_tx_skb_tid(sdata, skb, 7);
 }
 
-struct ieee802_11_elems *ieee802_11_parse_elems_crc(const u8 *start, size_t len,
-						    bool action,
-						    u64 filter, u32 crc,
-						    const u8 *transmitter_bssid,
-						    const u8 *bss_bssid);
-static inline struct ieee802_11_elems *
-ieee802_11_parse_elems(const u8 *start, size_t len, bool action,
-		       const u8 *transmitter_bssid,
-		       const u8 *bss_bssid)
+void ieee802_11_parse_elems_crc(const u8 *start, size_t len, bool action,
+				struct ieee802_11_elems *elems,
+				u64 filter, u32 crc, u8 *transmitter_bssid,
+				u8 *bss_bssid);
+static inline void ieee802_11_parse_elems(const u8 *start, size_t len,
+					  bool action,
+					  struct ieee802_11_elems *elems,
+					  u8 *transmitter_bssid,
+					  u8 *bss_bssid)
 {
-	return ieee802_11_parse_elems_crc(start, len, action, 0, 0,
-					  transmitter_bssid, bss_bssid);
+	ieee802_11_parse_elems_crc(start, len, action, elems, 0, 0,
+				   transmitter_bssid, bss_bssid);
 }
 
 

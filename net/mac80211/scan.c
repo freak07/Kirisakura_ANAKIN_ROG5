@@ -9,7 +9,7 @@
  * Copyright 2007, Michael Wu <flamingice@sourmilk.net>
  * Copyright 2013-2015  Intel Mobile Communications GmbH
  * Copyright 2016-2017  Intel Deutschland GmbH
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2019 Intel Corporation
  */
 
 #include <linux/if_arp.h>
@@ -148,7 +148,7 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 	};
 	bool signal_valid;
 	struct ieee80211_sub_if_data *scan_sdata;
-	struct ieee802_11_elems *elems;
+	struct ieee802_11_elems elems;
 	size_t baselen;
 	u8 *elements;
 
@@ -197,10 +197,8 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 	if (baselen > len)
 		return NULL;
 
-	elems = ieee802_11_parse_elems(elements, len - baselen, false,
+	ieee802_11_parse_elems(elements, len - baselen, false, &elems,
 			       mgmt->bssid, cbss->bssid);
-	if (!elems)
-		return NULL;
 
 	/* In case the signal is invalid update the status */
 	signal_valid = abs(channel->center_freq - cbss->channel->center_freq)
@@ -209,16 +207,16 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 		rx_status->flag |= RX_FLAG_NO_SIGNAL_VAL;
 
 	bss = (void *)cbss->priv;
-	ieee80211_update_bss_from_elems(local, bss, elems, rx_status, beacon);
+	ieee80211_update_bss_from_elems(local, bss, &elems, rx_status, beacon);
 
 	list_for_each_entry(non_tx_cbss, &cbss->nontrans_list, nontrans_list) {
 		non_tx_bss = (void *)non_tx_cbss->priv;
 
-		ieee80211_update_bss_from_elems(local, non_tx_bss, elems,
+		ieee80211_update_bss_from_elems(local, non_tx_bss, &elems,
 						rx_status, beacon);
 	}
 
-	kfree(elems);
+	kfree(elems.nontx_profile);
 
 	return bss;
 }
@@ -439,15 +437,18 @@ static void __ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 	scan_req = rcu_dereference_protected(local->scan_req,
 					     lockdep_is_held(&local->mtx));
 
-	if (scan_req != local->int_scan_req) {
-		local->scan_info.aborted = aborted;
-		cfg80211_scan_done(scan_req, &local->scan_info);
-	}
 	RCU_INIT_POINTER(local->scan_req, NULL);
 	RCU_INIT_POINTER(local->scan_sdata, NULL);
 
 	local->scanning = 0;
 	local->scan_chandef.chan = NULL;
+
+	synchronize_rcu();
+
+	if (scan_req != local->int_scan_req) {
+		local->scan_info.aborted = aborted;
+		cfg80211_scan_done(scan_req, &local->scan_info);
+	}
 
 	/* Set power back to normal operating levels. */
 	ieee80211_hw_config(local, 0);

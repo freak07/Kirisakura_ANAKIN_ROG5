@@ -104,6 +104,7 @@ static inline void bss_ref_get(struct cfg80211_registered_device *rdev,
 	lockdep_assert_held(&rdev->bss_lock);
 
 	bss->refcount++;
+
 	if (bss->pub.hidden_beacon_bss)
 		bss_from_pub(bss->pub.hidden_beacon_bss)->refcount++;
 
@@ -290,7 +291,8 @@ static size_t cfg80211_gen_new_ie(const u8 *ie, size_t ielen,
 			 * determine if they are the same ie.
 			 */
 			if (tmp_old[0] == WLAN_EID_VENDOR_SPECIFIC) {
-				if (!memcmp(tmp_old + 2, tmp + 2, 5)) {
+				if (tmp_old[1] >= 5 && tmp[1] >= 5 &&
+				    !memcmp(tmp_old + 2, tmp + 2, 5)) {
 					/* same vendor ie, copy from
 					 * subelement
 					 */
@@ -375,15 +377,6 @@ cfg80211_add_nontrans_list(struct cfg80211_bss *trans_bss,
 	ssid_len = ssid[1];
 	ssid = ssid + 2;
 
-	/*
-	 * This is a bit weird - it's not on the list, but already on another
-	 * one! The only way that could happen is if there's some BSSID/SSID
-	 * shared by multiple APs in their multi-BSSID profiles, potentially
-	 * with hidden SSID mixed in ... ignore it.
-	 */
-	if (!list_empty(&nontrans_bss->nontrans_list))
-		return -EINVAL;
-
 	/* check if nontrans_bss is in the list */
 	list_for_each_entry(bss, &trans_bss->nontrans_list, nontrans_list) {
 		if (is_bss(bss, nontrans_bss->bssid, ssid, ssid_len)) {
@@ -393,6 +386,15 @@ cfg80211_add_nontrans_list(struct cfg80211_bss *trans_bss,
 	}
 
 	rcu_read_unlock();
+
+	/*
+	 * This is a bit weird - it's not on the list, but already on another
+	 * one! The only way that could happen is if there's some BSSID/SSID
+	 * shared by multiple APs in their multi-BSSID profiles, potentially
+	 * with hidden SSID mixed in ... ignore it.
+	 */
+	if (!list_empty(&nontrans_bss->nontrans_list))
+		return -EINVAL;
 
 	/* add to the list */
 	list_add_tail(&nontrans_bss->nontrans_list, &trans_bss->nontrans_list);
@@ -1165,7 +1167,9 @@ cfg80211_update_known_bss(struct cfg80211_registered_device *rdev,
 		if (old == rcu_access_pointer(known->pub.ies))
 			rcu_assign_pointer(known->pub.ies, new->pub.beacon_ies);
 
-		cfg80211_update_hidden_bsses(known, new->pub.beacon_ies, old);
+		cfg80211_update_hidden_bsses(known,
+					     rcu_access_pointer(new->pub.beacon_ies),
+					     old);
 
 		if (old)
 			kfree_rcu((struct cfg80211_bss_ies *)old, rcu_head);
