@@ -4,6 +4,11 @@
 
 #include <linux/types.h>
 
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+//[PM_debug+++]
+extern int qrtr_first_msg;
+//[PM_debug---]
+#endif
 struct sk_buff;
 
 /* endpoint node id auto assignment */

@@ -625,6 +625,11 @@ enum rtl_register_content {
 #define rx_reserved_size(x)	((x) + VLAN_ETH_HLEN + ETH_FCS_LEN + \
 				 sizeof(struct rx_desc) + RX_ALIGN)
 
+#if defined ASUS_ZS673KS_PROJECT
+extern int get_prodock_state (void);
+extern char ProDock_fw_ver[5];
+#endif
+
 /* rtl8152 flags */
 enum rtl8152_flags {
 	RTL8152_UNPLUG = 0,
@@ -837,6 +842,16 @@ static unsigned int agg_buf_sz = 16384;
 
 #define RTL_LIMITED_TSO_SIZE	(agg_buf_sz - sizeof(struct tx_desc) - \
 				 VLAN_ETH_HLEN - ETH_FCS_LEN)
+
+static int net_status;
+module_param(net_status, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(net_status, "8153 eth status");
+
+int get_net_status(void)
+{
+	return net_status;
+}
+EXPORT_SYMBOL_GPL(get_net_status);
 
 static
 int get_registers(struct r8152 *tp, u16 value, u16 index, u16 size, void *data)
@@ -4138,6 +4153,14 @@ static void set_carrier(struct r8152 *tp)
 			napi_enable(&tp->napi);
 			netif_wake_queue(netdev);
 			netif_info(tp, link, netdev, "carrier on\n");
+			net_status = 1;
+			printk("r8152 net_status=%d\n", net_status);
+#if defined ASUS_ZS673KS_PROJECT
+			if (get_prodock_state() != 0 && strcmp(ProDock_fw_ver,"0423")==0) {
+				printk("r8152 usb_disable_autosuspend\n");
+				usb_disable_autosuspend(tp->udev);
+			}
+#endif
 		} else if (netif_queue_stopped(netdev) &&
 			   skb_queue_len(&tp->tx_queue) < tp->tx_qlen) {
 			netif_wake_queue(netdev);
@@ -4151,6 +4174,14 @@ static void set_carrier(struct r8152 *tp)
 			napi_enable(napi);
 			tasklet_enable(&tp->tx_tl);
 			netif_info(tp, link, netdev, "carrier off\n");
+			net_status = 0;
+			printk("r8152 net_status=%d\n", net_status);
+#if defined ASUS_ZS673KS_PROJECT
+			if (get_prodock_state() != 0 && strcmp(ProDock_fw_ver,"0423")==0 ) {
+				printk("r8152 usb_enable_autosuspend\n");
+				usb_enable_autosuspend(tp->udev);
+			}
+#endif
 		}
 	}
 }
@@ -4707,6 +4738,7 @@ static int rtl8152_runtime_resume(struct r8152 *tp)
 		if (!list_empty(&tp->rx_done))
 			napi_schedule(&tp->napi);
 
+		printk("r8152 %s\n", __func__);
 		usb_submit_urb(tp->intr_urb, GFP_NOIO);
 	} else {
 		if (netdev->flags & IFF_UP)
@@ -4728,6 +4760,7 @@ static int rtl8152_system_resume(struct r8152 *tp)
 		tp->rtl_ops.up(tp);
 		netif_carrier_off(netdev);
 		set_bit(WORK_ENABLE, &tp->flags);
+		printk("r8152 %s\n", __func__);
 		usb_submit_urb(tp->intr_urb, GFP_NOIO);
 	}
 
@@ -4765,6 +4798,7 @@ static int rtl8152_runtime_suspend(struct r8152 *tp)
 		}
 
 		clear_bit(WORK_ENABLE, &tp->flags);
+		printk("r8152 %s\n", __func__);
 		usb_kill_urb(tp->intr_urb);
 
 		tp->rtl_ops.autosuspend_en(tp, true);
@@ -4799,6 +4833,7 @@ static int rtl8152_system_suspend(struct r8152 *tp)
 		struct napi_struct *napi = &tp->napi;
 
 		clear_bit(WORK_ENABLE, &tp->flags);
+		printk("r8152 %s\n", __func__);
 		usb_kill_urb(tp->intr_urb);
 		tasklet_disable(&tp->tx_tl);
 		napi_disable(napi);
@@ -4816,6 +4851,7 @@ static int rtl8152_suspend(struct usb_interface *intf, pm_message_t message)
 	struct r8152 *tp = usb_get_intfdata(intf);
 	int ret;
 
+	printk("r8152 %s\n", __func__);
 	mutex_lock(&tp->control);
 
 	if (PMSG_IS_AUTO(message))
@@ -4833,6 +4869,7 @@ static int rtl8152_resume(struct usb_interface *intf)
 	struct r8152 *tp = usb_get_intfdata(intf);
 	int ret;
 
+	printk("r8152 %s\n", __func__);
 	mutex_lock(&tp->control);
 
 	if (test_bit(SELECTIVE_SUSPEND, &tp->flags))
@@ -4849,10 +4886,11 @@ static int rtl8152_reset_resume(struct usb_interface *intf)
 {
 	struct r8152 *tp = usb_get_intfdata(intf);
 
+	printk("r8152 %s\n", __func__);
 	clear_bit(SELECTIVE_SUSPEND, &tp->flags);
 	tp->rtl_ops.init(tp);
 	queue_delayed_work(system_long_wq, &tp->hw_phy_work, 0);
-	set_ethernet_addr(tp);
+	//set_ethernet_addr(tp);
 	return rtl8152_resume(intf);
 }
 
@@ -5766,6 +5804,13 @@ static int rtl8152_probe(struct usb_interface *intf,
 		device_set_wakeup_enable(&udev->dev, true);
 	else
 		device_set_wakeup_enable(&udev->dev, false);
+
+#if defined ASUS_ZS673KS_PROJECT
+	if (get_prodock_state() != 0 && strcmp(ProDock_fw_ver,"0423")==0 ) {
+		printk("r8152 probe, usb_enable_autosuspend\n");
+		usb_enable_autosuspend(udev);
+	}
+#endif
 
 	netif_info(tp, probe, netdev, "%s\n", DRIVER_VERSION);
 

@@ -1417,6 +1417,10 @@ struct dwc3 {
 	 */
 	bool			ignore_wakeup_src_in_hostmode;
 	int			retries_on_error;
+#if defined ASUS_ZS673KS_PROJECT
+	int			retries_reset;
+	int			retries_suspend;
+#endif
 	u32			gen2_tx_de_emph;
 	u32			gen2_tx_de_emph1;
 	u32			gen2_tx_de_emph2;

@@ -617,7 +617,7 @@ config ZSMALLOC
 config ZSMALLOC_STAT
 	bool "Export zsmalloc statistics"
 	depends on ZSMALLOC
-	select DEBUG_FS
+#	select DEBUG_FS
 	help
 	  This option enables code in the zsmalloc to collect various
 	  statistics about whats happening in zsmalloc and exports that

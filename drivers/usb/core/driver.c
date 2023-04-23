@@ -1138,6 +1138,8 @@ static int usb_suspend_device(struct usb_device *udev, pm_message_t msg)
 	struct usb_device_driver	*udriver;
 	int				status = 0;
 
+	printk("[usb] usb_suspend_device\n");
+
 	if (udev->state == USB_STATE_NOTATTACHED ||
 			udev->state == USB_STATE_SUSPENDED)
 		goto done;
@@ -1193,6 +1195,8 @@ static int usb_suspend_interface(struct usb_device *udev,
 {
 	struct usb_driver	*driver;
 	int			status = 0;
+
+	printk("[usb] usb_suspend_interface\n");
 
 	if (udev->state == USB_STATE_NOTATTACHED ||
 			intf->condition == USB_INTERFACE_UNBOUND)
@@ -1295,6 +1299,8 @@ static int usb_suspend_both(struct usb_device *udev, pm_message_t msg)
 	int			status = 0;
 	int			i = 0, n = 0;
 	struct usb_interface	*intf;
+
+	printk("[usb] usb_suspend_both\n");
 
 	if (udev->state == USB_STATE_NOTATTACHED ||
 			udev->state == USB_STATE_SUSPENDED)
@@ -1428,6 +1434,8 @@ static void choose_wakeup(struct usb_device *udev, pm_message_t msg)
 {
 	int	w;
 
+	printk("[usb] choose_wakeup +++");
+
 	/* Remote wakeup is needed only when we actually go to sleep.
 	 * For things like FREEZE and QUIESCE, if the device is already
 	 * autosuspended then its current wakeup setting is okay.
@@ -1442,13 +1450,18 @@ static void choose_wakeup(struct usb_device *udev, pm_message_t msg)
 	 * actually want it.
 	 */
 	w = device_may_wakeup(&udev->dev);
-
+	printk("[usb] choose_wakeup: device_may_wakeup= %d, do_remote_wakeup=%d", w, udev->do_remote_wakeup);
+	
 	/* If the device is autosuspended with the wrong wakeup setting,
 	 * autoresume now so the setting can be changed.
 	 */
-	if (udev->state == USB_STATE_SUSPENDED && w != udev->do_remote_wakeup)
+	if (udev->state == USB_STATE_SUSPENDED && w != udev->do_remote_wakeup) {
+		printk("[usb] need remote wakeup, calling resume");
 		pm_runtime_resume(&udev->dev);
+	}
+
 	udev->do_remote_wakeup = w;
+	printk("[usb] choose_wakeup ---");
 }
 
 /* The device lock is held by the PM core */
@@ -1457,12 +1470,15 @@ int usb_suspend(struct device *dev, pm_message_t msg)
 	struct usb_device	*udev = to_usb_device(dev);
 	int r;
 
+	printk("[usb] usb_suspend+++\n");
+	
 	unbind_no_pm_drivers_interfaces(udev);
 
 	/* From now on we are sure all drivers support suspend/resume
 	 * but not necessarily reset_resume()
 	 * so we may still need to unbind and rebind upon resume
 	 */
+	printk("[usb] usb_suspend, choose_wakeup\n");
 	choose_wakeup(udev, msg);
 	r = usb_suspend_both(udev, msg);
 	if (r)
@@ -1471,6 +1487,7 @@ int usb_suspend(struct device *dev, pm_message_t msg)
 	if (udev->quirks & USB_QUIRK_DISCONNECT_SUSPEND)
 		usb_port_disable(udev);
 
+	printk("[usb] usb_suspend---\n");
 	return 0;
 }
 
@@ -1528,6 +1545,7 @@ int usb_resume(struct device *dev, pm_message_t msg)
  */
 void usb_enable_autosuspend(struct usb_device *udev)
 {
+	printk("[usb] usb_enable_autosuspend\n");
 	pm_runtime_allow(&udev->dev);
 }
 EXPORT_SYMBOL_GPL(usb_enable_autosuspend);
@@ -1543,6 +1561,7 @@ EXPORT_SYMBOL_GPL(usb_enable_autosuspend);
  */
 void usb_disable_autosuspend(struct usb_device *udev)
 {
+	printk("[usb] usb_disable_autosuspend\n");
 	pm_runtime_forbid(&udev->dev);
 }
 EXPORT_SYMBOL_GPL(usb_disable_autosuspend);
@@ -1566,6 +1585,8 @@ EXPORT_SYMBOL_GPL(usb_disable_autosuspend);
 void usb_autosuspend_device(struct usb_device *udev)
 {
 	int	status;
+
+	printk("[usb] usb_autosuspend_device\n");
 
 	usb_mark_last_busy(udev);
 	status = pm_runtime_put_sync_autosuspend(&udev->dev);
@@ -1775,6 +1796,8 @@ static int autosuspend_check(struct usb_device *udev)
 	int			w, i;
 	struct usb_interface	*intf;
 
+	printk("[usb] autosuspend_check\n");
+
 	if (udev->state == USB_STATE_NOTATTACHED)
 		return -ENODEV;
 
@@ -1835,6 +1858,8 @@ int usb_runtime_suspend(struct device *dev)
 {
 	struct usb_device	*udev = to_usb_device(dev);
 	int			status;
+
+	printk("[usb] usb_runtime_suspend\n");	
 
 	/* A USB device can be suspended if it passes the various autosuspend
 	 * checks.  Runtime suspend for a USB device means suspending all the

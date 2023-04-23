@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config SENSORS_SSC
+	bool "Enable Sensors Driver Support for SSC"
+	help
+	  Add support for sensors SSC driver.
+	  This driver is used for exercising sensors use case,
+	  time syncing with ADSP clock.
+
+config SENSORS_ICM206XX
+	tristate "ICM206XX 6-axis gyroscope and acceleromater combo"
+	depends on INPUT && SPI
+	help
+	  Say Y here if you want to support InvenSense ICM206XX
+	  connected via an I2C bus.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ICM206XX.

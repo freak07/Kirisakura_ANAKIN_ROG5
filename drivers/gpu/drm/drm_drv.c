@@ -963,7 +963,6 @@ int drm_dev_register(struct drm_device *dev, unsigned long flags)
 	int ret;
 
 	mutex_lock(&drm_global_mutex);
-
 	ret = drm_minor_register(dev, DRM_MINOR_RENDER);
 	if (ret)
 		goto err_minors;

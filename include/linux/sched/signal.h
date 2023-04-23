@@ -327,6 +327,7 @@ int force_sig_ptrace_errno_trap(int errno, void __user *addr);
 extern int send_sig_info(int, struct kernel_siginfo *, struct task_struct *);
 extern void force_sigsegv(int sig);
 extern int force_sig_info(struct kernel_siginfo *);
+extern int force_sig_info_to_task(struct kernel_siginfo *info, struct task_struct *t);
 extern int __kill_pgrp_info(int sig, struct kernel_siginfo *info, struct pid *pgrp);
 extern int kill_pid_info(int sig, struct kernel_siginfo *info, struct pid *pid);
 extern int kill_pid_usb_asyncio(int sig, int errno, sigval_t addr, struct pid *,

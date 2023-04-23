@@ -62,6 +62,7 @@ header-test- += sound/sfnt_info.h
 header-test- += xen/evtchn.h
 header-test- += xen/gntdev.h
 header-test- += xen/privcmd.h
+header-test- += linux/usb/f_mtp.h
 
 header-test- += camera/media/cam_jpeg.h
 header-test- += camera/media/cam_icp.h

@@ -290,6 +290,7 @@ struct ucsi_connector {
 
 	struct ucsi *ucsi;
 	struct mutex lock; /* port lock */
+	struct mutex swap_lock; /* swap lock */
 	struct work_struct work;
 	struct completion complete;
 

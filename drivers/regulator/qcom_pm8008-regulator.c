@@ -19,6 +19,8 @@
 #include <linux/regulator/of_regulator.h>
 #include <linux/string.h>
 
+#include <linux/proc_fs.h>
+
 #define pm8008_err(reg, message, ...) \
 	pr_err("%s: " message, (reg)->rdesc.name, ##__VA_ARGS__)
 #define pm8008_debug(reg, message, ...) \
@@ -67,6 +69,10 @@
 #define STRONG_PD_EN_BIT		BIT(7)
 
 #define PM8008_MAX_LDO			7
+
+#define	Camera_PM8008_status	"driver/Camera_PM8008_status"
+static bool probe_success = 0;
+static uint8_t probe_num = 0;
 
 struct pm8008_chip {
 	struct device		*dev;
@@ -118,6 +124,35 @@ static struct regulator_data reg_data[PM8008_MAX_LDO] = {
 	{"l6", "vdd_l6",    1504000, 3400000, 10000, 300000},
 	{"l7", "vdd_l7",    1504000, 3400000, 10000, 300000},
 };
+
+
+static int camera_pm8008_status_read(struct seq_file *buf, void *v)
+{
+	if (probe_num == 2)
+	{
+		probe_success = 1;
+	}else
+		probe_success = 0;
+
+	seq_printf(buf, "%d\n", probe_success);
+	return 0;
+}
+
+
+static int camera_pm8008_status_open(struct inode *inode, struct	 file *file)
+{
+	return single_open(file, camera_pm8008_status_read, NULL);
+}
+
+static struct file_operations camera_pm8008_status_fops = {
+	.owner = THIS_MODULE,
+	.open = camera_pm8008_status_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+
 
 /* common functions */
 static int pm8008_read(struct regmap *regmap,  u16 reg, u8 *val, int count)
@@ -613,6 +648,7 @@ static int pm8008_register_ldo(struct pm8008_regulator *pm8008_reg,
 		pr_err("%s: failed to get regulator base rc=%d\n", name, rc);
 		return rc;
 	}
+
 	pm8008_reg->base = base;
 
 	pm8008_reg->hpm_min_load_ua = reg_data[i].hpm_min_load_ua;
@@ -904,6 +940,7 @@ static int pm8008_chip_init_regulator(struct pm8008_chip *chip)
 	chip->aggr_enabled = chip->framework_enabled;
 
 	chip->rdev = devm_regulator_register(chip->dev, &chip->rdesc, &cfg);
+
 	if (IS_ERR(chip->rdev)) {
 		rc = PTR_ERR(chip->rdev);
 		chip->rdev = NULL;
@@ -929,6 +966,7 @@ static int pm8008_chip_probe(struct platform_device *pdev)
 {
 	int rc = 0;
 	struct pm8008_chip *chip;
+	static uint8_t has_created = 0;
 
 	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
@@ -972,6 +1010,14 @@ static int pm8008_chip_probe(struct platform_device *pdev)
 		}
 	}
 
+	if(!has_created)
+	{
+		proc_create(Camera_PM8008_status, 0x0644, NULL, &camera_pm8008_status_fops);
+		has_created = 1;
+	}
+
+	probe_num++;
+
 	platform_set_drvdata(pdev, chip);
 	pr_debug("PM8008 chip registered\n");
 	return 0;
@@ -987,6 +1033,7 @@ static int pm8008_chip_remove(struct platform_device *pdev)
 	if (rc  < 0)
 		pr_err("failed to disable chip rc=%d\n", rc);
 
+	probe_num--;
 	return 0;
 }
 

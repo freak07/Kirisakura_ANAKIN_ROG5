@@ -1,0 +1,1 @@
+obj-$(CONFIG_TOUCHSCREEN_FTS) += focaltech_test_rog5.o

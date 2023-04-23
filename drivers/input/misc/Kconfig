@@ -914,4 +914,39 @@ config INPUT_STPMIC1_ONKEY
 	  To compile this driver as a module, choose M here: the
 	  module will be called stpmic1_onkey.
 
+config INPUT_SX932X
+	tristate "INPUT_SX932X cap sensor input device"
+	depends on MACH_ASUS_ZS673KS || MACH_ASUS_PICASSO
+	default m
+	help
+	  Say Y here if you want to support a cap sensor connected via I2C
+	  with a INPUT_SX932X.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called INPUT_SX932X.
+
+config INPUT_SX932X_2ND
+	tristate "INPUT_SX932X_2ND cap sensor input device"
+	depends on MACH_ASUS_ZS673KS || MACH_ASUS_PICASSO
+	default m
+	help
+	  Say Y here if you want to support a cap sensor connected via I2C
+	  with a INPUT_SX932X_2ND.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called INPUT_SX932X_2ND.
+
+config ASUS
+       default n
+       help
+          Say Y here if charge ready.
+          If unsure, say N.
+
+config CAP_DEBUG
+       default n
+       help
+          Say Y here if charge ready.
+          If unsure, say N.           
+          
 endif
+

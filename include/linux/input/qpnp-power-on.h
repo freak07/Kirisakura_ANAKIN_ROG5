@@ -66,6 +66,9 @@ int qpnp_pon_set_restart_reason(enum pon_restart_reason reason);
 bool qpnp_pon_check_hard_reset_stored(void);
 int qpnp_pon_modem_pwr_off(enum pon_power_off_type type);
 
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+int asus_enable_resin_irq_wake(bool en);
+#endif
 #else
 
 static int qpnp_pon_system_pwr_off(enum pon_power_off_type type)

@@ -7,7 +7,11 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 
-int msm_show_resume_irq_mask;
+//[PM_debug +++]
+//int msm_show_resume_irq_mask;
+/*Mask IRQ triggered number during gic_show_resume_irq() in kernel/drivers/irqchip/irq-gic-v3.c */
+int msm_show_resume_irq_mask = 1; 
+//[PM_debug ---]
 
 module_param_named(
 	debug_mask, msm_show_resume_irq_mask, int, 0664);

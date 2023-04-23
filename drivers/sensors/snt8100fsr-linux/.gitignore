@@ -1,0 +1,11 @@
+*.pro
+*.pro.user
+*.ko
+*.mod.*
+*.o
+*.cmd
+.snt8100fsr.*
+modules.order
+Module.symvers
+.tmp_versions
+*.autosave

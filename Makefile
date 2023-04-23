@@ -1013,13 +1013,58 @@ include scripts/Makefile.kasan
 include scripts/Makefile.extrawarn
 include scripts/Makefile.ubsan
 
+ifneq ($(ASUS_BUILD_NUMBER),)
+       KBUILD_CPPFLAGS += -DASUS_SW_VER=\"$(ASUS_BUILD_NUMBER)\"
+else
+       KBUILD_CPPFLAGS += -DASUS_SW_VER=\"$(ASUS_BUILD_PROJECT)_ENG\"
+endif
+
 # Add user supplied CPPFLAGS, AFLAGS and CFLAGS as the last assignments
 KBUILD_CPPFLAGS += $(KCPPFLAGS)
 KBUILD_AFLAGS   += $(KAFLAGS)
 KBUILD_CFLAGS   += $(KCFLAGS)
 
+ifeq ($(TARGET_BUILD_VARIANT), user)
+KBUILD_CPPFLAGS += -DASUS_SHIP_BUILD=1
+endif
+
 KBUILD_LDFLAGS_MODULE += --build-id
 LDFLAGS_vmlinux += --build-id
+
+# +++ ASUS_BSP : Add ASUS build option to KBUILD_CPPFLAGS
+
+# add ASUS user/userdebug/ASUS_FTM/DXO build option
+ifneq ($(TARGET_BUILD_VARIANT),user)
+ifeq ($(ASUS_FTM),y)
+KBUILD_CPPFLAGS += -DASUS_FTM_BUILD=1
+else
+KBUILD_CPPFLAGS += -DASUS_USERDEBUG_BUILD=1
+endif
+else
+KBUILD_CPPFLAGS += -DASUS_USER_BUILD=1
+endif
+
+ifeq ($(ASUS_DXO),y)
+KBUILD_CPPFLAGS += -DASUS_DXO=1
+endif
+
+# Add ASUS build Project to KBUILD_CPPFLAGS
+ifeq ($(CONFIG_MACH_ASUS_ZS673KS),y)
+KBUILD_CPPFLAGS += -DASUS_ZS673KS_PROJECT=1
+else ifeq ($(CONFIG_MACH_ASUS_PICASSO),y)
+KBUILD_CPPFLAGS += -DASUS_PICASSO_PROJECT=1
+endif
+
+ifeq ($(CONFIG_MACH_ASUS_SAKE),y)
+KBUILD_CPPFLAGS += -DASUS_SAKE_PROJECT=1
+else ifeq ($(CONFIG_MACH_ASUS_VODKA),y)
+KBUILD_CPPFLAGS += -DASUS_VODKA_PROJECT=1
+endif
+# --- ASUS_BSP : Add ASUS build option to KBUILD_CPPFLAGS
+#ifeq ($(CONFIG_PXLW_IRIS_I6),y)
+ifeq ($(CONFIG_MACH_ASUS_ZS673KS),y)
+KBUILD_CPPFLAGS += -DCONFIG_PXLW_IRIS
+endif
 
 ifeq ($(CONFIG_STRIP_ASM_SYMS),y)
 LDFLAGS_vmlinux	+= $(call ld-option, -X,)

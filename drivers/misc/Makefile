@@ -58,10 +58,17 @@ obj-y				+= cardreader/
 obj-$(CONFIG_PVPANIC)   	+= pvpanic.o
 obj-$(CONFIG_HABANA_AI)		+= habanalabs/
 obj-$(CONFIG_XILINX_SDFEC)	+= xilinx_sdfec.o
-obj-$(CONFIG_UID_SYS_STATS)	+= uid_sys_stats.o
+ifeq ($(ASUS_BUILD_PROJECT),ZS673KS)
+	obj-$(CONFIG_UID_SYS_STATS)	+= uid_sys_stats_zs673ks.o
+else
+	obj-$(CONFIG_UID_SYS_STATS)	+= uid_sys_stats.o
+endif
 obj-$(CONFIG_QSEECOM)		+= qseecom-mod.o
 qseecom-mod-y			:= qseecom.o
 qseecom-mod-$(CONFIG_COMPAT)	+= compat_qseecom.o
 obj-$(CONFIG_PROFILER)			+= profiler.o
 obj-$(CONFIG_WIGIG_SENSING_SPI)	+= wigig_sensing.o
 obj-$(CONFIG_HISI_HIKEY_USB)	+= hisi_hikey_usb.o
+obj-$(CONFIG_RT_REGMAP)		+= rt-regmap.o
+obj-y		+= audio_gm_cdev.o
+

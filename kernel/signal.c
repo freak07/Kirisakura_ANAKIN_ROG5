@@ -57,6 +57,11 @@
 #include <asm/siginfo.h>
 #include <asm/cacheflush.h>
 
+#ifdef CONFIG_CGF_NOTIFY_EVENT
+#include <linux/cgroup.h>
+#include <linux/notifier.h>
+#endif
+
 /*
  * SLAB caches for signal bits.
  */
@@ -904,6 +909,20 @@ static bool prepare_signal(int sig, struct task_struct *p, bool force)
 	struct task_struct *t;
 	sigset_t flush;
 
+#ifdef CONFIG_CGF_NOTIFY_EVENT
+	if (sig == SIGQUIT || sig == SIGABRT || sig == SIGKILL || sig == SIGSEGV) {
+		if (frozen(p) || freezing(p)){
+			struct cgf_event event;
+			//printk(KERN_DEBUG"[CGF] %s, sig: %d\n", __func__, sig);
+			event.info = signal;
+			event.data = p;
+			event.type = 2;
+			cgf_notifier_call_chain(sig, &event);
+		}
+	}
+#endif
+
+
 	if (signal->flags & (SIGNAL_GROUP_EXIT | SIGNAL_GROUP_COREDUMP)) {
 		if (!(signal->flags & SIGNAL_GROUP_EXIT))
 			return sig == SIGKILL;
@@ -1307,8 +1326,7 @@ int do_send_sig_info(int sig, struct kernel_siginfo *info, struct task_struct *p
  * We don't want to have recursive SIGSEGV's etc, for example,
  * that is why we also clear SIGNAL_UNKILLABLE.
  */
-static int
-force_sig_info_to_task(struct kernel_siginfo *info, struct task_struct *t)
+int force_sig_info_to_task(struct kernel_siginfo *info, struct task_struct *t)
 {
 	unsigned long int flags;
 	int ret, blocked, ignored;

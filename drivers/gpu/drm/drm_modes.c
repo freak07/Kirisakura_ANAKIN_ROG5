@@ -42,8 +42,15 @@
 #include <drm/drm_device.h>
 #include <drm/drm_modes.h>
 #include <drm/drm_print.h>
+#include <drm/drm_anakin.h>
 
 #include "drm_crtc_internal.h"
+
+/* ASUS BSP Display +++ */
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+bool asus_is_hdmi = false;
+EXPORT_SYMBOL(asus_is_hdmi);
+#endif
 
 /**
  * drm_mode_debug_printmodeline - print a mode to dmesg
@@ -1016,6 +1023,13 @@ bool drm_mode_match(const struct drm_display_mode *mode1,
 	if (!mode1 || !mode2)
 		return false;
 
+	//ASUS BSP Display +++
+	if (is_DSI_mode(mode1->vdisplay, mode1->vtotal) &&
+		!refreshrate_match(mode1->vrefresh, mode2->vrefresh)) {
+		return false;
+	}
+	//ASUS BSP Display ---
+
 	if (match_flags & DRM_MODE_MATCH_TIMINGS &&
 	    !drm_mode_match_timings(mode1, mode2))
 		return false;
@@ -1324,6 +1338,17 @@ static int drm_mode_compare(void *priv, struct list_head *lh_a, struct list_head
 	struct drm_display_mode *a = list_entry(lh_a, struct drm_display_mode, head);
 	struct drm_display_mode *b = list_entry(lh_b, struct drm_display_mode, head);
 	int diff;
+	/* ASUS BSP Display +++ */
+	#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+	int vref = 1080;
+
+	if (asus_is_hdmi && (a->vdisplay >= vref) && (b->vdisplay >= vref)) {
+		diff = b->vrefresh - a->vrefresh;
+		if (diff)
+			return diff;
+	}
+	#endif
+	/* ASUS BSP Display --- */
 
 	diff = ((b->type & DRM_MODE_TYPE_PREFERRED) != 0) -
 		((a->type & DRM_MODE_TYPE_PREFERRED) != 0);
@@ -1333,7 +1358,13 @@ static int drm_mode_compare(void *priv, struct list_head *lh_a, struct list_head
 	if (diff)
 		return diff;
 
-	diff = b->vrefresh - a->vrefresh;
+	//ASUS BSP Display +++
+	if (is_DSI_mode(a->vdisplay, a->vtotal)) {
+		diff = a->vrefresh - b->vrefresh;
+	} else {
+		diff = b->vrefresh - a->vrefresh;
+	}
+	//ASUS BSP Display ---
 	if (diff)
 		return diff;
 

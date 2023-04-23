@@ -28,6 +28,10 @@
 #include <linux/of_irq.h>
 #include <linux/spinlock.h>
 #include <dt-bindings/input/gpio-keys.h>
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+#include <linux/input/qpnp-power-on.h>
+unsigned int b_press = 0; //ASUS_BSP : Wei_Lai
+#endif
 
 struct gpio_button_data {
 	const struct gpio_keys_button *button;
@@ -367,11 +371,30 @@ static void gpio_keys_gpio_report_event(struct gpio_button_data *bdata)
 		return;
 	}
 
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+	printk("[Keys][gpio_keys.c] keycode=%d, state=%s\n", button->code, state?"press":"release");
+#endif
+
 	if (type == EV_ABS) {
 		if (state)
 			input_event(input, type, button->code, button->value);
 	} else {
 		input_event(input, type, *bdata->code, state);
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+               if(state) {
+                      if(button->code == 114)
+                              b_press |= 0x01;
+
+                      if(button->code == 115)
+                              b_press |= 0x02;
+               }else {
+                       if(button->code == 114)
+                              b_press &= ~(0x01);
+
+                       if(button->code == 115)
+                              b_press &= ~(0x02);
+               }
+#endif
 	}
 	input_sync(input);
 }

@@ -10,6 +10,11 @@
 #include <linux/regmap.h>
 #include <linux/of_platform.h>
 
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+#include <linux/proc_fs.h>
+#include <linux/seq_file.h>
+#endif
+
 #define PMIC_REV2		0x101
 #define PMIC_REV3		0x102
 #define PMIC_REV4		0x103
@@ -124,6 +129,181 @@ static const struct regmap_config spmi_regmap_can_sleep_config = {
 	.fast_io	= false,
 };
 
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+struct regmap *g_pm8350b_regmap;
+struct device *g_pm8350b_dev;
+#define pm8350b_reg_dump_PROC_FILE	"driver/pm8350b_reg_dump"
+static struct proc_dir_entry *pm8350b_reg_dump_proc_file;
+static int pm8350b_reg_dump_proc_read(struct seq_file *buf, void *v)
+{
+	unsigned int val;
+	int ret;
+	int i;
+	unsigned int address1 = 0x2600;
+	unsigned int address2 = 0x4800;
+	unsigned int address3 = 0x4F00;
+	unsigned int address4 = 0xF200;
+
+	for (i = 0; i <= 1791; i++) {
+		ret = regmap_read(g_pm8350b_regmap, address1, &val);
+		if (ret < 0)
+			seq_printf(buf, "%x: XX\n", address1);
+		else
+			seq_printf(buf, "%x: %x\n", address1, val);
+
+		address1 = address1 + 0x1;
+	}
+
+	for (i = 0; i <= 255; i++) {
+		ret = regmap_read(g_pm8350b_regmap, address2, &val);
+		if (ret < 0)
+			seq_printf(buf, "%x: XX\n", address2);
+		else
+			seq_printf(buf, "%x: %x\n", address2, val);
+
+		address2 = address2 + 0x1;
+	}
+
+	for (i = 0; i <= 255; i++) {
+		ret = regmap_read(g_pm8350b_regmap, address3, &val);
+		if (ret < 0)
+			seq_printf(buf, "%x: XX\n", address3);
+		else
+			seq_printf(buf, "%x: %x\n", address3, val);
+
+		address3 = address3 + 0x1;
+	}
+
+	for (i = 0; i <= 255; i++) {
+		ret = regmap_read(g_pm8350b_regmap, address4, &val);
+		if (ret < 0)
+			seq_printf(buf, "%x: XX\n", address4);
+		else
+			seq_printf(buf, "%x: %x\n", address4, val);
+
+		address4 = address4 + 0x1;
+	}
+
+	return 0;
+}
+
+static int pm8350b_reg_dump_proc_open(struct inode *inode, struct  file *file)
+{
+	return single_open(file, pm8350b_reg_dump_proc_read, NULL);
+}
+
+static const struct file_operations pm8350b_reg_dump_fops = {
+	.owner = THIS_MODULE,
+    .open = pm8350b_reg_dump_proc_open,
+    .read = seq_read,
+    .release = single_release,
+};
+
+void static create_pm8350b_reg_dump_proc_file(void)
+{
+	pm8350b_reg_dump_proc_file = proc_create(pm8350b_reg_dump_PROC_FILE, 0644, NULL, &pm8350b_reg_dump_fops);
+
+	if (pm8350b_reg_dump_proc_file) {
+		dev_err(g_pm8350b_dev, "[PMIC_REG_DUMP]: create_pm8350b_reg_dump_proc_file sucessed!\n");
+	} else {
+		dev_err(g_pm8350b_dev, "[PMIC_REG_DUMP]: create_pm8350b_reg_dump_proc_file failed!\n");
+	}
+}
+
+struct regmap *g_smb1396_regmap;
+struct device *g_smb1396_dev;
+#define smb1396_reg_dump_PROC_FILE	"driver/smb1396_reg_dump"
+static struct proc_dir_entry *smb1396_reg_dump_proc_file;
+static int smb1396_reg_dump_proc_read(struct seq_file *buf, void *v)
+{
+	unsigned int val;
+	int ret;
+	int i;
+	unsigned int address = 0x2600;
+
+	for (i = 0; i <= 1791; i++) {
+		ret = regmap_read(g_smb1396_regmap, address, &val);
+		if (ret < 0)
+			seq_printf(buf, "%x: XX\n", address);
+		else
+			seq_printf(buf, "%x: %x\n", address, val);
+
+		address = address + 0x1;
+	}
+
+	return 0;
+}
+
+static int smb1396_reg_dump_proc_open(struct inode *inode, struct  file *file)
+{
+	return single_open(file, smb1396_reg_dump_proc_read, NULL);
+}
+
+static const struct file_operations smb1396_reg_dump_fops = {
+	.owner = THIS_MODULE,
+    .open = smb1396_reg_dump_proc_open,
+    .read = seq_read,
+    .release = single_release,
+};
+
+void static create_smb1396_reg_dump_proc_file(void)
+{
+	smb1396_reg_dump_proc_file = proc_create(smb1396_reg_dump_PROC_FILE, 0644, NULL, &smb1396_reg_dump_fops);
+
+	if (smb1396_reg_dump_proc_file) {
+		dev_err(g_smb1396_dev, "[PMIC_REG_DUMP]: create_smb1396_reg_dump_proc_file sucessed!\n");
+	} else {
+		dev_err(g_smb1396_dev, "[PMIC_REG_DUMP]: create_smb1396_reg_dump_proc_file failed!\n");
+	}
+}
+
+#define smb1396_en_PROC_FILE	"driver/smb1396_en"
+static struct proc_dir_entry *smb1396_en_proc_file;
+static int smb1396_en_proc_read(struct seq_file *buf, void *v)
+{
+	unsigned int val = 0;
+	int ret;
+	unsigned int address = 0x2641;
+
+	ret = regmap_read(g_smb1396_regmap, address, &val);
+	if (ret < 0) {
+		dev_err(g_smb1396_dev, "[PMIC_REG_DUMP]: smb1396_en regmap_read failed\n");
+		seq_printf(buf, "%d\n", -ENODEV);
+	} else {
+		dev_err(g_smb1396_dev, "[PMIC_REG_DUMP]: smb1396_en bit[7] = 0x%x\n", val);
+		if (val & 0x80)
+			seq_printf(buf, "%d\n", true);
+		 else
+			seq_printf(buf, "%d\n", false);
+	}
+
+	return 0;
+}
+
+static int smb1396_en_proc_open(struct inode *inode, struct  file *file)
+{
+	return single_open(file, smb1396_en_proc_read, NULL);
+}
+
+static const struct file_operations smb1396_en_fops = {
+	.owner = THIS_MODULE,
+    .open = smb1396_en_proc_open,
+    .read = seq_read,
+    .release = single_release,
+};
+
+void static create_smb1396_en_proc_file(void)
+{
+	smb1396_en_proc_file = proc_create(smb1396_en_PROC_FILE, 0644, NULL, &smb1396_en_fops);
+
+	if (smb1396_en_proc_file) {
+		dev_err(g_smb1396_dev, "[PMIC_REG_DUMP]: create_smb1396_en_proc_file sucessed!\n");
+	} else {
+		dev_err(g_smb1396_dev, "[PMIC_REG_DUMP]: create_smb1396_en_proc_file failed!\n");
+	}
+}
+#endif
+
 static int pmic_spmi_probe(struct spmi_device *sdev)
 {
 	struct device_node *root = sdev->dev.of_node;
@@ -140,6 +320,23 @@ static int pmic_spmi_probe(struct spmi_device *sdev)
 	/* Only the first slave id for a PMIC contains this information */
 	if (sdev->usid % 2 == 0)
 		pmic_spmi_show_revid(regmap, &sdev->dev);
+
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+	if (sdev->usid == 0x3 && pm8350b_reg_dump_proc_file == NULL) {
+		dev_err(&sdev->dev, "[PMIC_REG_DUMP]: pm8350b name:%s\n", dev_name(&sdev->dev));
+		g_pm8350b_regmap = regmap;
+		g_pm8350b_dev = &sdev->dev;
+		create_pm8350b_reg_dump_proc_file();
+	}
+
+	if (sdev->usid == 0xb && smb1396_reg_dump_proc_file == NULL) {
+		dev_err(&sdev->dev, "[PMIC_REG_DUMP]: smb1396 name:%s\n", dev_name(&sdev->dev));
+		g_smb1396_regmap = regmap;
+		g_smb1396_dev = &sdev->dev;
+		create_smb1396_reg_dump_proc_file();		
+		create_smb1396_en_proc_file();
+	}
+#endif
 
 	return devm_of_platform_populate(&sdev->dev);
 }

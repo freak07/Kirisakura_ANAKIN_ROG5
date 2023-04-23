@@ -1,0 +1,53 @@
+config AURA_SYNC_INBOX
+	tristate "aura_sync_inbox"
+    default n
+	help
+		Enable aura_sync_inbox kernel module
+		If unsure, say N.
+
+config AURA_SYNC_STATION
+	tristate "aura_sync_station"
+    default n
+	help
+		Enable aura_sync_station kernel module
+		If unsure, say N.
+
+config AURA_SYNC_POGO
+    tristate "aura_sync_station"
+    default n
+	help
+		Enable aura_sync_station kernel module
+		If unsure, say N.
+
+config AURALIGHT_ENE8K41_PHONE
+    tristate "ENE8K41 Phone AuraLight"
+	depends on MACH_ASUS_ZS673KS
+	default n
+	help
+		Enable ENE8K41 Phone AuraLight kernel module
+		If unsure, say N.
+
+config AURALIGHT_MS51_PHONE
+    tristate "Nuvoton MS51 Phone AuraLight"
+	depends on MACH_ASUS_ZS673KS || MACH_ASUS_PICASSO
+	default m
+	help
+		Enable MS51 Phone AuraLight kernel module
+		If unsure, say N.
+
+config AURALIGHT_MS51_SIDE
+    tristate "Nuvoton MS51 Phone Side AuraLight"
+	depends on MACH_ASUS_ZS673KS
+	default n
+	help
+		Enable MS51 Phone Side Light Bar AuraLight kernel module
+		If unsure, say N.
+
+config AURALIGHT_MS51_BACKCOVER
+    tristate "Nuvoton MS51 Backcover AuraLight"
+	depends on MACH_ASUS_ZS673KS
+	default m
+	help
+		Enable MS51 BackCover AuraLight kernel module
+		If unsure, say N.
+

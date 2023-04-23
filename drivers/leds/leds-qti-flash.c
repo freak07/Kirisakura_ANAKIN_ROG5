@@ -18,7 +18,7 @@
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
 #include <linux/regmap.h>
-#include <linux/soc/qcom/battery_charger.h>
+#include <linux/soc/qcom/battery_charger_asus.h>
 
 #include "leds.h"
 

@@ -31,6 +31,7 @@
 #include <linux/of.h>
 #include <asm/current.h>
 #include <linux/timer.h>
+#include <linux/qcom_scm.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/trace_msm_ssr_event.h>
@@ -74,6 +75,10 @@ static unsigned long timeout_vals[NUM_SSR_COMMS] = {
 #define cancel_timeout(subsys)
 #define init_subsys_timer(subsys)
 #endif /* CONFIG_SETUP_SSR_NOTIF_TIMEOUTS */
+
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+#include "linux/asusdebug.h"/*AS-K ASUS SSR and Debug - Save SSR inform to asusdebug+*/
+#endif
 
 /**
  * enum p_subsys_state - state of a subsystem (private)
@@ -154,6 +159,7 @@ struct restart_log {
 	struct subsys_device *dev;
 	struct list_head list;
 };
+extern enum qcom_download_mode download_mode_adsp;//ASUS_BSP : Add for ADSP subsystem restart use
 
 /**
  * struct subsys_device - subsystem device
@@ -328,6 +334,16 @@ static ssize_t system_debug_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(system_debug);
 
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+/*AS-K ASUS SSR and Debug - devpath+++*/
+static ssize_t devpath_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	//return snprintf(buf, PAGE_SIZE, "%s\n", kobject_get_path(&(to_subsys(dev)->desc->dev->kobj), GFP_KERNEL));
+	return snprintf(buf, PAGE_SIZE, "\n");
+}
+static DEVICE_ATTR_RO(devpath);
+/*AS-K ASUS SSR and Debug - devpath---*/
+#endif
 int subsys_get_restart_level(struct subsys_device *dev)
 {
 	return dev->restart_level;
@@ -349,6 +365,18 @@ static void subsys_set_state(struct subsys_device *subsys,
 	spin_unlock_irqrestore(&subsys->track.s_lock, flags);
 }
 
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+static struct attribute *subsys_attrs[] = {
+	&dev_attr_name.attr,
+	&dev_attr_state.attr,
+	&dev_attr_crash_count.attr,
+	&dev_attr_restart_level.attr,
+	&dev_attr_firmware_name.attr,
+	&dev_attr_system_debug.attr,
+	&dev_attr_devpath.attr,/*AS-K ASUS SSR and Debug - devpath+*/
+	NULL,
+};
+#else
 static struct attribute *subsys_attrs[] = {
 	&dev_attr_name.attr,
 	&dev_attr_state.attr,
@@ -358,6 +386,7 @@ static struct attribute *subsys_attrs[] = {
 	&dev_attr_system_debug.attr,
 	NULL,
 };
+#endif
 
 ATTRIBUTE_GROUPS(subsys);
 
@@ -374,6 +403,53 @@ module_param(enable_ramdumps, int, 0644);
 
 static int enable_mini_ramdumps;
 module_param(enable_mini_ramdumps, int, 0644);
+
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+/*AS-K ASUS SSR and Debug+++*/
+static char *ssr_no_dump = NULL;
+module_param(ssr_no_dump, charp, 0644);
+static char *ssr_panic = NULL;
+module_param(ssr_panic, charp, 0644);
+
+#define MAX_SSR_REASON_LEN (128)
+static char *ssr_reason = NULL;
+module_param(ssr_reason, charp, 0444);
+#define SUBSYS_NAME_TAG "SUBSYS_NAME"/*Send SubSys UEvent+*/
+#define SUBSYS_REASON_TAG "SUBSYS_REASON"/*Send SubSys UEvent+*/
+
+void subsys_save_reason(const char *name, char *reason)/*Save SSR reason*/
+{
+	if (strlen(ssr_panic) > 0) {/*panic in a specific reason*/
+		char *pch = strstr(ssr_panic, "\n");
+		if(pch != NULL)
+			strncpy(pch, "\0", 1);
+		if (strstr(reason, ssr_panic) != NULL)
+			panic("%s", reason);
+	}
+
+	strlcpy(ssr_reason, reason, MAX_SSR_REASON_LEN);
+
+	#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+	ASUSEvtlog("[SSR]:%s %s\n", name, reason);/*Save SSR inform to ASUSEvtLog+*/	
+	SubSysHealthRecord("[SSR]:%s %s\n", name, reason);/*Save SSR inform to SubSysHealthRecord+*/
+	#endif
+}
+
+int get_ssr_enable_ramdumps(void)/*Skip save ramdump*/
+{
+	if (strlen(ssr_no_dump) > 0) {
+		char *pch = strstr(ssr_no_dump, "\n");
+		if(pch != NULL)
+			strncpy(pch, "\0", 1);
+		if (strstr(ssr_reason, ssr_no_dump) != NULL) {
+			pr_err("[SSR] Skip ramdump for reason = %s, no_dump = %s", ssr_reason, ssr_no_dump);
+			return 0;
+		}
+	}
+	return 1;
+}
+/*AS-K ASUS SSR and Debug---*/
+#endif
 
 static struct workqueue_struct *ssr_wq;
 static struct class *char_class;
@@ -931,7 +1007,15 @@ static void subsystem_restart_wq_func(struct work_struct *work)
 	unsigned int count;
 	unsigned long flags;
 	int ret;
-
+	
+	#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+	/*AS-K ASUS SSR and Debug+++*/
+	char mName_Buf[64];
+	char mReason_Buf[512];
+	char *envp[] = {mName_Buf, mReason_Buf, NULL };
+	/*AS-K ASUS SSR and Debug---*/
+	#endif
+	
 	/*
 	 * It's OK to not take the registration lock at this point.
 	 * This is because the subsystem list inside the relevant
@@ -968,6 +1052,14 @@ static void subsystem_restart_wq_func(struct work_struct *work)
 		return;
 	}
 
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+	if (get_ssr_enable_ramdumps()) {/*AS-K ASUS SSR and Debug+*/
+		/*Subsys Offline*/
+		snprintf(mName_Buf, sizeof(mName_Buf), "%s=%s", SUBSYS_NAME_TAG, desc->name);
+		snprintf(mReason_Buf, sizeof(mReason_Buf), "%s=OFFLINE", SUBSYS_REASON_TAG);
+		kobject_uevent_env(&(desc->dev->kobj), KOBJ_OFFLINE, envp);
+	}
+#endif
 	/*
 	 * It's necessary to take the registration lock because the subsystem
 	 * list in the SoC restart order will be traversed and it shouldn't be
@@ -995,6 +1087,15 @@ static void subsystem_restart_wq_func(struct work_struct *work)
 
 	for_each_subsys_device(list, count, NULL, subsystem_free_memory);
 
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+	/*AS-K ASUS SSR and Debug+++*/
+	/*Subsys Crash Reason*/
+	snprintf(mName_Buf, sizeof(mName_Buf), "%s=%s", SUBSYS_NAME_TAG, desc->name);
+	snprintf(mReason_Buf, sizeof(mReason_Buf), "%s=[SSR]:%s %s", SUBSYS_REASON_TAG, desc->name, ssr_reason);
+	kobject_uevent_env(&(desc->dev->kobj), KOBJ_CHANGE, envp);
+	/*AS-K ASUS SSR and Debug---*/
+#endif
+
 	notify_each_subsys_device(list, count, SUBSYS_BEFORE_POWERUP, NULL);
 	ret = for_each_subsys_device(list, count, NULL, subsystem_powerup);
 	if (ret)
@@ -1012,6 +1113,15 @@ err:
 	mutex_unlock(&soc_order_reg_lock);
 	mutex_unlock(&track->lock);
 
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+	if (get_ssr_enable_ramdumps()) {/*AS-K ASUS SSR and Debug+*/
+		/*Subsys Online+++*/
+		snprintf(mName_Buf, sizeof(mName_Buf), "%s=%s", SUBSYS_NAME_TAG, desc->name);
+		snprintf(mReason_Buf, sizeof(mReason_Buf), "%s=[SSR]:%s %s", SUBSYS_REASON_TAG, desc->name, ssr_reason);
+		kobject_uevent_env(&(desc->dev->kobj), KOBJ_ONLINE, envp);
+	}
+#endif
+	
 	spin_lock_irqsave(&track->s_lock, flags);
 	track->p_state = SUBSYS_NORMAL;
 	__pm_relax(dev->ssr_wlock);
@@ -1099,6 +1209,19 @@ int subsystem_restart_dev(struct subsys_device *dev)
 									name);
 		return 0;
 	}
+
+	if(strcmp(name, "adsp") == 0)
+	{
+		printk("ssr adsp, force to related ssr");
+		dev->restart_level  = RESET_SUBSYS_COUPLED;
+	}
+	//[+++]ASUS_BSP : Enable Full RAMDUMP for ADSP analysis if QPST download is enabled
+	if (strcmp(name, "adsp") == 0 && download_mode_adsp == QCOM_DOWNLOAD_FULLDUMP)
+	{
+		printk("ssr adsp, force to enter full ramdump");
+		dev->restart_level  = RESET_SOC;
+	}
+	//[---]ASUS_BSP : Enable Full RAMDUMP for ADSP analysis if QPST download is enabled
 
 	switch (dev->restart_level) {
 
@@ -1628,6 +1751,14 @@ static int __init subsys_restart_init(void)
 	ret = atomic_notifier_chain_register(&panic_notifier_list, &panic_nb);
 	if (ret)
 		goto err_soc;
+
+#if defined ASUS_ZS673KS_PROJECT || defined ASUS_PICASSO_PROJECT
+	/*AS-K ASUS SSR and Debug+++*/
+	ssr_reason = kzalloc(sizeof(char) * MAX_SSR_REASON_LEN, GFP_KERNEL);
+	ssr_panic = kzalloc(sizeof(char) * MAX_SSR_REASON_LEN, GFP_KERNEL);
+	ssr_no_dump = kzalloc(sizeof(char) * MAX_SSR_REASON_LEN, GFP_KERNEL);
+	/*AS-K ASUS SSR and Debug---*/
+#endif
 
 	return 0;
 

@@ -538,23 +538,31 @@ int drm_version(struct drm_device *dev, void *data,
 int drm_ioctl_permit(u32 flags, struct drm_file *file_priv)
 {
 	/* ROOT_ONLY is only for CAP_SYS_ADMIN */
-	if (unlikely((flags & DRM_ROOT_ONLY) && !capable(CAP_SYS_ADMIN)))
+	if (unlikely((flags & DRM_ROOT_ONLY) && !capable(CAP_SYS_ADMIN))) {
+		//printk("drm:: ioctl_permit 1");
 		return -EACCES;
+	}
 
 	/* AUTH is only for authenticated or render client */
 	if (unlikely((flags & DRM_AUTH) && !drm_is_render_client(file_priv) &&
-		     !file_priv->authenticated))
+		     !file_priv->authenticated)) {
+		printk("drm:: ioctl_permit 2");
 		return -EACCES;
+	}
 
 	/* MASTER is only for master or control clients */
 	if (unlikely((flags & DRM_MASTER) &&
-		     !drm_is_current_master(file_priv)))
+		     !drm_is_current_master(file_priv))) {
+		printk("drm:: ioctl_permit 3");
 		return -EACCES;
+	}
 
 	/* Render clients must be explicitly allowed */
 	if (unlikely(!(flags & DRM_RENDER_ALLOW) &&
-		     drm_is_render_client(file_priv)))
+		     drm_is_render_client(file_priv))) {
+		printk("drm:: ioctl_permit 4");
 		return -EACCES;
+	}
 
 	return 0;
 }
@@ -773,9 +781,20 @@ long drm_ioctl_kernel(struct file *file, drm_ioctl_t *func, void *kdata,
 	struct drm_file *file_priv = file->private_data;
 	struct drm_device *dev = file_priv->minor->dev;
 	int retcode;
+	static int count = 0;
 
 	if (drm_dev_is_unplugged(dev))
 		return -ENODEV;
+
+	if (count < 5 && (flags & DRM_MASTER)) {
+		if (file_priv)
+			printk("drm: c=%d, f=%x, im=%d, fp=%x\n",
+				count,
+				flags,
+				file_priv->is_master,
+				file_priv);
+		count++;
+	}
 
 	retcode = drm_ioctl_permit(flags, file_priv);
 	if (unlikely(retcode))

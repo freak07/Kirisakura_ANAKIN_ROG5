@@ -275,3 +275,9 @@ config USB_REDRIVER_NB7VPQ904M
 	select USB_REDRIVER
 	help
 	  Say Y here if you want to support USB super speed re-driver NB7VPQ904M.
+
+config USB_HUB_USB3803
+	tristate "USB3803 Hub Driver"
+	depends on I2C
+	help
+	　　Say Y here if device have USB3803 internal.

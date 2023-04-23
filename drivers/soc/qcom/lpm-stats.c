@@ -811,9 +811,22 @@ void lpm_stats_suspend_exit(void)
 {
 	struct timespec ts;
 	uint64_t exit_time = 0;
+    //[PM_debug +++]
+    //irq debug
+    uint32_t ns;
+    //[PM_debug ---]
 
 	getnstimeofday(&ts);
 	exit_time = timespec_to_ns(&ts) - suspend_time_stats.enter_time;
+    //[PM_debug +++]
+    //irq debug
+	ns = do_div(exit_time, NSEC_PER_SEC);
+	pr_info("Suspended for %lld.%09u secs.\n", exit_time, ns);
+    //[PM_debug ---]    
 	update_level_stats(&suspend_time_stats, exit_time, true);
+    //[PM_debug +++]
+    //irq debug
+    ASUSEvtlog("[PM] Suspended for %lld.%09u secs.\n", exit_time, ns);
+    //[PM_debug ---]
 }
 EXPORT_SYMBOL(lpm_stats_suspend_exit);

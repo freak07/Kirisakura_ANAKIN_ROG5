@@ -1021,6 +1021,7 @@ static int do_add_counters(struct net *net, const void __user *user,
 
 	local_bh_disable();
 	private = t->private;
+
 	if (private->number != tmp.num_counters) {
 		ret = -EINVAL;
 		goto unlock_up_free;

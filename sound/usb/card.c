@@ -865,6 +865,7 @@ static int usb_audio_probe(struct usb_interface *intf,
 	usb_set_intfdata(intf, chip);
 	atomic_dec(&chip->active);
 	mutex_unlock(&register_mutex);
+	pr_info("%s: [USB] usb sound card driver loaded !\n", __func__);
 	return 0;
 
  __error:
@@ -1023,6 +1024,7 @@ static int usb_audio_suspend(struct usb_interface *intf, pm_message_t message)
 		chip->system_suspend = chip->num_suspended_intf;
 	}
 
+	printk("[USB_PM] usb_audio_suspend, dev=%s\n", dev_name(&intf->dev));
 	return 0;
 }
 
@@ -1075,6 +1077,7 @@ err_out:
 
 static int usb_audio_resume(struct usb_interface *intf)
 {
+	printk("[USB_PM] usb_audio_resume, dev=%s\n", dev_name(&intf->dev));
 	return __usb_audio_resume(intf, false);
 }
 

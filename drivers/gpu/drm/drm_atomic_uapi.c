@@ -539,8 +539,11 @@ static int drm_atomic_plane_set_property(struct drm_plane *plane,
 
 	} else if (property == config->prop_crtc_id) {
 		struct drm_crtc *crtc = drm_crtc_find(dev, file_priv, val);
-		if (val && !crtc)
+		if (val && !crtc) {
+			printk("drm:: plane_set_prop");
+			dump_stack();
 			return -EACCES;
+		}
 		return drm_atomic_set_crtc_for_plane(state, crtc);
 	} else if (property == config->prop_crtc_x) {
 		state->crtc_x = U642I64(val);
@@ -681,8 +684,11 @@ static int drm_atomic_connector_set_property(struct drm_connector *connector,
 
 	if (property == config->prop_crtc_id) {
 		struct drm_crtc *crtc = drm_crtc_find(dev, file_priv, val);
-		if (val && !crtc)
+		if (val && !crtc) {
+			printk("drm:: conn_set_prop");
+			dump_stack();
 			return -EACCES;
+		}
 		return drm_atomic_set_crtc_for_connector(state, crtc);
 	} else if (property == config->dpms_property) {
 		/* setting DPMS property requires special handling, which
@@ -1425,6 +1431,5 @@ out:
 
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);
-
 	return ret;
 }

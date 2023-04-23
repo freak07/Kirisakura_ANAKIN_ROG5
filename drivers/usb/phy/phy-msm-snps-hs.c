@@ -89,6 +89,10 @@
 
 #define USB_HSPHY_VDD_HPM_LOAD			30000	/* uA */
 
+#if defined ASUS_ZS673KS_PROJECT && defined CONFIG_USB_HUB_USB3803
+extern int current_hub_mode;
+#endif
+
 struct msm_hsphy {
 	struct usb_phy		phy;
 	void __iomem		*base;
@@ -417,7 +421,20 @@ static int msm_hsphy_init(struct usb_phy *uphy)
 			USB2PHY_USB_PHY_PARAMETER_OVERRIDE_X1,
 			TXVREFTUNE0_MASK, val);
 	}
-
+#if defined ASUS_ZS673KS_PROJECT && defined CONFIG_USB_HUB_USB3803
+	if (current_hub_mode == 0 && !strcmp("88e4000.hsphy", dev_name(uphy->dev)) && g_ASUS_hwID >= HW_REV_PR) {
+		dev_info(uphy->dev, "%s hub mode\n", __func__);
+		msm_usb_write_readback(phy->base,
+			USB2PHY_USB_PHY_PARAMETER_OVERRIDE_X0,
+			PARAM_OVRD_MASK, 0x63);
+		msm_usb_write_readback(phy->base,
+			USB2PHY_USB_PHY_PARAMETER_OVERRIDE_X1,
+			PARAM_OVRD_MASK, 0xc8);
+		msm_usb_write_readback(phy->base,
+			USB2PHY_USB_PHY_PARAMETER_OVERRIDE_X2,
+			PARAM_OVRD_MASK, 0x17);
+	}
+#endif
 	if (phy->param_ovrd0) {
 		msm_usb_write_readback(phy->base,
 			USB2PHY_USB_PHY_PARAMETER_OVERRIDE_X0,
@@ -442,7 +459,7 @@ static int msm_hsphy_init(struct usb_phy *uphy)
 			PARAM_OVRD_MASK, phy->param_ovrd3);
 	}
 
-	dev_dbg(uphy->dev, "x0:%08x x1:%08x x2:%08x x3:%08x\n",
+	dev_info(uphy->dev, "x0:%08x x1:%08x x2:%08x x3:%08x\n",
 	readl_relaxed(phy->base + USB2PHY_USB_PHY_PARAMETER_OVERRIDE_X0),
 	readl_relaxed(phy->base + USB2PHY_USB_PHY_PARAMETER_OVERRIDE_X1),
 	readl_relaxed(phy->base + USB2PHY_USB_PHY_PARAMETER_OVERRIDE_X2),
