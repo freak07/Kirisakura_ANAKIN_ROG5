@@ -6830,4 +6830,7 @@ CONFIG_CORESIGHT_OST=y
 # Qualcomm Atheros CLD WLAN module
 #
 CONFIG_QCA_CLD_WLAN=y
-CONFIG_QCA_CLD_WLAN_PROFILE="default"                                                                                                                                                                                                                                                              
+CONFIG_QCA_CLD_WLAN_PROFILE="default"                        
+
+CONFIG_F2FS_REPORT_FAKE_KERNEL_VERSION=y
+CONFIG_F2FS_FAKE_KERNEL_RELEASE="5.4.147-qgki-perf-g682893052e4a"                                                                                                                                                                                                                                      
