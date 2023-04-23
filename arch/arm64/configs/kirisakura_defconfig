@@ -4910,7 +4910,7 @@ CONFIG_MSM_GENI_SE=y
 # end of Qualcomm technologies inc. MSM specific device drivers
 
 # CONFIG_MACH_ASUS is not set
-CONFIG_ASUS_GLOBAL_VAR=y
+# CONFIG_ASUS_GLOBAL_VAR is not set
 # CONFIG_MACH_ASUS_LAHAINA is not set
 
 #
