@@ -19,7 +19,7 @@ CONFIG_THREAD_INFO_IN_TASK=y
 CONFIG_INIT_ENV_ARG_LIMIT=32
 # CONFIG_COMPILE_TEST is not set
 CONFIG_UAPI_HEADER_TEST=y
-CONFIG_LOCALVERSION="-Kirisakura_ANAKIN_T_1.0.0"
+CONFIG_LOCALVERSION="-Kirisakura_ANAKIN_T_1.0.1"
 CONFIG_LOCALVERSION_AUTO=y
 CONFIG_BUILD_SALT=""
 CONFIG_DEFAULT_HOSTNAME="(none)"
@@ -6889,7 +6889,7 @@ CONFIG_QCA_CLD_WLAN=y
 CONFIG_QCA_CLD_WLAN_PROFILE="default"                        
 
 CONFIG_F2FS_REPORT_FAKE_KERNEL_VERSION=y
-CONFIG_F2FS_FAKE_KERNEL_RELEASE="5.4.147-qgki-perf-g682893052e4a"                                                                                                                                                                                                                                      
+CONFIG_F2FS_FAKE_KERNEL_RELEASE="5.4.210-qgki-perf"
 
 #
 # TCP
